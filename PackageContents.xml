@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.7.1"
+	ProductType="Application"
+
+	AutodeskProduct="Maya"
+	Name="SiSideBar"
+	Description="Autodesk Maya SiSideBar"
+	AppVersion="1.7.1"
+	Author="mochio"
+	AppNameSpace="com.autodesk.exchange.maya.sisidebar"
+	HelpFile=""
+	OnlineDocumentation=""
+
+	ProductCode="*"
+>
+	
+	<CompanyDetails Name="ys"
+		Phone=" "
+		Url=""
+		Email="" />
+
+	<RuntimeRequirements SupportPath="./Contents" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2013"/>
+
+	<Components>
+		<RuntimeRequirements SupportPath="./Contents" OS="win64" Platform="Maya" SeriesMin="2013"/>
+		<ComponentEntry ModuleName="./scripts/userSetup.py" />
+	</Components>
+	
+</ApplicationPackage>

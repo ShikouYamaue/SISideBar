@@ -1,0 +1,222 @@
+# coding:utf-8
+from . import freeze
+from . import common
+from . import lang
+from maya import cmds
+from maya import mel
+import pymel.core as pm
+try:
+    import numpy as np
+    np_flag = True
+except:
+    np_flag = False
+    
+def move_center_each_object():
+    object_mode = cmds.selectMode( q=True, o=True )
+    cmds.selectMode(o=True)
+    selection = cmds.ls(sl=True, l=True)
+    meshes = common.search_polygon_mesh(selection, fullPath=True)
+    if not meshes:
+        return
+    dummy = common.TemporaryReparent().main(mode='create')
+    for m in meshes:
+        cmds.selectMode(o=True)
+        common.TemporaryReparent().main(m, dummyParent=dummy, mode='cut')
+        cmds.select(m, r=True)
+        if not object_mode:
+            cmds.selectMode(co=True)
+        move_center2selection()
+        common.TemporaryReparent().main(m, dummyParent=dummy, mode='parent')
+    common.TemporaryReparent().main(dummyParent=dummy, mode='delete')
+    freeze.main(mesh=selection)
+    cmds.select(selection, r=True)
+        
+def move_center2selection():
+    if not cmds.ls(sl=True):
+        return
+    if cmds.selectMode( q=True, co=True ):
+        selection = cmds.ls(sl=True)
+        selMode='component'
+        verticies = cmds.polyListComponentConversion(selection , tv=True)
+        verticies = cmds.filterExpand(verticies, sm=31)
+        center = [0, 0, 0]
+        for i in range(3):
+            center[i] = sum([cmds.pointPosition(vtx, w=True)[i] for vtx in verticies])/len(verticies)
+    elif cmds.selectMode( q=True, o=True ):
+        selMode='object'
+    #スムース直後だとうまくオブジェクト選択にならないときがあるのでいったんコンポーネントを経由
+    cmds.selectMode(co=True)
+    cmds.selectMode(o=True)
+    selection = cmds.ls(sl=True, l=True, tr=True)
+    
+    childeNodes = common.search_polygon_mesh(selection, serchChildeNode=True, fullPath=True)
+    
+    selection = list(set(selection + childeNodes))
+    preLock = {}
+    for sel in selection:
+        preLock[sel] = cmds.getAttr(sel+'.translateX', lock=True)
+        for ax in ['X','Y','Z']:
+            cmds.setAttr(sel+'.translate'+ax, lock=False)
+            
+    if selMode == 'object':
+        #正しいバウンディングボックスを得るために複製、ベイク、取得、削除する
+        duplicate_mesh = cmds.duplicate(selection, rc=True)#子の名前を固有にしてエラー回避rc=True
+        cmds.bakePartialHistory(duplicate_mesh, ppt=True)
+        bBox = cmds.exactWorldBoundingBox(duplicate_mesh, ignoreInvisible=False)
+        center = [(bBox[i]+bBox[i+3])/2 for i in range(3)]
+        cmds.delete(duplicate_mesh)
+        
+    for sel in selection:
+        if np_flag:
+            sel_pos = np.array(cmds.xform(sel, q=True, t=True, ws=True))
+            offset = sel_pos - np.array(center)
+        else:
+            sel_pos = cmds.xform(sel, q=True, t=True, ws=True)
+            offset = [p-c for p, c in zip(sel_pos, center)]
+            
+        dummy = common.TemporaryReparent().main(mode='create')#モジュールでダミーの親作成
+        common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
+
+        cmds.xform(sel, t=center, ws=True)
+
+        verticies = cmds.polyListComponentConversion(sel, tv=True)
+        verticies = cmds.filterExpand(verticies, sm=31)
+
+        cmds.xform(verticies, t=offset, r=True, ws=True)
+        
+        cmds.xform(sel+'.scalePivot', t=center, ws=True)
+        cmds.xform(sel+'.rotatePivot', t=center, ws=True)
+        
+        if preLock[sel]:
+            for ax in ['X','Y','Z']:
+                cmds.setAttr(sel+'.translate'+ax, lock=True)
+
+        common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
+        common.TemporaryReparent().main(sel, dummyParent=dummy, mode='delete')
+
+    freeze.main(mesh=selection)
+    cmds.select(selection, r=True)
+    
+def reset_actor():
+    from . import sisidebar_sub
+    sel = cmds.ls(sl=True, l=True)
+    joints = cmds.ls(sl=True, l=True, type='joint')
+    if not joints:
+        joints = []
+    for s in sel:
+        if cmds.nodeType(s) == 'KTG_ModelRoot':
+            child_joints = cmds.ls(cmds.listRelatives(s, ad=True, f=True), l=True, type='joint')
+            if child_joints:
+                joints += child_joints
+    if not sel:
+        joints = cmds.ls(l=True, type='joint')
+    for j in joints:
+        con_info = cmds.connectionInfo(j+'.bindPose', dfs=True)
+        if not con_info:
+            continue
+        con_info = con_info[0]
+        bind_info = con_info.replace('world', 'xform')
+        pose = cmds.getAttr(bind_info)
+        cmds.xform(j, m=pose)
+    sisidebar_sub.get_matrix()
+        
+def set_joint_orient(reset=True):
+    from . import sisidebar_sub
+    joints = cmds.ls(sl=True, type='joint')
+
+    if len(joints) == 0:
+        confirm_mes = lang.Lang(
+            en='Nothing is selected\nDo you want to process all the joints in the scene? ',
+            ja=u'何も選択されていません\nシーン内のすべてのジョイントを処理しますか？'
+        )
+        rtn = pm.cmds.confirmDialog(title='Confirm', message=confirm_mes.output(), button=['Yes', 'No'], defaultButton='Yes',
+                              cancelButton='No', dismissString='No')
+        if rtn != 'Yes':
+            return False
+
+        joints = cmds.ls('*', type='joint')
+        if len(joints) == 0:
+            pm.confirmDialog(title='Warning', message='Joint Object Nothing.', button='OK', icon='Warning')
+            return False
+
+    for j in joints:
+        # マトリックス取得
+        mat = cmds.xform(j, q=True, m=True)
+        # 回転とジョイントの方向をいったん0に
+        cmds.rotate(0, 0, 0, j, objectSpace=True)
+        cmds.joint(j, e=True, orientation=[0, 0, 0])
+        # マトリックス再設定、回転のみに数値が入る。
+        cmds.xform(j, m=mat)
+
+        if reset:
+            # 回転取得
+            rot = cmds.xform(j, q=True, ro=True)
+            # 回転を0にしてジョイントの方向に同じ値を移す
+            cmds.rotate(0, 0, 0, j, objectSpace=True)
+            cmds.joint(j, e=True, orientation=rot)
+    sisidebar_sub.get_matrix()
+            
+def reset_transform(mode=''):
+    from . import sisidebar_sub
+    if cmds.selectMode(q=True, co=True):
+        return
+    sel = cmds.ls(sl=True, l=True)
+    if sel:
+        if mode == 'all':
+            cmds.xform(sel, t=[0, 0, 0])
+            cmds.xform(sel, ro=[0, 0, 0])
+            cmds.xform(sel, s=[1, 1, 1])
+        if mode == 'trans':
+            cmds.xform(sel, t=[0, 0, 0])
+        if mode == 'rot':
+            cmds.xform(sel, ro=[0, 0, 0])
+        if mode == 'scale':
+            cmds.xform(sel, s=[1, 1, 1])
+        if mode == 'trans' or mode =='all':
+            for s in sel:
+                cmds.xform(s+'.scalePivot', t=[0, 0, 0], ws=True)
+                cmds.xform(s+'.rotatePivot', t=[0, 0, 0], ws=True)
+        sisidebar_sub.get_matrix()
+        
+#フリーズスケーリングをまとめて
+def freeze_transform(mode=''):
+    from . import sisidebar_sub
+    try:
+        if mode == 'all':
+            cmds.makeIdentity(n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
+        if mode == 'trans':
+            cmds.makeIdentity(n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
+        if mode == 'rot':
+            cmds.makeIdentity(n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
+        if mode == 'scale':
+            cmds.makeIdentity(n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
+        if mode == 'joint':
+            cmds.makeIdentity(n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
+        if mode == 'trans' or mode =='all':
+            sel = cmds.ls(sl=True, l=True)
+            for s in sel:
+                cmds.xform(s+'.scalePivot', t=[0, 0, 0], ws=True)
+                cmds.xform(s+'.rotatePivot', t=[0, 0, 0], ws=True)
+        sisidebar_sub.get_matrix()
+    except Exception as e:
+        print e.message
+        
+def match_transform(mode=''):
+    from . import sisidebar_sub
+    pre_sel = cmds.ls(sl=True, l=True)
+    selection = cmds.ls(sl=True, l=True, type='transform')
+    if not selection:
+        return
+    sisidebar_sub.set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel)
+    cmds.inViewMessage( amg=u"<hl>Select Matching Object</hl>", pos='midCenterTop', fade=True )
+    #cmds.select(cl=True)
+    maching_tool = cmds.scriptCtx( title='Much Transform',
+                        totalSelectionSets=3,
+                        cumulativeLists=True,
+                        expandSelectionList=True,
+                        tct="edit",
+                        setNoSelectionPrompt='Select the object you want to matching transform.'
+                        )
+    cmds.setToolTo(maching_tool)
+    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', 'sisidebar_sub.trs_matching()'), protected=True)
+    sisidebar_sub.get_matrix()
