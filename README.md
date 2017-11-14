@@ -23,21 +23,22 @@
 ![20171113-212852](https://user-images.githubusercontent.com/28256498/32726190-6982b406-c8bb-11e7-9c9d-25a018194a1a.jpg)
 ![2017-11-13_23h23_06](https://user-images.githubusercontent.com/28256498/32730253-d5b4e294-c8c9-11e7-9c9c-0d21e2a5c8e8.png)
 
-##主な機能
+#主な機能
+
 ・SRT選択状態のリンク
 
 ・マニピュレータのXYZ軸とのリンク
 
 ・SRT入力窓の再現
-四則演算入力のSI方式とMaya方式の両立（10+、+=10など）
-ホイール入力への対応（Shift,Ctrlで桁調整 10, 1, 0.1）
-コンポーネントへの入力対応
-3軸ボタン、を右クリックで一括入力
+・四則演算入力のSI方式とMaya方式の両立（10+、+=10など）
+・ホイール入力への対応（Shift,Ctrlで桁調整 10, 1, 0.1）
+・コンポーネントへの入力対応
+・3軸ボタン、を右クリックで一括入力
 
 ・FreezeMの再現（ヒストリをベイクしてウェイトを書き戻し、クラスタとブレンドシェイプは保護）
-ラティスをウェイトつけたままベイクできます
-ウェイトをミュートしてからFreezeMするとバインドポーズを簡単に変更できます
-とりあえずかけておくとメッシュにまつわる大概の不具合が解消します
+・ラティスをウェイトつけたままベイクできます
+・ウェイトをミュートしてからFreezeMするとバインドポーズを簡単に変更できます
+・とりあえずかけておくとメッシュにまつわる大概の不具合が解消します
 
 ・Freezeの再現
 
@@ -46,12 +47,12 @@
 ・VolモードUniモードの再現
 
 ・Transformメニュー再現、拡充
-ResetActor
-JointOriento↔Rotation
-MutchiTransform
-FreezeTransform
-ResetTransform
-MoveCenterToSelection
+・ResetActor
+・JointOriento↔Rotation
+・MutchiTransform
+・FreezeTransform
+・ResetTransform
+・MoveCenterToSelection
 
 ・アニメーションキーボタンをついか（右クリックで3軸一括設定）
 
@@ -68,3 +69,6 @@ MoveCenterToSelection
 ・MayaシーンファイルをUIへのドラッグドロップでOpenScene扱いで開けます。自動でSetProjectされます。
 
 ・Numpyモジュールがインストールされているとコンポーネント計算が3倍くらい早くなります
+
+https://youtu.be/14T5_Ak4dAE
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Ymq6SQwWF8s" frameborder="0" gesture="media" allowfullscreen></iframe>
