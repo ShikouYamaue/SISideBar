@@ -34,7 +34,8 @@ def change_context():
     sb.change_context()
     sb.check_option_parm()
     #sb.MainWindow().set_disable(mode=None)
-
+    
+    
 #選択変更時のみの通り道を別途用意
 pre_mode = None
 def change_selection():
@@ -62,12 +63,20 @@ def change_selection():
     current_mode = cmds.selectMode(q=True, o=True)
     current_tool = cmds.currentCtx()
     #print 'current tool ;',  current_tool
+    #選択オブジェクトが切り替わったときだけ切り替え実行
+    if 'pre_sel_obj' in globals():
+        if pre_sel_obj != cmds.ls(sl=True, o=True):
+            if current_tool in target_tool_list:
+                cmds.setToolTo('selectSuperContext')
+                cmds.setToolTo(current_tool)
+    '''
     #エッジループ、フェースアイランド選択を利用出来るように、オブジェクトモードとコンポーネントモード切替時のみコンテキスト変更を行う
     if current_mode or pre_mode:
         if current_tool in target_tool_list:
             #print 'chanege context', current_tool
             cmds.setToolTo('selectSuperContext')
             cmds.setToolTo(current_tool)
+    '''
     pre_mode = current_mode
     #cmds.undo()
     #get_matrix()
@@ -83,6 +92,8 @@ def change_selection():
             sb.transform_center()
             #cmds.undoInfo(cn='cng_center', cck=True)
             return
+    global pre_sel_obj
+    pre_sel_obj = cmds.ls(sl=True, o=True)
 
 def get_matrix():
     global sb
@@ -124,9 +135,14 @@ def get_matrix():
         sb.view_np_time(culc_time='- Select Culculation Mode -')
     #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
     selection = cmds.ls(sl=True, type='float3')
-    if selection:
+    #カーブもとっておく
+    cv_selection = cmds.ls(sl=True, type='double3', fl=True)
+    #print cv_selection
+    if selection or cv_selection:
         cmds.selectMode(co=True)
-        components = cmds.polyListComponentConversion(selection, tv=True)
+        components = cmds.polyListComponentConversion(selection, tv=True)+cv_selection
+        #print components
+        #if not components:
         s_list, r_list, t_list = get_srt(components, mode='component')
         start = dt.datetime.now()
         if np_flag:

@@ -64,7 +64,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.2 -'
+version = ' - SI Side Bar / ver_2.0.3 -'
 window_name = 'SiSideBar'
 window_width = 182
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -410,6 +410,7 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
             
     #マニピュレータコンテキストを初期化
     def set_up_manip(self):
+        #print 'set_up_manip'
         if cmds.selectMode(q=True, o=True):
             sel  = cmds.ls(sl=True, l=True, type = 'transform')
             if sel:
@@ -417,6 +418,7 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
             else:
                 type = 'transform'
                 #print 'edit manip cod : object'
+            #print type
             scale_manip = cmds.manipScaleContext('Scale', e=True,
                                                                         prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
                                                                         pod=(self.editing_manip, type),#ドラッグ後に実行
@@ -430,14 +432,20 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
                                                                         pod=(self.editing_manip, type),#ドラッグ後に実行
                                                                         prc=(self.select_from_current_context))#ツールを開始したときに実行
         if cmds.selectMode(q=True, co=True):
+            sel  = cmds.ls(sl=True, l=True)
+            if sel:
+                #複数のコンポーネントタイプに対応Podはリストの最後のタイプでないとだめみたい
+                type = cmds.nodeType(sel[-1])
+            else:
+                type = 'mesh'
             scale_manip = cmds.manipScaleContext('Scale', e=True, 
-                                                                            pod=(self.editing_manip, 'mesh'),
+                                                                            pod=(self.editing_manip, type),
                                                                             prc=(self.select_from_current_context))
             rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                            pod=(self.editing_manip, 'mesh'),
+                                                                            pod=(self.editing_manip, type),
                                                                             prc=(self.select_from_current_context))
             move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                            pod=(self.editing_manip, 'mesh'),
+                                                                            pod=(self.editing_manip, type),
                                                                             prc=(self.select_from_current_context))
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
     def reload_srt(self):
@@ -2969,9 +2977,15 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
         else:#コンポーネント選択の時の処理
             if pre_trans[axis] == value:
                 return
+            #カーブもとっておく
+            cv_selection = cmds.ls(sl=True, type='double3', fl=True)
             components = cmds.polyListComponentConversion(selection, tv=True)
-            components = cmds.filterExpand(components, sm=31)
+            if components:
+                components = cmds.filterExpand(components, sm=31)+cv_selection
+            else:
+                components = cv_selection
             obj_list = list(set([vtx.split('.')[0] for vtx in components]))
+            #obj_list = cmds.ls(hl=True)
             obj_dict = {obj:[] for obj in obj_list}
             [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
             #print obj_dict
@@ -2990,7 +3004,7 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
                    elif sign == '-':
                        add_value = -1*value
                    else:
-                       exec('add_value = sub_value '+sign+' value-sub_value')
+                       exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
                 else:
                    add_value = value - pre_trans[axis]
                 #print 'add value', add_value
