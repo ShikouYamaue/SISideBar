@@ -64,7 +64,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.1 -'
+version = ' - SI Side Bar / ver_2.0.2 -'
 window_name = 'SiSideBar'
 window_width = 182
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -447,9 +447,13 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
     reload = Signal()
     #スロット,postDragCommand(pod)と接続
     def editing_manip(self):
+        #from . import sisidebar_sub
         if scl_vol_group.checkedId() != -1 and select_scale.isChecked():
             mode = scl_vol_group.checkedId()
-            vol_job = cmds.scriptJob(ro=True, e=("idle", "sisidebar_sub.volume_scaling("+str(mode)+")"), protected=True)
+            #print 'volmode'
+            #sisidebar_sub.volume_scaling(mode)
+            sisidebar_sub.set_vol_mode(mode)
+            vol_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.volume_scaling), protected=True)
         self.select_xyz_from_manip()
             
         self.reload.emit()
@@ -2889,6 +2893,10 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
                 #print 'Pivot COG :', piv_pos
                 if sid == 0 or sid == 4:
                     cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
+                if sid == 3:#オブジェクトモードの時
+                    cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, eu=True, p=piv_pos)
+                if sid == 1 or sid == 2 or sid == 5:#ローカルスペース
+                    cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, os=True, p=piv_pos)
                     #return
             else:
                 #COGグローバル以外の処理
@@ -3022,6 +3030,8 @@ class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
         
     #入力文字を分解して数値とシンボルに変える
     def text2num(self, text):
+        if text == ' ':
+            return 0.0, None
         signs = ['+', '-', '*', '/']
         try:
             return float(text), None

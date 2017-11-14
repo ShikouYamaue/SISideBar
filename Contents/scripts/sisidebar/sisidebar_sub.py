@@ -353,8 +353,11 @@ def set_reference(mode=''):
         cmds.select(cl=True)
     sb.after_pick_context(ctx=c_ctx)
     
+def set_vol_mode(mode):
+    global vol_mode
+    vol_mode = mode
     
-def volume_scaling(mode):
+def volume_scaling():
         #print 'volume_mode :', mode
         undo_scale = cmds.undoInfo(q=True, un=True)
         #print '1st undo info :', undo_scale
@@ -366,7 +369,7 @@ def volume_scaling(mode):
         #print 'scale 1.0 count :', s1_count
         if s1_count == 0:
             return
-        if mode == 5:
+        if vol_mode == 5:
             scale_num = reduce(lambda a, b : a*b, scale_list)
             #print 'all scale multiply :', scale_num
             if s1_count == 2:
@@ -381,7 +384,7 @@ def volume_scaling(mode):
                     scale_list[i] = s/div_scale
                 else:
                     scale_list[i] = 1.0
-        if mode == 2:
+        if vol_mode == 2:
             for s in scale_list:
                 if s != 1.0:
                     soro_scale = s
