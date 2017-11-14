@@ -218,5 +218,5 @@ def match_transform(mode=''):
                         setNoSelectionPrompt='Select the object you want to matching transform.'
                         )
     cmds.setToolTo(maching_tool)
-    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', 'sisidebar_sub.trs_matching()'), protected=True)
+    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', sisidebar_sub.trs_matching), protected=True)
     sisidebar_sub.get_matrix()

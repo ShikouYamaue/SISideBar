@@ -48,7 +48,8 @@ if maya_ver < 2015:
 elif maya_ver < 2017:
     from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
-elif 2017 <= maya_ver and maya_ver < 2018:
+#2017以降だったらパッチあてる、2018でもまだ不具合あるっぽい
+elif 2017 <= maya_ver and maya_ver < 2019:
     # TODO: 新バージョンが出たら確認すること
     print 'import patched mixin'
     from .patch import m2017
@@ -64,13 +65,13 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.3 -'
+version = ' - SI Side Bar / ver_2.0.4 -'
 window_name = 'SiSideBar'
-window_width = 182
+window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
 top_h = 20#トップレベルボタンの高さ
-si_w = 79
-maya_w = 76
+si_w = 80
+maya_w = 77
 #フロートウィンドウのオフセット量をまとめて管理
 if maya_ver >= 2017:
     transform_offset = [-10, -10, 115, 0]
@@ -178,7 +179,7 @@ class FloatingWindow(MayaQWidgetBaseMixin, QMainWindow):
         wrapper.setLayout(f_layout)
         f_layout.addWidget(menus)
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
-        self.show()
+        self.show()#Showしてから移動しないとほしい位置が取れない
         move_to_best_pos(object=self, offset=offset)
         
 #フローティングで出した窓をベストな位置に移動する
@@ -211,46 +212,32 @@ def move_to_best_pos(object=None, offset=None):
             move_x = def_x+sub_x-mx
         object.move(move_x, cur_y)
 
+#2016以下は通常起動
 class Option():
     def __init__(self, init_pos=False):
+        print 'init in Option'
         #循環参照回避のため関数内で呼び出し
         global sisidebar_sub
         from . import sisidebar_sub as sisidebar_sub
-        show_flag = True
-        if maya_ver >= 2018:#2018以降はワークスペースコントロールを開くだけ
-            if cmds.workspaceControl(u'SiSideBarWorkspaceControl', ex=True):
-                #cmds.workspaceControl(u'SiSideBarWorkspaceControl', e=True, rs=True)
-                #cmds.workspaceControl(u'SiSideBarWorkspaceControl', e=True, wp='free')
-                window._initUI()#再イニシャライズしないとシグナルが切れる
-                show_flag = False
-        if maya_ver == 2017:
-            if cmds.workspaceControl(u'SiSideBarWorkspaceControl', ex=True):
-                print 'delete ui'
-                cmds.deleteUI(u'SiSideBarWorkspaceControl')
-
-        if show_flag:
-            #開いてたら一旦閉じる
-            try:
-                window.dockCloseEventTriggered()
-                window.close()
-            except:
-                pass
-            global window
-            window = MainWindow(init_pos=init_pos)
-            save_data = window.load(init_pos=init_pos)
-            if save_data['floating'] is False and save_data['area'] is not None:
-                window.show(
-                    dockable=True,
-                    area=save_data['area'],
-                    floating=save_data['floating'],
-                    width=save_data['sw'],
-                    height=save_data['sh']
-                )
-            else:
-                window.show(dockable=True)
-        if maya_ver == 2017:
+        #開いてたら一旦閉じる
+        try:
+            window.dockCloseEventTriggered()
+            window.close()
+        except:
             pass
-            
+        global window
+        window = SiSideBarWeight(init_pos=init_pos)
+        save_data = window.load(init_pos=init_pos)
+        if save_data['floating'] is False and save_data['area'] is not None:
+            window.show(
+                dockable=True,
+                area=save_data['area'],
+                floating=save_data['floating'],
+                width=save_data['sw'],
+                height=save_data['sh']
+            )
+        else:
+            window.show(dockable=True)
         #アクティブウィンドウにする
         window.activateWindow()
         window.raise_()
@@ -258,9 +245,11 @@ class Option():
     
 global script_job
 #script_job = None#二個目を許可するときは一時的に開放すべし
-class MainWindow(MayaQWidgetDockableMixin, QMainWindow):
+class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
     def __init__(self, parent = None, init_pos=False):
-        super(MainWindow, self).__init__(parent)
+        super(SiSideBarWeight, self).__init__(parent)
+        global sisidebar_sub
+        from . import sisidebar_sub as sisidebar_sub
         #ウィンドウサイズのポリシー、.fixedにすると固定される
         #print '/*/*/**/*/*/*/*/*/*/* init_SiSideBar /*/*/*/*/*/*/*/*/'
         self.display = True#ウィンドウスタートアップフラグを立てる
@@ -4056,5 +4045,160 @@ def create_focus_job():
             
 def change_selection_display():
     window.display_selection()
-            
+    
+#UIの再構築--------------------------------------------------------------------------------------------
+def get_save_dir():
+    _dir = os.environ.get('MAYA_APP_DIR')
+    return os.path.join(_dir, 'Scripting_Files')
 
+def get_shelf_floating_filepath():
+    return os.path.join(get_save_dir(), 'shelf_floating.json')
+      
+def get_ui(name, weight_type):
+    all_ui = {w.objectName(): w for w in QApplication.allWidgets()}
+    ui = []
+    for k, v in all_ui.items():
+        if name not in k:
+            continue
+        # 2017だとインスタンスの型をチェックしないと別の物まで入ってきてしまうらしい
+        # 2016以前だと比較すると通らなくなる…orz
+        if maya_ver >= 2017:
+            if v.__class__.__name__ == weight_type:
+                return v
+        else:
+            return v
+    return None      
+
+def get_show_repr(vis_judgment=True):
+    '''
+    UIの状態を取得
+    :param vis_judgment:表示状態を考慮するか
+    :return:
+    '''
+    dict_ = {}
+    dict_['display'] = False
+    dict_['dockable'] = True
+    dict_['floating'] = True
+    dict_['area'] = None
+    dict_['x'] = 0
+    dict_['y'] = 0
+    dict_['width'] = 400
+    dict_['height'] = 150
+
+    _ui = get_ui(TITLE, 'SiSideBarWeight')
+    if _ui is None:
+        return dict_
+
+    if vis_judgment is True and _ui.isVisible() is False:
+        return dict_
+
+    dict_['display'] = True
+    dict_['dockable'] = _ui.isDockable()
+    dict_['floating'] = _ui.isFloating()
+    dict_['area'] = _ui.dockArea()
+    if dict_['dockable'] is True:
+        dock_dtrl = _ui.parent()
+        _pos = dock_dtrl.mapToGlobal(QtCore.QPoint(0, 0))
+    else:
+        _pos = _ui.pos()
+    _sz = _ui.geometry().size()
+    dict_['x'] = _pos.x()
+    dict_['y'] = _pos.y()
+    dict_['width'] = _sz.width()
+    dict_['height'] = _sz.height()
+    return dict_
+    
+TITLE = "SiSideBar"
+def make_ui():
+    # 同名のウインドウが存在したら削除
+    ui = get_ui(TITLE, 'SiSideBarWeight')
+    if ui is not None:
+        ui.close()
+
+    app = QApplication.instance()
+    ui = SiSideBarWeight()
+    return ui
+
+def load_floating_data():
+    path = get_shelf_floating_filepath()
+    if os.path.isfile(path) is False:
+        return None
+    f = open(path, 'r')
+    dict_ = json.load(f)
+    return dict_
+    
+def main(x=None, y=None, init_pos=False):
+    #Maya2016以下はいままで通りのしょり
+    if maya_ver <= 2016:
+        Option(init_pos=init_pos)
+        return
+    # 画面中央に表示
+    global window
+    window = make_ui()
+    _floating = load_floating_data()
+    if _floating:
+        width = _floating['width']
+        height = _floating['height']
+    else:
+        width = None
+        height = None
+
+    ui_script = "import sisidebar.sisidebar_main;sisidebar.sisidebar_main.restoration_workspacecontrol()"
+    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
+    opts = {
+        "dockable": True,
+        "floating": True,
+        "width": width,
+        "height": height,
+        # 2017でのバグ回避のため area: left で決め打ちしてしまっているが
+        # 2017未満ではrestoration_docking_ui で area を再設定するため問題ない
+        # 2017 では workspace layout にどこにいるか等の実体がある
+        "area": "left",
+        "allowedArea": None,
+        "x": x,
+        "y": y,
+
+        # below options have been introduced at 2017
+        "widthSizingProperty": None,
+        "heightSizingProperty": None,
+        "initWidthAsMinimum": None,
+        "retain": False,
+        "plugins": None,
+        "controls": None,
+        "uiScript": ui_script,
+        "closeCallback": None
+    }
+
+    window.setDockableParameters(**opts)
+
+
+def restoration_workspacecontrol():
+    #print 'si side bar : restoration_workspacecontrol'
+    # workspacecontrolの再現用
+    global window
+    window = make_ui()
+    ui_script = "import sisidebar.sisidebar_main;sisidebar.sisidebar_main.restoration_workspacecontrol()"
+    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
+    opts = {
+        "dockable": True,
+        "floating": False,
+        "area": "left",
+        "allowedArea": None,
+        "x": None,
+        "y": None,
+        # below options have been introduced at 2017
+        "widthSizingProperty": None,
+        "heightSizingProperty": None,
+        "initWidthAsMinimum": None,
+        "retain": False,
+        "plugins": None,
+        "controls": None,
+        "uiScript": ui_script,
+        "closeCallback": None
+    }
+    window.setDockableParameters(**opts)
+    
+
+
+if __name__ == '__main__':
+    main()

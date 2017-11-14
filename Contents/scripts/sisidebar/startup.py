@@ -32,7 +32,7 @@ def menu_setup():
             '''
                 import sisidebar.sisidebar_main
                 import sisidebar.sisidebar_sub
-                sisidebar.sisidebar_main.Option()
+                sisidebar.sisidebar_main.main()
             ''')
     )
     cmds.menuItem(
@@ -45,7 +45,7 @@ def menu_setup():
             '''
                 import sisidebar.sisidebar_main
                 import sisidebar.sisidebar_sub
-                sisidebar.sisidebar_main.Option(init_pos=True)
+                sisidebar.sisidebar_main.main(init_pos=True)
             ''')
     )
 
@@ -89,7 +89,7 @@ def register_sishelf_runtime_command():
         'annotation':      "Open SiSideBar",
         'category':        "SiSideBar",
         'commandLanguage': "python",
-        'command':         r'''"import sisidebar.sisidebar_main as ssbm\r\ssbm.Option() "''',
+        'command':         r'''"import sisidebar.sisidebar_main as ssbm\r\ssbm.SiSideBarWeight() "''',
         'cmd_name':        "OpenSiSideBar"
     }
     register_runtime_command(opts)
@@ -111,5 +111,5 @@ def execute():
     menu_setup()
     register_sishelf_runtime_command()
     # 2017以降ではworkspaceControlがあるので記録と復元は必要ない
-    if int(cmds.about(v=True)) < 2020:
+    if int(cmds.about(v=True)[:4]) < 2017:
         maya.utils.executeDeferred(sisidebar_main.load_with_start_up)
