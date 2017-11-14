@@ -70,5 +70,7 @@
 
 ・Numpyモジュールがインストールされているとコンポーネント計算が3倍くらい早くなります
 
+・とりあえず使用説明動画とってみました
 https://youtu.be/14T5_Ak4dAE
-<iframe width="560" height="315" src="https://www.youtube.com/embed/Ymq6SQwWF8s" frameborder="0" gesture="media" allowfullscreen></iframe>
+https://youtu.be/Ymq6SQwWF8s
+https://youtu.be/tC5p24b9sUQ
