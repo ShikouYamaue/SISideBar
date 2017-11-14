@@ -11,10 +11,10 @@ class Lang(object):
         lang = 'en'
         env = re.sub('_.+', '', os.environ.get('MAYA_UI_LANGUAGE', ''))
         loc = re.sub('_.+', '', locale.getdefaultlocale()[0])
-        if env != '':
-            lang = env
         if loc != '':
             lang = loc
+        if env != '':
+            lang = env
         if lang == 'ja':
             return self.jp
         if lang == 'en':

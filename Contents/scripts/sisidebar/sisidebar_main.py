@@ -36,8 +36,8 @@ except:
     np_exist = False
     
     
+maya_ver = int(cmds.about(v=True)[:4])
 maya_api_ver = int(cmds.about(api=True))
-maya_ver = int(cmds.about(v=True))
 print 'Init SI Side Ber : Maya Ver :', maya_ver
 print 'Init SI Side Ber : Maya API Ver :', maya_api_ver
 from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
