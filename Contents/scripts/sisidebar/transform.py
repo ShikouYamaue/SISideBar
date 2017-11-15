@@ -2,6 +2,7 @@
 from . import freeze
 from . import common
 from . import lang
+from . import qt
 from maya import cmds
 from maya import mel
 import pymel.core as pm
@@ -126,8 +127,8 @@ def set_joint_orient(reset=True):
 
     if len(joints) == 0:
         confirm_mes = lang.Lang(
-            en='Nothing is selected\nDo you want to process all the joints in the scene? ',
-            ja=u'何も選択されていません\nシーン内のすべてのジョイントを処理しますか？'
+            en='Joint is not selected\nDo you want to process all the joints in the scene? ',
+            ja=u'ジョイントが選択されていません\nシーン内のすべてのジョイントを処理しますか？'
         )
         rtn = pm.cmds.confirmDialog(title='Confirm', message=confirm_mes.output(), button=['Yes', 'No'], defaultButton='Yes',
                               cancelButton='No', dismissString='No')
@@ -208,7 +209,10 @@ def match_transform(mode=''):
     if not selection:
         return
     sisidebar_sub.set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel)
-    cmds.inViewMessage( amg=u"<hl>Select Matching Object</hl>", pos='midCenterTop', fade=True )
+    
+    msg = lang.Lang(en=u"<hl>Select Matching Object</hl>",
+                            ja=u"<hl>一致対象オブジェクトを選択してください</hl>")
+    cmds.inViewMessage( amg=msg.output(), pos='midCenterTop', fade=True )
     #cmds.select(cl=True)
     maching_tool = cmds.scriptCtx( title='Much Transform',
                         totalSelectionSets=3,
@@ -218,5 +222,5 @@ def match_transform(mode=''):
                         setNoSelectionPrompt='Select the object you want to matching transform.'
                         )
     cmds.setToolTo(maching_tool)
-    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', sisidebar_sub.trs_matching), protected=True)
+    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(sisidebar_sub.trs_matching)), protected=True)
     sisidebar_sub.get_matrix()

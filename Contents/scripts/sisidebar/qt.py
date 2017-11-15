@@ -10,6 +10,59 @@ try:
 except ImportError:
     from PySide.QtGui import *
     from PySide.QtCore import *
+try:
+    imp.find_module("shiboken2")
+    import shiboken2 as shiboken
+except ImportError:
+    import shiboken
+    
+maya_window = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    
+maya_ver = int(cmds.about(v=True)[:4])
+maya_api_ver = int(cmds.about(api=True))
+try:
+    from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
+    #2017以降だったらパッチあてる、2018でもまだ不具合あるっぽい
+    if 2017 <= maya_ver and maya_ver < 2019:
+        # TODO: 新バージョンが出たら確認すること
+        print 'import patched mixin'
+        from .patch import m2017
+        #from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+        MayaQWidgetDockableMixin = m2017.MayaQWidgetDockableMixin2017
+    else:
+        from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+        
+    class MainWindow(MayaQWidgetBaseMixin, QMainWindow):
+       def __init__(self, *args, **kwargs):
+           super(MainWindow, self).__init__(*args, **kwargs)
+    class DockWindow(MayaQWidgetDockableMixin, QMainWindow):
+       def __init__(self, *args, **kwargs):
+           super(DockWindow, self).__init__(*args, **kwargs)
+           
+    #2018の不具合対応のためにQMainWindow用意しておく
+    class SubWindow(QMainWindow):
+        def __init__(self, parent = maya_window):
+            super(SubWindow, self).__init__(maya_window)
+           
+#2014以前はMixin無いのでMainWindow使う
+except ImportError:
+    import shiboken
+    maya_window = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    
+    class MainWindow(QMainWindow):
+        def __init__(self, parent = maya_window):
+            super(MainWindow, self).__init__(maya_window)
+           
+    class DockWindow(QMainWindow):
+        def __init__(self, parent = maya_window):
+            super(DockWindow, self).__init__(maya_window)
+            
+    class SubWindow(QMainWindow):
+        def __init__(self, parent = maya_window):
+            super(SubWindow, self).__init__(maya_window)
+    
+    
+    
     
 class Callback(object):
     def __init__(self, func, *args, **kwargs):

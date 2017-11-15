@@ -40,24 +40,6 @@ maya_ver = int(cmds.about(v=True)[:4])
 maya_api_ver = int(cmds.about(api=True))
 print 'Init SI Side Ber : Maya Ver :', maya_ver
 print 'Init SI Side Ber : Maya API Ver :', maya_api_ver
-from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
-if maya_ver < 2015:
-    # 2014以下のバージョン用
-    MayaQWidgetDockableMixin = object
-
-elif maya_ver < 2017:
-    from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-
-#2017以降だったらパッチあてる、2018でもまだ不具合あるっぽい
-elif 2017 <= maya_ver and maya_ver < 2019:
-    # TODO: 新バージョンが出たら確認すること
-    print 'import patched mixin'
-    from .patch import m2017
-    #from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-    MayaQWidgetDockableMixin = m2017.MayaQWidgetDockableMixin2017
-
-else:
-    from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 
 if maya_ver <= 2015:
     image_path = os.path.join(os.path.dirname(__file__), 'icon2015/')
@@ -65,7 +47,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.4 -'
+version = ' - SI Side Bar / ver_2.0.5 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -73,16 +55,20 @@ top_h = 20#トップレベルボタンの高さ
 si_w = 80
 maya_w = 77
 #フロートウィンドウのオフセット量をまとめて管理
+#dy, fy, px, mx
 if maya_ver >= 2017:
-    transform_offset = [-10, -10, 115, 0]
+    transform_offset = [-40, -40, 385, -180]
+elif  maya_ver >= 2016:
+    transform_offset = [-40, -40, 340, -180]
 else:
-    transform_offset = [-10, -10, 60, 0]
-prop_offset = [15, 15, 120, 5]
+    transform_offset = [-40, -40, 355, -180]
 if maya_ver >= 2016:
-    sym_offset = [15, 15, 110, 5]
+    prop_offset = [-55, -55, 315, -175]
+    sym_offset = [-55, -55, 300, -175]
 else:
-    sym_offset = [15, 15, 130, 5]
-filter_offset = [30, 30, 30, 0]
+    prop_offset = [-55, -55, 315, -180]
+    sym_offset = [-55, -55, 320, -180]
+filter_offset = [-100, -100, 215, -180]
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -162,14 +148,13 @@ def read_save_file(init_pos=False):
             with open(w_file, 'r') as f:
                 save_data = json.load(f)
         except Exception as e:
-            tool_analyzer.errorAnalyze('SI Side Bar Load Data Error')
             save_data = def_data
     else:
         save_data = def_data
     return save_data
         
 #フローティングメニュー作成
-class FloatingWindow(MayaQWidgetBaseMixin, QMainWindow):
+class FloatingWindow(qt.SubWindow):
     def __init__(self, parent = None, menus=[], offset=None):
         super(FloatingWindow, self).__init__(parent)
         wrapper = QWidget()
@@ -190,12 +175,19 @@ def move_to_best_pos(object=None, offset=None):
         mx = offset[3]
         #デフォルト出現位置とカーソル位置から最適な位置を算出して移動
         dock_dtrl = window.parent()
-        win_pos = dock_dtrl.mapToGlobal(QPoint(0, 0))
+        if maya_ver >= 2015:
+            win_pos = dock_dtrl.mapToGlobal(QPoint(0, 0))
+        else:
+            win_pos = window.pos()
+            
         cur_pos = QCursor.pos()
         if maya_ver >= 2017:
             float_flag = cmds.workspaceControl(u'SiSideBarWorkspaceControl',q=True, fl=True)
         else:
-            float_flag = window.isFloating()
+            if maya_ver >= 2015:
+                float_flag = window.isFloating()
+            else:
+                float_flag = True
             
         cur_y = cur_pos.y()
         if float_flag:
@@ -210,6 +202,7 @@ def move_to_best_pos(object=None, offset=None):
             move_x = def_x+sub_x-px
         else:
             move_x = def_x+sub_x-mx
+        #print move_x, cur_y
         object.move(move_x, cur_y)
 
 #2016以下は通常起動
@@ -221,7 +214,10 @@ class Option():
         from . import sisidebar_sub as sisidebar_sub
         #開いてたら一旦閉じる
         try:
-            window.dockCloseEventTriggered()
+            try:
+                window.dockCloseEventTriggered()
+            except:
+                pass
             window.close()
         except:
             pass
@@ -237,7 +233,11 @@ class Option():
                 height=save_data['sh']
             )
         else:
-            window.show(dockable=True)
+            if maya_ver >= 2015:
+                window.show(dockable=True)
+            else:
+                window.show()
+                
         #アクティブウィンドウにする
         window.activateWindow()
         window.raise_()
@@ -245,7 +245,7 @@ class Option():
     
 global script_job
 #script_job = None#二個目を許可するときは一時的に開放すべし
-class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
+class SiSideBarWeight(qt.DockWindow):
     def __init__(self, parent = None, init_pos=False):
         super(SiSideBarWeight, self).__init__(parent)
         global sisidebar_sub
@@ -359,7 +359,7 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
             but.setIcon(QIcon(image_path+icon_list[axis][1]))
             
     #マニピュレータの選択状態が変更されたらサイドバーへも反映する
-    def select_xyz_from_manip(self):
+    def select_xyz_from_manip(self, handle_id=0, keep=True):
         current_tool = cmds.currentCtx()
         tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext']
         try:
@@ -373,29 +373,31 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
                                     [True, True, True],
                                     [True, True, False],
                                     [False, True, True],
-                                    [True, False, True]
-                                    ]
+                                    [True, False, True]]
         rot_active_list = [[True, False, False],
                                     [False, True, False],
                                     [False, False, True],
                                     [True, True, True],
-                                    [True, True, True]
-                                    ]
+                                    [True, True, True]]
         if mode == 0:
-            handle_id = cmds.manipScaleContext('Scale', q=True, cah=True)
+            if maya_ver >= 2015:
+                handle_id = cmds.manipScaleContext('Scale', q=True, cah=True)
             active_list = scl_move_active_list
         if mode == 1:
-            handle_id = cmds.manipRotateContext('Rotate', q=True, cah=True)
+            if maya_ver >= 2015:
+                handle_id = cmds.manipRotateContext('Rotate', q=True, cah=True)
             active_list = rot_active_list
         if mode == 2:
-            handle_id = cmds.manipMoveContext('Move', q=True, cah=True)
+            if maya_ver >= 2015:
+                handle_id = cmds.manipMoveContext('Move', q=True, cah=True)
             active_list = scl_move_active_list
         #print 'handle id :', handle_id
         for i, but in enumerate(self.all_axis_but_list[mode][0:3]):
             #print i, mode, handle_id
             #print 'check xyz but active :', active_list[handle_id][i]
             but.setChecked(active_list[handle_id][i])
-        self.keep_srt_select(mode=mode)
+        if keep:
+            self.keep_srt_select(mode=mode)
             
     #マニピュレータコンテキストを初期化
     def set_up_manip(self):
@@ -408,18 +410,29 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
                 type = 'transform'
                 #print 'edit manip cod : object'
             #print type
-            scale_manip = cmds.manipScaleContext('Scale', e=True,
-                                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
-            rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
-            move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
+            if maya_ver >=2015:
+                scale_manip = cmds.manipScaleContext('Scale', e=True,
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                                            prc=(self.select_from_current_context))#ツールを開始したときに実行
+                rot_manip = cmds.manipRotateContext('Rotate', e=True, 
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                                            prc=(self.select_from_current_context))#ツールを開始したときに実行
+                move_manip = cmds.manipMoveContext('Move', e=True, 
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                                            prc=(self.select_from_current_context))#ツールを開始したときに実行
+            else:
+                scale_manip = cmds.manipScaleContext('Scale', e=True,
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type))#ドラッグ後に実行
+                rot_manip = cmds.manipRotateContext('Rotate', e=True, 
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type))#ドラッグ後に実行
+                move_manip = cmds.manipMoveContext('Move', e=True, 
+                                                                            prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                                            pod=(self.editing_manip, type))#ドラッグ後に実行
         if cmds.selectMode(q=True, co=True):
             sel  = cmds.ls(sl=True, l=True)
             if sel:
@@ -427,15 +440,23 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
                 type = cmds.nodeType(sel[-1])
             else:
                 type = 'mesh'
-            scale_manip = cmds.manipScaleContext('Scale', e=True, 
-                                                                            pod=(self.editing_manip, type),
-                                                                            prc=(self.select_from_current_context))
-            rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                            pod=(self.editing_manip, type),
-                                                                            prc=(self.select_from_current_context))
-            move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                            pod=(self.editing_manip, type),
-                                                                            prc=(self.select_from_current_context))
+            if maya_ver >=2015:
+                scale_manip = cmds.manipScaleContext('Scale', e=True, 
+                                                                                pod=(self.editing_manip, type),
+                                                                                prc=(self.select_from_current_context))
+                rot_manip = cmds.manipRotateContext('Rotate', e=True, 
+                                                                                pod=(self.editing_manip, type),
+                                                                                prc=(self.select_from_current_context))
+                move_manip = cmds.manipMoveContext('Move', e=True, 
+                                                                                pod=(self.editing_manip, type),
+                                                                                prc=(self.select_from_current_context))
+            else:
+                scale_manip = cmds.manipScaleContext('Scale', e=True, 
+                                                                                pod=(self.editing_manip, type))
+                rot_manip = cmds.manipRotateContext('Rotate', e=True, 
+                                                                                pod=(self.editing_manip, type))
+                move_manip = cmds.manipMoveContext('Move', e=True, 
+                                                                                pod=(self.editing_manip, type))
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
     def reload_srt(self):
         sisidebar_sub.get_matrix()
@@ -444,15 +465,18 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
     reload = Signal()
     #スロット,postDragCommand(pod)と接続
     def editing_manip(self):
-        #from . import sisidebar_sub
+        #print 'editing manip'
         if scl_vol_group.checkedId() != -1 and select_scale.isChecked():
             mode = scl_vol_group.checkedId()
             #print 'volmode'
             #sisidebar_sub.volume_scaling(mode)
             sisidebar_sub.set_vol_mode(mode)
             vol_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.volume_scaling), protected=True)
-        self.select_xyz_from_manip()
-            
+        if maya_ver >= 2015:
+            self.select_xyz_from_manip()
+        else:
+            #2014以前はアンドゥインフォから強引に軸を取得する
+            handle_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.current_handle_getter), protected=True)
         self.reload.emit()
         #センター一致を実行する→culcのget_matrix時に実行するように変更
         
@@ -465,8 +489,14 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         
     def load(self, init_pos=False):
         save_data = read_save_file(init_pos=init_pos)
-        self.pw = save_data['pw']-8#誤差補正
-        self.ph = save_data['ph']-31#誤差補正
+        if maya_ver >= 2015:
+            offset_w = -8
+            offset_h = -31
+        else:
+            offset_w = 0
+            offset_h = 0
+        self.pw = save_data['pw'] + offset_w#誤差補正
+        self.ph = save_data['ph'] + offset_h#誤差補正
         self.sw = save_data['sw']
         self.sh = save_data['sh']
         self.move(self.pw, self.ph)
@@ -489,20 +519,29 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         return save_data
         
     def save(self, display=True):
+        #print 'save'
         if not os.path.exists(self.dir_path):
             os.makedirs(self.dir_path)
         save_data = {}
         
         save_data['display'] = display
-        save_data['dockable'] = self.isDockable()
+        if maya_ver >= 2015:
+            save_data['dockable'] = self.isDockable()
+        else:
+            save_data['dockable'] = False
         global maya_ver
         if maya_ver >= 2017:
             save_data['floating'] = cmds.workspaceControl(u'SiSideBarWorkspaceControl',q=True, fl=True)
-        else:
+        elif maya_ver >= 2015:
             save_data['floating'] = self.isFloating()
+        else:
+            save_data['floating'] = True
             
-        save_data['area'] = self.dockArea()
-        print 'dock area', self.dockArea()
+        if maya_ver >= 2015:
+            save_data['area'] = self.dockArea()
+        else:
+            save_data['area'] = None
+        #print 'dock area', self.dockArea()
         if save_data['dockable'] is True:
             dock_dtrl = self.parent()
             pos = dock_dtrl.mapToGlobal(QPoint(0, 0))
@@ -517,7 +556,7 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         save_data['ui_col'] = self.ui_col
         save_data['vol_obj'] = self.uni_obj_mode
         save_data['vol_cmp'] = self.uni_cmp_mode
-        print 'save data :', save_data
+        #print 'save data :', save_data
         if not os.path.exists(self.dir_path):
             os.makedirs(self.dir_path)
         with open(self.w_file, 'w') as f:
@@ -528,13 +567,22 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
     global center_mode
     center_mode = None
     def dockCloseEventTriggered(self):
-        print '*+*+**+*+* close event : window closed **+***+**+**+*'
+        print 'SI Side Bar : Close Event : Dock Dindow Closed'
         self.remove_job()
         self.display = False#ウィンドウスタートアップフラグを下げる
         self.save(display=False)
         #センターモードに入っていたら解除する
         if center_mode:
             toggle_center_mode(mode=False)
+    def closeEvent(self, e):
+        print 'SI Side Bar : Close Event : Dock Dindow Closed'
+        self.remove_job()
+        self.display = False#ウィンドウスタートアップフラグを下げる
+        self.save(display=False)
+        #センターモードに入っていたら解除する
+        if center_mode:
+            toggle_center_mode(mode=False)
+            
     #スクリプトジョブ作成
     def create_job(self):
         global script_job
@@ -936,15 +984,24 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
                     handle_id = 6
         if mode == 0:
             #print 'set manip scale handle', handle_id
-            cmds.manipScaleContext('Scale', e=True, cah=handle_id, ah=handle_id)
+            if maya_ver >= 2015:
+                cmds.manipScaleContext('Scale', e=True, cah=handle_id, ah=handle_id)
+            else:
+                cmds.manipScaleContext('Scale', e=True, ah=handle_id)
         if mode == 1:
             #print 'set manip scale handle', handle_id
             if handle_id == 3:
                 handle_id = 4
-            cmds.manipRotateContext('Rotate', e=True, cah=handle_id, ah=handle_id)
+            if maya_ver >= 2015:
+                cmds.manipRotateContext('Rotate', e=True, cah=handle_id, ah=handle_id)
+            else:
+                cmds.manipRotateContext('Rotate', e=True, ah=handle_id)
         if mode == 2:
+            if maya_ver >= 2015:
             #print 'set manip scale handle', handle_id
-            cmds.manipMoveContext('Move', e=True, cah=handle_id, ah=handle_id)
+                cmds.manipMoveContext('Move', e=True, cah=handle_id, ah=handle_id)
+            else:
+                cmds.manipMoveContext('Move', e=True, ah=handle_id)
         
     #一括入力を実行する
     def check_multi_selection(self, text='', current=(0, 0)):
@@ -1297,9 +1354,6 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         self.filter_group.buttonClicked.connect(lambda : self.select_filter_mode(mode=self.filter_group .checkedId()))
         self.select_filter_mode(mode=self.filter_group .checkedId())#フィルターを初期化しておく
         vn+=1
-        #self.select_line_b = self.make_h_line()
-        #self.main_layout.addWidget(self.select_line_b, vn, 0, 1 ,11)
-        #vn+=1
         #選択入力ラインエディット--------------------------------------------------------------------------------
         self.selection_line = self.make_line_edit(text=string_col, bg=bg_col)
         self.main_layout.addWidget(self.selection_line, vn, 0, 1, 11)
@@ -1752,7 +1806,10 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         #self.prop_but.setDisabled(True)#今のところ無効
         self.main_layout.addWidget(self.prop_but, vn, 4, 1 ,4)
         sym = cmds.symmetricModelling(q=True, symmetry=True)
-        topo = cmds.symmetricModelling(q=True, topoSymmetry=True) 
+        if maya_ver >= 2015:
+            topo = cmds.symmetricModelling(q=True, topoSymmetry=True) 
+        else:
+            topo = False
         if not sym and not topo:
             sym = False
         else:
@@ -2390,7 +2447,10 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         #self.toggle_prop()
         
         sym = cmds.symmetricModelling(q=True, symmetry=True)
-        topo = cmds.symmetricModelling(q=True, topoSymmetry=True) 
+        if maya_ver >= 2015:
+            topo = cmds.symmetricModelling(q=True, topoSymmetry=True) 
+        else:
+            topo = False
         if not sym and not topo:
             sym = False
         else:
@@ -2474,55 +2534,152 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
         FloatingWindow(menus=top_f_menus, offset=transform_offset)
         
     def create_trans_menu(self, add_float=True):
-        top_menus = QMenu(self.transfrom_top)
-        
-        qt.change_button_color(top_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        self.top_menus = QMenu(self.transfrom_top)
+        qt.change_button_color(self.top_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         if add_float:#切り離しウィンドウメニュー
-            action10 = top_menus.addAction(u'----------------------------------------------✂--')
+            action10 = self.top_menus.addAction(u'----------------------------------------------✂--')
             action10.triggered.connect(self.create_f_trans_menu)
-        action12 = top_menus.addAction('Reset Actor to Bind Pose')
+        mag = lang.Lang(en='   Reset Actor to Bind Pose',
+                                ja=u'   バインドポーズに戻す')
+        action12 = self.top_menus.addAction(mag.output())
         action12.triggered.connect(transform.reset_actor)
-        top_menus.addSeparator()#分割線追加
-        action17 = top_menus.addAction('Joint Orient Set (to Joint Orient)')
+        self.top_menus.addSeparator()#分割線追加
+        mag = lang.Lang(en='   Transfer Rotate to Joint Orient',
+                                ja=u'   回転をジョイントの方向に変換')
+        action17 = self.top_menus.addAction(mag.output())
         action17.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=True)))
-        action18 = top_menus.addAction('Joint Orient Reset (to Rotate)')
+        mag = lang.Lang(en='   Transfer Joint Orient to Rotate',
+                                ja=u'   ジョイントの方向を回転に変換')
+        action18 = self.top_menus.addAction(mag.output())
         action18.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=False)))
-        top_menus.addSeparator()#分割線追加
-        action13 = top_menus.addAction('Reset All Transforms')
+        self.top_menus.addSeparator()#分割線追加
+        mag = lang.Lang(en='   Reset All Transforms',
+                                ja=u'   すべての変換をリセット')
+        action13 = self.top_menus.addAction(mag.output())
         action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all')))
-        action14 = top_menus.addAction('Reset Scaling')
+        mag = lang.Lang(en='   Reset Scaling',
+                                ja=u'   スケーリングのリセット')
+        action14 = self.top_menus.addAction(mag.output())
         action14.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='scale')))
-        action15 = top_menus.addAction('Reset Rotation')
+        mag = lang.Lang(en='   Reset Rotation',
+                                ja=u'   回転のリセット')
+        action15 = self.top_menus.addAction(mag.output())
         action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot')))
-        action16 = top_menus.addAction('Reset Translation')
+        mag = lang.Lang(en='   Reset Translation',
+                                ja=u'   移動のリセット')
+        action16 = self.top_menus.addAction(mag.output())
         action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans')))
-        top_menus.addSeparator()#分割線追加
-        action0 = top_menus.addAction('Freeze All Transforms')
+        self.top_menus.addSeparator()#分割線追加
+        mag = lang.Lang(en='   Freeze All Transforms',
+                                ja=u'   すべての変換をフリーズ')
+        action0 = self.top_menus.addAction(mag.output())
         action0.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='all')))
-        action1 = top_menus.addAction('Freeze Scaling')
+        mag = lang.Lang(en='   Freeze Scaling',
+                                ja=u'   スケーリングのフリーズ')
+        action1 = self.top_menus.addAction(mag.output())
         action1.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='scale')))
-        action2 = top_menus.addAction('Freeze Rotation')
+        mag = lang.Lang(en='   Freeze Rotation',
+                                ja=u'   回転のフリーズ')
+        action2 = self.top_menus.addAction(mag.output())
         action2.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='rot')))
-        action3 = top_menus.addAction('Freeze Translation')
+        mag = lang.Lang(en='   Freeze Translation',
+                                ja=u'   移動のフリーズ')
+        action3 = self.top_menus.addAction(mag.output())
         action3.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='trans')))
-        action4 = top_menus.addAction('Freeze Joint Orientation')
+        mag = lang.Lang(en='   Freeze Joint Orientation',
+                                ja=u'   ジョイントの方向のフリーズ')
+        action4 = self.top_menus.addAction(mag.output())
         action4.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='joint')))
-        top_menus.addSeparator()#分割線追加
-        action6 = top_menus.addAction('Match All Transform')
+        mag = lang.Lang(en='   Match All Transform',
+                                ja=u'   すべての変換の一致')
+        self.top_menus.addSeparator()#分割線追加
+        action6 = self.top_menus.addAction(mag.output())
         action6.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='all')))
-        action7 = top_menus.addAction('Match Scaling')
+        mag = lang.Lang(en='   Match Scaling',
+                                ja=u'   スケーリングの一致')
+        action7 = self.top_menus.addAction(mag.output())
         action7.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='scale')))
-        action8 = top_menus.addAction('Match Rotation')
+        mag = lang.Lang(en='   Match Rotation',
+                                ja=u'   回転の一致')
+        action8 = self.top_menus.addAction(mag.output())
         action8.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='rot')))
-        action9 = top_menus.addAction('Match Translation')
+        mag = lang.Lang(en='   Match Translation',
+                                ja=u'   移動値の一致')
+        action9 = self.top_menus.addAction(mag.output())
         action9.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='trans')))
-        top_menus.addSeparator()#分割線追加
-        action5 = top_menus.addAction('Move Center to Selection (All)')
+        mag = lang.Lang(en='   Move Center to Selection (Center of all selection)',
+                                ja=u'   センターを選択に移動（すべての選択の中心）')
+        self.top_menus.addSeparator()#分割線追加
+        action5 = self.top_menus.addAction(mag.output())
         action5.triggered.connect(transform.move_center2selection)
-        action11 = top_menus.addAction('Move Center to Selection (Each)')
+        mag = lang.Lang(en='   Move Center to Selection (Center of each object selection)',
+                                ja=u'   センターを選択に移動（オブジェクトごとの選択の中心）')
+        action11 = self.top_menus.addAction(mag.output())
         action11.triggered.connect(transform.move_center_each_object)
-        return top_menus
+        self.top_menus.addSeparator()#分割線追加
         
+        self.trs_setting_path = self.dir_path+'\\sisidebar_trs_data_'+str(maya_ver)+'.json'
+        #print self.trs_setting_path
+        global cp_abs_flag
+        cp_abs_flag=False
+        self.load_transform_setting()
+        #print cp_abs_flag
+        
+        self.cp_mag_0 = lang.Lang(en=u'✔Collapse Point For Snapping/Absolute Translation',
+                                ja=u'✔スナップ移動/絶対移動でポイントを集約')
+        self.cp_mag_1 = lang.Lang(en=u'   Collapse Point For Snapping/Absolute Translation',
+                                ja=u'   スナップ移動/絶対移動でポイントを集約')
+        if cp_abs_flag:
+            self.action19 = self.top_menus.addAction(self.cp_mag_0.output())
+        else:
+            self.action19 = self.top_menus.addAction(self.cp_mag_1.output())
+        
+        self.action19.triggered.connect(self.toggle_cp_absolute)
+        #self.top_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
+        return self.top_menus
+        
+    #絶対値に移動を切り替える
+    def toggle_cp_absolute(self):
+        global cp_abs_flag
+        #print 'pre_cp_abs_flag', cp_abs_flag
+        if cp_abs_flag:
+            cp_abs_flag = False
+        else:
+            cp_abs_flag = True
+        self.save_transform_setting()
+        if cp_abs_flag:
+            try:
+                #print  'try0'
+                self.action19.setText(self.cp_mag_0.output())
+            except:
+                #print  'except'
+                top_menus = self.create_trans_menu()
+                self.transfrom_top.setMenu(top_menus)
+        else:
+            #self.top_menus.removeItem(self.action19)
+            try:
+                #print  'try1'
+                #self.top_menus.removeWidget(self.action19)
+                self.action19.setText(self.cp_mag_1.output())
+            except:
+                #print  'except'
+                top_menus = self.create_trans_menu()
+                self.transfrom_top.setMenu(top_menus)
+        #print 'cp_abs_flag', cp_abs_flag
+    
+    def load_transform_setting(self):
+        global cp_abs_flag
+        if os.path.isfile(self.trs_setting_path):#保存ファイルが存在したら
+            with open(self.trs_setting_path, 'r') as f:
+                save_data = json.load(f)
+            cp_abs_flag = save_data['cp_abs']
+                
+    def save_transform_setting(self):
+        if not os.path.exists(self.dir_path):
+            os.makedirs(self.dir_path)
+        with open(self.trs_setting_path, 'w') as f:
+            json.dump({'cp_abs':cp_abs_flag}, f)
+            
     #リセットアクターバインドポーズを実行
     def reset_actor(self):
         joint_animation.reset_actor()
@@ -2655,7 +2812,8 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
             #cmds.symmetricModelling(e=True, topoSymmetry=0) 
         else:
             cmds.symmetricModelling(e=True, symmetry=False)
-            cmds.symmetricModelling(e=True, topoSymmetry=False)
+            if maya_ver >= 2015:
+                cmds.symmetricModelling(e=True, topoSymmetry=False)
             if 'sym_window' in globals():
                 sym_window.sym_group.button(0).setChecked(True)
         
@@ -2984,28 +3142,32 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
                 #print 'comp_mode pre trans :', pre_trans
                 add_trans = [0.0, 0.0, 0.0]
                 if sid == 0 or sid == 4:#ワールドスペース
-                   base_trans = cmds.xform(mesh, q=True, t=True, ws=True)
+                    base_trans = cmds.xform(mesh, q=True, t=True, ws=True)
                 else:#ローカルスペース
-                   base_trans = cmds.xform(mesh, q=True, t=True, os=True)
+                    base_trans = cmds.xform(mesh, q=True, t=True, os=True)
                 if sign:
-                   if sign == '+':
-                       add_value = value
-                   elif sign == '-':
-                       add_value = -1*value
-                   else:
-                       exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
+                    if sign == '+':
+                        add_value = value
+                    elif sign == '-':
+                        add_value = -1*value
+                    else:
+                        exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
                 else:
-                   add_value = value - pre_trans[axis]
+                    if cp_abs_flag:
+                        self.scaling(text='0.0', axis=axis, focus=True)
+                        add_value = value
+                    else:
+                        add_value = value - pre_trans[axis]
                 #print 'add value', add_value
                 add_trans[axis] = add_value
                 if sid == 0 or sid == 4:#ワールドスペース
-                   cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
-                   #cmds.xform(vtx, t=add_trans, r=True, ws=True)
+                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
+                    #cmds.xform(vtx, t=add_trans, r=True, ws=True)
                 elif sid == 1 or sid == 2 or sid == 5:#ローカルスペース
-                   cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
-                   #cmds.xform(vtx, t=add_trans, r=True, os=True)
+                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
+                    #cmds.xform(vtx, t=add_trans, r=True, os=True)
                 elif sid == 3:#オブジェクトスペース
-                   cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
+                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -3014,6 +3176,11 @@ class SiSideBarWeight(MayaQWidgetDockableMixin, QMainWindow):
             input_srt_id = 2
             input_line_id = axis
             create_focus_job()
+            
+    #一軸を絶対値にした位置リストを返す
+    def exchange_abs_val(self, components, axis, abs):
+        pos_list = [cmds.xform(con, q=True, t=True, ws=True) for con in components]
+        return [map(lambda a:pos[a] if a != axis else abs, range(3)) for pos in pos_list]
             
     def get_piv_pos(self, piv_pos):
         start = dt.datetime.now()
@@ -3519,7 +3686,7 @@ def load_with_start_up():
 #load_with_start_up()
 
         
-class PropOption(MayaQWidgetBaseMixin, QMainWindow):
+class PropOption(qt.MainWindow):
     def __init__(self, parent = None):
         super(PropOption, self).__init__(parent)
         #print pos
@@ -3662,7 +3829,7 @@ class PropOption(MayaQWidgetBaseMixin, QMainWindow):
         for i, but in enumerate(buttons):
             self.curve_group.addButton(but, i)
         
-class SymOption(MayaQWidgetBaseMixin, QMainWindow):
+class SymOption(qt.MainWindow):
     axis_list = ['x', 'y', 'z']
     def __init__(self, parent = None):
         super(SymOption, self).__init__(parent)
@@ -3700,17 +3867,19 @@ class SymOption(MayaQWidgetBaseMixin, QMainWindow):
         qt.change_widget_color(world, textColor=menu_text,  bgColor=ui_color, baseColor=radio_base_col, windowText=menu_text)
         object = QRadioButton(self.msg02.output(), self)
         qt.change_widget_color(object, textColor=menu_text,  bgColor=ui_color, baseColor=radio_base_col, windowText=menu_text)
-        topology = QRadioButton(self.msg03.output(), self)
-        qt.change_widget_color(topology, textColor=menu_text,  bgColor=ui_color, baseColor=radio_base_col, windowText=menu_text)
         s_layout.addWidget(off, vn, 2, 1, 2)
         s_layout.addWidget(world, vn+1, 2, 1, 2)
         s_layout.addWidget(object, vn+2, 2, 1, 2)
-        s_layout.addWidget(topology, vn+3, 2, 1, 2)
+        if maya_ver >= 2015:
+            topology = QRadioButton(self.msg03.output(), self)
+            qt.change_widget_color(topology, textColor=menu_text,  bgColor=ui_color, baseColor=radio_base_col, windowText=menu_text)
+            s_layout.addWidget(topology, vn+3, 2, 1, 2)
         self.sym_group = QButtonGroup(self)
         self.sym_group.addButton(off, 0)
         self.sym_group.addButton(world, 1)
         self.sym_group.addButton(object, 2)
-        self.sym_group.addButton(topology, 3)
+        if maya_ver >= 2015:
+            self.sym_group.addButton(topology, 3)
         self.sym_group.button(0).setChecked(True)#初期値設定
         self.sym_group.buttonClicked.connect(self.change_mode)
         
@@ -3882,7 +4051,10 @@ class SymOption(MayaQWidgetBaseMixin, QMainWindow):
         seam_tol = cmds.symmetricModelling(q=True, st=True)
         self.seam_tol.setValue(seam_tol)
         
-        topology = cmds.symmetricModelling(q=True, ts=True)
+        if maya_ver >= 2015:
+            topology = cmds.symmetricModelling(q=True, ts=True)
+        else:
+            topology = False
         #print sym, about, axis, tolerance, preserve_seam, seam_tol, topology
         
     def reset(self):
@@ -3899,7 +4071,7 @@ class SymOption(MayaQWidgetBaseMixin, QMainWindow):
         self.seam_tol.setValue(0.001)
         
 #選択フィルターのオプション設定
-class FilterOption(MayaQWidgetBaseMixin, QMainWindow):
+class FilterOption(qt.MainWindow):
     dir_path = os.path.join(
         os.getenv('MAYA_APP_dir'),
         'Scripting_Files')
@@ -4037,11 +4209,11 @@ def create_focus_job():
     global focus_job
     if not 'focus_job' in globals():
         #print 'create_focus_job'
-        focus_job = cmds.scriptJob(ro=True, e=("idle", "sisidebar_sub.out_focus()"), protected=True)
+        focus_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.out_focus), protected=True)
     else:
         #print 'create_focus_job'
         if focus_job is None:
-            focus_job = cmds.scriptJob(ro=True, e=("idle", "sisidebar_sub.out_focus()"), protected=True)
+            focus_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.out_focus), protected=True)
             
 def change_selection_display():
     window.display_selection()

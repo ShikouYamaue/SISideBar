@@ -373,50 +373,77 @@ def set_vol_mode(mode):
     global vol_mode
     vol_mode = mode
     
+#Maya2014以前はハンドル取れないからアンドゥインフォから強引に取る
+def current_handle_getter():
+    undo_info = cmds.undoInfo(q=True, un=True)
+    info_list = undo_info.split(' ')
+    srt_mode = info_list[0]
+    
+    if srt_mode == 'scale':
+        srt_mode = 'Scale'
+        def_val = 1.0
+    elif srt_mode == 'rotate':
+        srt_mode = 'Rotate'
+        def_val = 0.0
+    elif srt_mode == 'move':
+        srt_mode = 'Move'
+        def_val = 0.0
+    else:
+        return
+    
+    axis_val_list = [float(i) for i in info_list[-4:-1]]
+    check_val_list = [v != def_val for v  in axis_val_list]
+    if all(check_val_list):
+        handle_id = 3
+    else:
+        handle_id = check_val_list.index(True)
+    sb.window.select_xyz_from_manip(handle_id=handle_id, keep=False)
+    #sb.window.reload.emit()
+    
 def volume_scaling():
-        #print 'volume_mode :', mode
-        undo_scale = cmds.undoInfo(q=True, un=True)
-        #print '1st undo info :', undo_scale
-        scale_list = map(float, undo_scale.split(' ')[-4:-1])
-        scale_com = undo_scale.split(' ')[:-4]
-        #print 'scale list :', scale_list
-        #print 'scale command :', scale_com
-        s1_count = scale_list.count(1.0)
-        #print 'scale 1.0 count :', s1_count
-        if s1_count == 0:
+    #print 'volume_mode :', mode
+    undo_scale = cmds.undoInfo(q=True, un=True)
+    #print '1st undo info :', undo_scale
+    scale_list = map(float, undo_scale.split(' ')[-4:-1])
+    scale_com = undo_scale.split(' ')[:-4]
+    #print 'scale list :', scale_list
+    #print 'scale command :', scale_com
+    s1_count = scale_list.count(1.0)
+    #print 'scale 1.0 count :', s1_count
+    if s1_count == 0:
+        return
+    if vol_mode == 5:
+        scale_num = reduce(lambda a, b : a*b, scale_list)
+        #print 'all scale multiply :', scale_num
+        if s1_count == 2:
+            div_scale = math.sqrt(scale_num)
+        elif s1_count == 1:
+            div_scale = scale_num
+        else:
             return
-        if vol_mode == 5:
-            scale_num = reduce(lambda a, b : a*b, scale_list)
-            #print 'all scale multiply :', scale_num
-            if s1_count == 2:
-                div_scale = math.sqrt(scale_num)
-            elif s1_count == 1:
-                div_scale = scale_num
+        #print 'div scale :', div_scale
+        for i, s in enumerate(scale_list[:]):
+            if s == 1.0:
+                scale_list[i] = s/div_scale
             else:
-                return
-            #print 'div scale :', div_scale
-            for i, s in enumerate(scale_list[:]):
-                if s == 1.0:
-                    scale_list[i] = s/div_scale
-                else:
-                    scale_list[i] = 1.0
-        if vol_mode == 2:
-            for s in scale_list:
-                if s != 1.0:
-                    soro_scale = s
-                    break
+                scale_list[i] = 1.0
+    if vol_mode == 2:
+        for s in scale_list:
+            if s != 1.0:
+                soro_scale = s
+                break
+        else:
+            return
+        for i, s in enumerate(scale_list[:]):
+            if s == 1.0:
+                scale_list[i] = soro_scale
             else:
-                return
-            for i, s in enumerate(scale_list[:]):
-                if s == 1.0:
-                    scale_list[i] = soro_scale
-                else:
-                    scale_list[i] = 1.0
-        #print 'post scale list :', scale_list
-        post_scale_cmd = ' '.join(scale_com+map(str, scale_list))
-        #print 'post command :', post_scale_cmd
-        mel.eval(post_scale_cmd)
-        get_matrix()
+                scale_list[i] = 1.0
+    #print 'post scale list :', scale_list
+    post_scale_cmd = ' '.join(scale_com+map(str, scale_list))
+    #print 'post command :', post_scale_cmd
+    mel.eval(post_scale_cmd)
+    get_matrix()
             
 def out_focus():
     #print '/*/*/*/*/*/run focus job'
