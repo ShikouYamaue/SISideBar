@@ -17,6 +17,7 @@ from . import sets
 from . import setup
 import math
 import datetime as dt
+import random
 #PySide2、PySide両対応
 import imp
 try:
@@ -47,7 +48,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.5 -'
+version = ' - SI Side Bar / ver_2.0.6 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -169,10 +170,13 @@ class FloatingWindow(qt.SubWindow):
         
 #フローティングで出した窓をベストな位置に移動する
 def move_to_best_pos(object=None, offset=None):
+        w_size = object.size()
         dy = offset[0]
         fy = offset[1]
-        px = offset[2]
+        #右移動の場合はウィンドウサイズから算出
+        px = w_size.width()+15
         mx = offset[3]
+        #print w_size
         #デフォルト出現位置とカーソル位置から最適な位置を算出して移動
         dock_dtrl = window.parent()
         if maya_ver >= 2015:
@@ -208,7 +212,7 @@ def move_to_best_pos(object=None, offset=None):
 #2016以下は通常起動
 class Option():
     def __init__(self, init_pos=False):
-        print 'init in Option'
+        #print 'init in Option'
         #循環参照回避のため関数内で呼び出し
         global sisidebar_sub
         from . import sisidebar_sub as sisidebar_sub
@@ -1005,7 +1009,7 @@ class SiSideBarWeight(qt.DockWindow):
         
     #一括入力を実行する
     def check_multi_selection(self, text='', current=(0, 0)):
-        if self.pre_lines_text[current[0]][current[1]] == text:
+        if self.pre_pre_lines_text[current[0]][current[1]] == text:
             #print 'skip mulit line edit, line not changed :', text, current
             return
         #print 'check_multi_selection', text, current
@@ -1031,10 +1035,17 @@ class SiSideBarWeight(qt.DockWindow):
                     qt.change_button_color(button, textColor=string_col, bgColor=bg_col)
                     self.all_multi_list[m][a] = False
                     
+    def keep_focused_text(self, text):
+        #print 'keep_focus', text
+        self.focus_text = text
+                    
     #同じ文字列でも入力されたかどうかを判定するため、1つ前の文字入力を比較して状態保存
     def keep_pre_line_text(self, text='', current=(0, 0)):
-        if self.pre_lines_text[current[0]][current[1]] != text:
-            self.pre_lines_text[current[0]][current[1]] = 'edited'
+        pre_text = self.pre_lines_text[current[0]][current[1]]
+        #print 'keep_pre_line_text :', pre_text, 'imput new text :', text, current
+        if pre_text != text:
+            self.pre_pre_lines_text[current[0]][current[1]] = pre_text
+            self.pre_lines_text[current[0]][current[1]] = text
             #print 'edited', text, self.pre_lines_text[current[0]][current[1]]
                 
     #SIの一括入力機能を再現
@@ -2101,6 +2112,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.multi_t_list = [False]*3
         self.all_multi_list = [self.multi_s_list, self.multi_r_list, self.multi_t_list]
         self.pre_lines_text = [[[]]*3, [[]]*3, [[]]*3]
+        self.pre_pre_lines_text = [[[]]*3, [[]]*3, [[]]*3]
         #print self.pre_lines_text
         
         self.create_job()
@@ -2339,45 +2351,95 @@ class SiSideBarWeight(qt.DockWindow):
         global pre_sel_group_but
         pre_sel_group_but = mode
         
-    global key_press
-    key_press = None#1刻み
+    global key_mod
+    key_mod = None#1刻み
+    count=0
+    mouse_flag = False
     def eventFilter(self, obj, event):
-        global key_press
+        global key_mod
+        value = obj.text()
         #print 'move event', obj, event
         #print 'obj :', obj, obj.text()
         #print 'ev type :', event.type()
+        if event.type() == QEvent.MouseButtonPress:
+            print 'mouse clicked'
+            self.mouse_flag = True
+        if event.type() == QEvent.MouseButtonRelease:
+            print 'mouse released'
+            self.mouse_flag = False
+        if self.mouse_flag:
+            if event.type() == QEvent.MouseMove:
+                #print 'mouse moved', self.count
+                self.count +=1
+            
+        if event.type() == QEvent.FocusIn:
+            self.keep_focused_text(text=obj.text())
         if event.type() == QEvent.KeyPress:
             key = event.key()
             #print 'ev key :', key
             mod = event.modifiers()
             #print 'ev mod', mod
             if mod == Qt.ControlModifier:
-                key_press = 'ctrl'#10刻み
+                key_mod = 'ctrl'#10刻み
             elif mod == Qt.ShiftModifier:
-                key_press = 'shift'#0.1きざみ
+                key_mod = 'shift'#0.1きざみ
+            #[]入力に対応
+            if key == 91 or key ==93:
+                if value =='':
+                    value = '0.0'
+                delta = key-92
+                self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value, mode='key')
+            if key == 123 or key ==125:
+                if value =='':
+                    value = '0.0'
+                delta = key-124
+                self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value, mode='key')
         if event.type() == QEvent.KeyRelease:
-            key_press = None#1刻み
+            key_mod = None#1刻み
         if event.type() == QEvent.Wheel:
+            if value =='':
+                value = '0.0'
             self.save_pre_value()
-            wheel_delta = event.delta()
-            wheel_delta /= abs(wheel_delta)
-            value = obj.text()
+            delta = event.delta()
+            delta /= abs(delta)
             #print 'wheel event :', event.delta()
+            self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
+            
+    #入力を計算して返す
+    def culc_input_event(self,obj=None, delta=0, mod=None, value=0, mode='gesture'):
+        print 'input formula :', value
+        if obj is None:
+            return
+        try:
             if value == '':
                 return
-            if key_press is None:
-                add = 1.0 * wheel_delta
-            if key_press == 'ctrl':
-                add = 10 * wheel_delta
-            if key_press == 'shift':
-                add = 0.1 * wheel_delta
-            #print event.orient()
-            new_value = str(float(value)+add)
-            obj.setText(new_value)
-            #ホイール時は強制的にフォーカス取ってキーイベントを有効にする
-            obj.setFocus()
-            self.apply_wheel_value()
-            
+            if mod is None:
+                add = 1.0 * delta
+            if mod == 'ctrl':
+                add = 10.0 * delta
+            if mod == 'shift':
+                add = 0.1 * delta
+            value = str(float(value)+add)
+        except Exception as e:
+            #print e
+            value =  ''
+        #print event.orient()
+        #print value
+        #ホイール時は強制的にフォーカス取ってキーイベントを有効にする
+        
+        #キー入力の場合は入力終了後にイベントを発生させるためジョブを作る
+        if mode == 'key':
+            input_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_input_value(obj=obj, value=value)), protected=True)
+        elif mode == 'gesture':
+            self.re_input_value(obj=obj, value=value)
+    
+    #[]入力の場合はテキストがおかしくなるので入力後にジョブで実行
+    def re_input_value(self, obj=None, value=None):
+        obj.setFocus()#先にフォーカスとること！じゃないと入力反映が遅れる
+        obj.setText(value)
+        #print 'set_text :', value
+        self.apply_wheel_value()
+        
     global pre_text_value
     pre_text_value = [['', '', ''], ['', '', ''], ['', '', '']]
     #事前に入力値を取得しておく
@@ -3085,7 +3147,12 @@ class SiSideBarWeight(qt.DockWindow):
     def translation(self, text='', axis=0, focus=True):
         #print '/*/*/*/*/translation'
         global pre_trans
-        if text == str(pre_trans[axis]):
+        if text == self.focus_text:
+            #print 'focus same', text, self.focus_text
+            return
+        #同じ数字が打っても効かないので前々回のラインとも比較する
+        if text == str(pre_trans[axis]) and text == self.pre_pre_lines_text[2][axis]:
+            #print 'same!'
             #print 'skip trans'
             return
         #print 'transration method :',axis , 'pre :', pre_trans, 'current :', text
@@ -3122,7 +3189,11 @@ class SiSideBarWeight(qt.DockWindow):
                     exec('cmds.move(pos[0], pos[1], pos[2], sel, ws=True'+pcp+')')
                 exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
         else:#コンポーネント選択の時の処理
-            if pre_trans[axis] == value:
+            if text == self.focus_text:
+                #print 'focus same component'
+                return
+            if pre_trans[axis] == value and text == self.pre_pre_lines_text[2][axis]:
+                #print 'same! component'
                 return
             #カーブもとっておく
             cv_selection = cmds.ls(sl=True, type='double3', fl=True)
@@ -3154,10 +3225,15 @@ class SiSideBarWeight(qt.DockWindow):
                         exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
                 else:
                     if cp_abs_flag:
+                        for line_obj in self.t_xyz_list:
+                            if line_obj.hasFocus():
+                                break
+                        else:
+                            #print 'skip for trans in scale rot mode'
+                            return
+                        #print 'run cp absolute'
                         self.scaling(text='0.0', axis=axis, focus=True)
-                        add_value = value
-                    else:
-                        add_value = value - pre_trans[axis]
+                    add_value = value - pre_trans[axis]
                 #print 'add value', add_value
                 add_trans[axis] = add_value
                 if sid == 0 or sid == 4:#ワールドスペース
@@ -3198,29 +3274,102 @@ class SiSideBarWeight(qt.DockWindow):
         view_np_time(culc_time=culc_time)
         return piv_pos
         
+        
     #入力文字を分解して数値とシンボルに変える
     def text2num(self, text):
-        if text == ' ':
-            return 0.0, None
-        signs = ['+', '-', '*', '/']
-        try:
-            return float(text), None
-        except:
+        #計算式の答えがあればそのまま返す、無い場合は四則演算モードへ
+        value = self.formula_analyze(text)
+        if value:
+            #リストタイプだったら特殊処理する
+            if isinstance(value, list):
+                self.linear_sort_selection(value)
+                return 0.0, None
+            else:
+                return value, None
+        else:
+            if text == ' ':
+                return 0.0, None
+            signs = ['+', '-', '*', '/']
             try:
-                for s in signs:
-                    if text.startswith(s+'='):
-                        text = text[2:]
-                        sign = s
-                    if text.endswith(s):
-                        text = text[:-1]
-                        sign = s
-                    try:
-                        return float(text), s
-                    except:
-                        pass
+                return float(text), None
             except:
-                pass
-        return None, None
+                try:
+                    for s in signs:
+                        if text.startswith(s+'='):
+                            text = text[2:]
+                            sign = s
+                        if text.endswith(s):
+                            text = text[:-1]
+                            sign = s
+                        try:
+                            if float(text)==0.0 and s=='/':
+                                return None, None
+                            return float(text), s
+                        except:
+                            pass
+                except:
+                    pass
+            return None, None
+        
+    #計算式を解析して戻す
+    def formula_analyze(self, text):
+        text = text.upper()
+        text = text.replace(' ', '')
+        text = text.replace('R(', 'r(')
+        text = text.replace('L(', 'l(')
+        text = text.replace('/', '/1.0/')#強制的にフロート変換する
+        
+        R=self.rand_generater()
+        r=self.rand_generater
+        
+        L=self.linear_generater()
+        l=self.linear_generater
+        
+        try:
+            #evalで式を評価、失敗したらNoneを返す
+            ans = eval(text)
+            print 'culc anser :', ans
+            return ans
+        except Exception as e:
+            #print e
+            return None
+            
+    def linear_sort_selection(self, value_list):
+        print 'cluc list type', value_list
+        for sel, v in zip(self.linear_selection, value_list):
+            print sel, v
+            
+    #オブジェクト数に対するリニア数リストを返す
+    def linear_generater(self, mini=None, maxi=None):
+        if mini is None or maxi is None:
+            return None
+        if cmds.selectMode(q=True, o=True):
+            self.linear_selection = cmds.ls(sl=True, l=True)
+        else:
+            self.linear_selection = cmds.ls(hi=True)
+        if self.linear_selection:
+            count = len(cmds.ls(sl=True))
+            par = (maxi-mini)/float(count-2)
+            l_list = [mini+(par*i) for i in range(count-1)]
+            #print l_list
+            return l_list
+            
+    #ランダム数を書式によって生成
+    def rand_generater(self, mini=None, maxi=None, seed=None):
+        if maxi is None and mini is None:
+            return random.random()
+        if mini is not None and maxi is None:
+            print 'only mini'
+            maxi = mini
+            mini = 0.0
+            return random.uniform(mini, maxi)
+        if mini is not None and maxi is not None:
+            print 'min max'
+            if seed is not None:
+                print 'seed'
+                random.seed(seed)
+            return random.uniform(mini, maxi)
+            
         
     pre_group_mode = None
     def change_button_group(self):
@@ -3652,6 +3801,9 @@ def set_srt_text(scale, rot, trans):
     scale = map(str, scale)
     rot = map(str, rot)
     trans = map(str, trans)
+    scale = map(lambda a : a.replace('-0.0', '0.0'), scale)
+    rot = map(lambda a : a.replace('-0.0', '0.0'), rot)
+    trans = map(lambda a : a.replace('-0.0', '0.0'), trans)
     scale_x.setText(scale[0])
     scale_y.setText(scale[1])
     scale_z.setText(scale[2])

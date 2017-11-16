@@ -174,10 +174,14 @@ def get_matrix():
         end = dt.datetime.now()
         culc_time = end - start
         sb.view_np_time(culc_time='Culc Time '+str(culc_time))
+        #3桁に
         scale = map(lambda a: round(a, 3), scale)
         rot = map(lambda a: round(a, 3),  rot)
         trans = map(lambda a: round(a, 3),  trans)
-        
+        #念のため0のマイナス符号を除去
+        scale = map(lambda a : float(str(a).replace('-0.0', '0.0')), scale)
+        rot = map(lambda a : float(str(a).replace('-0.0', '0.0')), rot)
+        trans = map(lambda a : float(str(a).replace('-0.0', '0.0')), trans)
     sb.set_pre_transform(trans, rot, scale)
     sb.set_srt_text(scale, rot, trans)
     
