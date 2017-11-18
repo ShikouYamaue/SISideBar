@@ -95,6 +95,15 @@ def change_selection():
     global pre_sel_obj
     pre_sel_obj = cmds.ls(sl=True, o=True)
 
+def set_view_decimal(decimal):
+    #print 'change decimal', decimal
+    global view_decimal
+    view_decimal = decimal
+def set_round_decimal(decimal):
+    #print 'change decimal', decimal
+    global round_decimal
+    round_decimal = decimal
+    
 def get_matrix():
     global sb
     from . import sisidebar_main as sb
@@ -122,15 +131,15 @@ def get_matrix():
                     scale[i] = ''
                 else:
                     #print 'same'
-                    scale[i] = str(round(s_list[0][i], 3))
+                    scale[i] = str(s_list[0][i])
                 if not all(r[i] == r_list[0][i] for r in r_list):
                     rot[i] = ''
                 else:
-                    rot[i] = str(round(r_list[0][i], 3))
+                    rot[i] = str(r_list[0][i])
                 if not all(t[i] == t_list[0][i] for t in t_list):
                     trans[i] = ''
                 else:
-                    trans[i] = str(round(t_list[0][i], 3))
+                    trans[i] = str(t_list[0][i])
         sb.check_key_anim()
         sb.view_np_time(culc_time='- Select Culculation Mode -')
     #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
@@ -174,16 +183,20 @@ def get_matrix():
         end = dt.datetime.now()
         culc_time = end - start
         sb.view_np_time(culc_time='Culc Time '+str(culc_time))
-        #3桁に
-        scale = map(lambda a: round(a, 3), scale)
-        rot = map(lambda a: round(a, 3),  rot)
-        trans = map(lambda a: round(a, 3),  trans)
+        #表示桁数を調整する
+    try:
+        scale = map(lambda a: round(float(a), view_decimal), scale)
+        rot = map(lambda a: round(float(a), view_decimal),  rot)
+        trans = map(lambda a: round(float(a), view_decimal),  trans)
         #念のため0のマイナス符号を除去
         scale = map(lambda a : float(str(a).replace('-0.0', '0.0')), scale)
         rot = map(lambda a : float(str(a).replace('-0.0', '0.0')), rot)
         trans = map(lambda a : float(str(a).replace('-0.0', '0.0')), trans)
-    sb.set_pre_transform(trans, rot, scale)
-    sb.set_srt_text(scale, rot, trans)
+        sb.set_pre_transform(trans, rot, scale)
+        sb.set_srt_text(scale, rot, trans)
+    except:
+        sb.set_pre_transform(trans, rot, scale)
+        sb.set_srt_text(scale, rot, trans)
     
 def get_srt(selection, mode='object'):
     local_sids = [1, 2, 3, 5]
@@ -209,7 +222,6 @@ def get_srt(selection, mode='object'):
                         trans = cmds.xform(sel, q=True, t=True, os=True)
                 else:
                     trans = cmds.xform(sel, q=True, t=True, os=True)
-                    
             if mode == 'object':
                 s_list.append(scale)
                 r_list.append(rot)

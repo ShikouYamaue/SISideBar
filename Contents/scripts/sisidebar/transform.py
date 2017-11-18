@@ -6,6 +6,7 @@ from . import qt
 from maya import cmds
 from maya import mel
 import pymel.core as pm
+import itertools
 try:
     import numpy as np
     np_flag = True
@@ -224,3 +225,36 @@ def match_transform(mode=''):
     cmds.setToolTo(maching_tool)
     jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(sisidebar_sub.trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
+    
+#アトリビュートの桁数を丸める
+def round_transform(mode='', digit=3):
+    from . import sisidebar_sub
+    sel = cmds.ls(sl=True, l=True)
+
+    axis = ['X', 'Y', 'Z']
+    if mode == 'all':
+        mode_list = ['.translate', '.rotate', '.scale', '.jointOrient']
+    else:
+        mode_list = ['.' + mode]
+    for s in sel:
+        for a, m in itertools.product(axis, mode_list):
+            #print cmds.nodeType(s) , m
+            #print cmds.nodeType(s) != 'joint'
+            if cmds.nodeType(s) != 'joint' and m == '.jointOrient':
+                #print m == '.jointOrient'
+                #print 'Node Type Error'
+                continue
+            try:
+                v = cmds.getAttr(s+m+a)
+                #print v
+                v = round(v, digit)
+                cmds.setAttr(s+m+a, v)
+                #print v
+            except Exception as e:
+                print e.message
+    sisidebar_sub.get_matrix()
+
+    
+    
+    
+    

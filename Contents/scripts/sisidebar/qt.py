@@ -29,6 +29,8 @@ try:
         from .patch import m2017
         #from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
         MayaQWidgetDockableMixin = m2017.MayaQWidgetDockableMixin2017
+        #from .patch.ringoMixin import MayaQWidgetDockableMixin
+            
     else:
         from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
         

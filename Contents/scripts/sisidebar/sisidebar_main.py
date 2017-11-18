@@ -18,6 +18,7 @@ from . import setup
 import math
 import datetime as dt
 import random
+import copy
 #PySide2、PySide両対応
 import imp
 try:
@@ -48,7 +49,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.6 -'
+version = ' - SI Side Bar / ver_2.0.7 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -153,20 +154,45 @@ def read_save_file(init_pos=False):
     else:
         save_data = def_data
     return save_data
-        
+
+global trs_window_flag
+trs_window_flag = False
 #フローティングメニュー作成
 class FloatingWindow(qt.SubWindow):
     def __init__(self, parent = None, menus=[], offset=None):
+        global trs_window_flag 
+        trs_window_flag = True
         super(FloatingWindow, self).__init__(parent)
-        wrapper = QWidget()
-        self.setCentralWidget(wrapper)
+        self.wrapper = QWidget()
+        self.setCentralWidget(self.wrapper)
         #self.mainLayout = QHBoxLayout()
-        f_layout = QVBoxLayout()
-        wrapper.setLayout(f_layout)
-        f_layout.addWidget(menus)
+        self.menus = menus
+        self.f_layout = QVBoxLayout()
+        self.wrapper.setLayout(self.f_layout)
+        self.f_layout.addWidget(self.menus)
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         self.show()#Showしてから移動しないとほしい位置が取れない
         move_to_best_pos(object=self, offset=offset)
+    def re_init_window(self, mode='transform_top'):
+        #桁数の変更があったらUIを丸ごと描画しなおす
+        #UIのテキスト再描画のみができなかったので苦肉の策
+        if not trs_window_flag:
+            #print 'reinit flag false'
+            return
+        if mode == 'transform_top':
+            self.f_layout.removeWidget(self.menus)
+            self.wrapper = QWidget()
+            self.setCentralWidget(self.wrapper)
+            self.f_layout = QVBoxLayout()
+            self.wrapper.setLayout(self.f_layout)
+            self.menus = window.create_trans_menu(add_float=False)
+            self.f_layout.addWidget(self.menus)
+            self.show()
+    def closeEvent(self, e):
+        global trs_window_flag 
+        #print 'window close', e
+        trs_window_flag = False
+            #print 're_init'
         
 #フローティングで出した窓をベストな位置に移動する
 def move_to_best_pos(object=None, offset=None):
@@ -256,6 +282,7 @@ class SiSideBarWeight(qt.DockWindow):
         from . import sisidebar_sub as sisidebar_sub
         #ウィンドウサイズのポリシー、.fixedにすると固定される
         #print '/*/*/**/*/*/*/*/*/*/* init_SiSideBar /*/*/*/*/*/*/*/*/'
+        load_transform_setting()#トランスフォーム設定桁数設定を読み込んでおく
         self.display = True#ウィンドウスタートアップフラグを立てる
         self.get_init_space()
         self.init_save()
@@ -266,6 +293,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.reload.connect(self.reload_srt)
         #アプリケーション終了時に実行する関数をQtGui.qAppにコネクトしておく
         qApp.aboutToQuit.connect(lambda : self.save(display=self.display))
+        
         
         self.setMinimumHeight(1)#ウィンドウの最小サイズ
         self.setMinimumWidth(window_width)#ウィンドウの最小サイズ
@@ -571,22 +599,24 @@ class SiSideBarWeight(qt.DockWindow):
     global center_mode
     center_mode = None
     def dockCloseEventTriggered(self):
-        print 'SI Side Bar : Close Event : Dock Dindow Closed'
+        print 'SI Side Bar : Close Event : Dock Window Closed'
         self.remove_job()
         self.display = False#ウィンドウスタートアップフラグを下げる
         self.save(display=False)
         #センターモードに入っていたら解除する
         if center_mode:
             toggle_center_mode(mode=False)
+    #Maya2014用
     def closeEvent(self, e):
-        print 'SI Side Bar : Close Event : Dock Dindow Closed'
-        self.remove_job()
-        self.display = False#ウィンドウスタートアップフラグを下げる
-        self.save(display=False)
-        #センターモードに入っていたら解除する
-        if center_mode:
-            toggle_center_mode(mode=False)
-            
+        if maya_ver <= 2014:
+            print 'SI Side Bar : Close Event : Dock Window Closed'
+            self.remove_job()
+            self.display = False#ウィンドウスタートアップフラグを下げる
+            self.save(display=False)
+            #センターモードに入っていたら解除する
+            if center_mode:
+                toggle_center_mode(mode=False)
+                
     #スクリプトジョブ作成
     def create_job(self):
         global script_job
@@ -1007,11 +1037,24 @@ class SiSideBarWeight(qt.DockWindow):
             else:
                 cmds.manipMoveContext('Move', e=True, ah=handle_id)
         
-    #一括入力を実行する
+    #マルチライン選択の一括入力を実行する
     def check_multi_selection(self, text='', current=(0, 0)):
-        if self.pre_pre_lines_text[current[0]][current[1]] == text:
-            #print 'skip mulit line edit, line not changed :', text, current
+        #フォーカス外れても実行マルチラインになかったら実行しない
+        if self.multi_focus_list[current[0]][current[1]]:
+            #print u'フォーカス外れ暴発防止 :', current
             return
+        #含まれていても現在フォーカスがないなら実行しない
+        focus_check = self.all_xyz_list[current[0]][current[1]].hasFocus()
+        if not focus_check:
+            #print u'フォーカスの有無をチェック', focus_check
+            return
+        #前々回入力と一致する場合は実行しない
+        if self.pre_pre_lines_text[current[0]][current[1]] == text:
+            #print 'pre pre check : skip mulit line edit, line not changed :', text, current
+            return
+        #if self.pre_lines_text[current[0]][current[1]] == text:
+            #print 'pre check : skip mulit line edit, line not changed :', text, current
+            #return
         #print 'check_multi_selection', text, current
         current_flag = self.all_multi_list[current[0]][current[1]]
         if not current_flag:
@@ -1048,7 +1091,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.pre_lines_text[current[0]][current[1]] = text
             #print 'edited', text, self.pre_lines_text[current[0]][current[1]]
                 
-    #SIの一括入力機能を再現
+    #SIのマルチライン一括入力機能を再現
     def select_xyz_line(self, mode=0, axis=0):
         global current_line
         for m, each_lines in enumerate(self.all_xyz_list):
@@ -1058,6 +1101,7 @@ class SiSideBarWeight(qt.DockWindow):
         #print 'toggle select lines :', mode, axis
         lines_list = self.all_xyz_list[mode]
         multi_list = self.all_multi_list[mode]
+        #print 'get_current_list :', multi_list, mode, axis
         #全軸変換の時の処理、1つでもマルチラインがあれば全トグル
         if axis == 4:
             #print 'select all liens :', mode
@@ -1065,11 +1109,14 @@ class SiSideBarWeight(qt.DockWindow):
                 #print 'disable multi line selection'
                 bg_color = bg_col
                 self.all_multi_list[mode] = [False]*3
+                self.multi_focus_list[mode] = [True]*3#暴発無視リスト
             else:
                 #print 'enable multi line selection'
                 bg_color = multi_sel_col
                 self.all_multi_list[mode] = [True]*3
-                    
+                self.multi_focus_list[mode] = [False]*3#暴発無視リスト
+            multi_list = self.all_multi_list[mode]
+            #print 'set_current_list :', multi_list, mode, axis
             for i, line in enumerate(lines_list):
                     if i == 0 and self.all_multi_list[mode][0]:
                         #print 'select all line', line.text()
@@ -1086,13 +1133,17 @@ class SiSideBarWeight(qt.DockWindow):
             #print 'toggle one line :', current_flag
             if current_flag:
                 self.all_multi_list[mode][axis] = False
+                self.multi_focus_list[mode][axis] = True#暴発無視リスト
                 self.reselect_current_line()#一番上のラインを再選択
                 qt.change_button_color(line, textColor=string_col, bgColor=bg_col)
             else:
                 self.all_multi_list[mode][axis] = True
+                self.multi_focus_list[mode][axis] = False#暴発無視リスト
                 #print 'select part line', line.text()
                 self.set_active_line(line)
                 qt.change_button_color(line, textColor=string_col, bgColor=multi_sel_col)
+        for m_list in self.all_multi_list:
+            print m_list
                 
     def set_active_line(self, line):
         line.setFocus()
@@ -1227,6 +1278,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.s = 's_si.png'
             self.r = 'r_si.png'
             self.t = 't_si.png'
+            self.check_icon = 'check_si'
             
         elif self.ui_col == 1:
             multi_sel_col = [0, 64, 128]
@@ -1263,6 +1315,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.s = 's_maya.png'
             self.r = 'r_maya.png'
             self.t = 't_maya.png'
+            self.check_icon = 'check_maya'
         
         sq_widget = QScrollArea(self)
         sq_widget.setWidgetResizable(True)#リサイズに中身が追従するかどうか
@@ -1284,6 +1337,9 @@ class SiSideBarWeight(qt.DockWindow):
         label = QLabel(version)
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         self.main_layout.addWidget(label, vn, 0, 1 ,11)
+        #オプションボタン--------------------------------------------------------------------------------
+        #self.bar_option = make_flat_btton(name = 'Option', text=text_col, bg=hilite, h_max=10, w_min=si_w, w_max=si_w)
+        #self.main_layout.addWidget(self.bar_option, vn, 6, 1 ,5)
         vn+=1
         #カラー変更ボタン--------------------------------------------------------------------------------
         self.ui_si = make_flat_btton(icon=image_path+'SI_Icon.png',name = ' S_Color ', text=text_col, bg=hilite, h_max=22, w_min=si_w, w_max=si_w)
@@ -1296,7 +1352,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.ui_group.button(self.ui_col).setChecked(True)
         self.ui_group.buttonClicked.connect(lambda : self.change_ui_color(mode=self.ui_group.checkedId()))
         vn+=1
-        self.main_layout.addWidget(self.make_h_line(text=line_col, bg=line_col), vn, 0, 1 ,11)
+        self.main_layout.addWidget(make_h_line(text=line_col, bg=line_col), vn, 0, 1 ,11)
         #--------------------------------------------------------------------------------
         vn+=1
         self.select_top = make_flat_btton(name='Select', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
@@ -1339,7 +1395,7 @@ class SiSideBarWeight(qt.DockWindow):
         #セレクションフィルター--------------------------------------------------------------------------------
         filter_w = 22
         filter_h = 22
-        self.select_line_a = self.make_h_line()
+        self.select_line_a = make_h_line()
         self.main_layout.addWidget(self.select_line_a, vn, 0, 1 ,11)
         vn+=1
         self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
@@ -1366,8 +1422,14 @@ class SiSideBarWeight(qt.DockWindow):
         self.select_filter_mode(mode=self.filter_group .checkedId())#フィルターを初期化しておく
         vn+=1
         #選択入力ラインエディット--------------------------------------------------------------------------------
+        #フィルターセットしているときにウインドウ触るとフォーカスとって暴発することがあるのを防ぐためのダミーライン
+        self.dummy_line = self.make_line_edit(text=string_col, bg=bg_col)
+        self.dummy_line.setVisible(False)
+        self.main_layout.addWidget(self.dummy_line, vn, 0, 1, 11)
+        vn+=1
         self.selection_line = self.make_line_edit(text=string_col, bg=bg_col)
         self.main_layout.addWidget(self.selection_line, vn, 0, 1, 11)
+        self.selection_line.textChanged.connect(self.keep_pre_search_line)
         self.selection_line.editingFinished.connect(self.search_node)
         vn+=1
         #厳密に位置調整
@@ -1442,7 +1504,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.aim_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.aim_cons_filter.text()))
         self.main_layout.addWidget(self.aim_cons_filter, vn, vh, 1, hw)
         vh += hw
-        self.select_line_c = self.make_h_line()
+        self.select_line_c = make_h_line()
         self.dummy_but_c = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_c , vn, vh, 1, 1)
         vh += hw
@@ -1454,11 +1516,14 @@ class SiSideBarWeight(qt.DockWindow):
         self.all_filter_but_list = [self.select_all_but, self.select_Marker_but, self.select_joint_but, 
                                             self.select_curve_but, self.select_surface_but, self.select_deform_but]
         self.all_search_widgets = [self.selection_line, self.index_line, self.pick_down, self.pick_left, self.pick_up, self.pick_right] 
-        self.filter_but_list = [self.all_filter, self.transform_filter, self.joint_filter, 
-                                        self.dummy_but_a, self.dummy_but_b, 
-                                        self.shape_filter, self.parent_cons_filter, self.point_cons_filter, 
-                                        self.orient_cons_filter, self.scale_cons_filter, 
-                                        self.aim_cons_filter, self.dummy_but_c]
+
+        self.filter_but_list = [self.all_filter, self.transform_filter, 
+                                    self.joint_filter,self.shape_filter, 
+                                    self.dummy_but_a, self.dummy_but_b, 
+                                    self.parent_cons_filter, self.point_cons_filter, 
+                                    self.orient_cons_filter, self.scale_cons_filter, 
+                                    self.aim_cons_filter, self.dummy_but_c]
+                                    
         self.select_lines = [self.select_line_a] 
                                     #self.select_line_b, 
                                     #self.select_line_c]
@@ -1577,7 +1642,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.but_scale_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
-        self.trs_line_a = self.make_h_line()
+        self.trs_line_a = make_h_line()
         self.main_layout.addWidget(self.trs_line_a, vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1662,7 +1727,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.but_rot_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
-        self.trs_line_b = self.make_h_line()
+        self.trs_line_b = make_h_line()
         self.main_layout.addWidget(self.trs_line_b, vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1756,7 +1821,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.but_trans_y.toggled.connect(lambda : self.toggle_xyz_icon(but=self.but_trans_y, axis=1))
         self.but_trans_z.toggled.connect(lambda : self.toggle_xyz_icon(but=self.but_trans_z, axis=2))
         #--------------------------------------------------------------------------------
-        self.trs_line_c = self.make_h_line()
+        self.trs_line_c = make_h_line()
         self.main_layout.addWidget(self.trs_line_c, vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1833,7 +1898,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.sym_but, vn, 8, 1 ,3)
         vn+=1
         #--------------------------------------------------------------------------------
-        #self.trs_line_d = self.make_h_line()
+        #self.trs_line_d = make_h_line()
         #self.main_layout.addWidget(self.trs_line_d, vn, 0, 1 ,11)
         #vn+=1
         #SRTボタンをまとめてリスト化
@@ -1918,7 +1983,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.snap_live_but, vn, 10, 1 ,1)
         vn+=1
         #--------------------------------------------------------------------------------\
-        #self.snap_line_a = self.make_h_line()
+        #self.snap_line_a = make_h_line()
         #self.main_layout.addWidget(self.snap_line_a, vn, 0, 1 ,11)
         #vn+=1
         
@@ -1958,7 +2023,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.child_comp_but, vn, 6, 1 ,5)
         vn+=1
         #--------------------------------------------------------------------------------
-        #self.const_line_a = self.make_h_line()
+        #self.const_line_a = make_h_line()
         #self.main_layout.addWidget(self.const_line_a, vn, 0, 1 ,11)
         #vn+=1
         #一括操作のためにボタンをリスト化
@@ -2004,7 +2069,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.immed_but, vn, 5, 1 ,5)
         vn+=1
         #--------------------------------------------------------------------------------
-        #self.edit_line_a = self.make_h_line()
+        #self.edit_line_a = make_h_line()
         #self.main_layout.addWidget(self.edit_line_a, vn, 0, 1 ,11)
         #--------------------------------------------------------------------------------
         #vn+=1
@@ -2014,7 +2079,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.edit_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.edit_section_but,  heights=self.edit_section_height))
         #Numpyモードデバッグ用
         #--------------------------------------------------------------------------------
-        self.edit_line_a = self.make_h_line()
+        self.edit_line_a = make_h_line()
         self.main_layout.addWidget(self.edit_line_a, vn, 0, 1 ,11)
         vn+=1
         #計算時間--------------------------------------------------------------------------------
@@ -2111,6 +2176,8 @@ class SiSideBarWeight(qt.DockWindow):
         self.multi_r_list = [False]*3
         self.multi_t_list = [False]*3
         self.all_multi_list = [self.multi_s_list, self.multi_r_list, self.multi_t_list]
+        #マルチライン選択でフォーカス外れた時に暴発しないように予防線を張る
+        self.multi_focus_list = copy.deepcopy(self.all_multi_list)
         self.pre_lines_text = [[[]]*3, [[]]*3, [[]]*3]
         self.pre_pre_lines_text = [[[]]*3, [[]]*3, [[]]*3]
         #print self.pre_lines_text
@@ -2269,17 +2336,34 @@ class SiSideBarWeight(qt.DockWindow):
                     pass
         self.index_line.clearFocus()
     #フィルタータイプ一覧
-    select_type_list =  ['all', 'transform',  'joint', 'KTG_ModelRoot', 'KTG_locator', 'KTG_SSCTransform', 
-                                'shape', 'parentConstraint', 'pointConstraint', 'orientConstraint', 'scaleConstraint', 'aimConstraint']
+    select_type_list =  ['all', 'transform',  'joint', 'shape', None, None, 
+                                'parentConstraint', 'pointConstraint', 'orientConstraint', 'scaleConstraint', 'aimConstraint', None]
+                                
+    #フローティング状態の時の検索窓の挙動を修正
+    #検索窓がフォーカスとったとき暴発しないように以前の状態を保存
+    pre_sel_text = None
+    pre_pre_sel_text = None
+    def keep_pre_search_line(self):
+        if self.selection_line.text() == '':
+            return
+        if self.selection_line.text() != self.pre_pre_sel_text:
+            self.pre_pre_sel_text = self.pre_sel_text
+            self.pre_sel_text = self.selection_line.text()
+        #print self.pre_pre_sel_text, self.pre_sel_text
+            
     #入力からオブジェクトを検索して選択
-    
     def search_node(self):
+        #ダミーラインにフォーカス取らせて暴発防止
+        self.dummy_line.setFocus()
         #print 'init flag', self.init_flag
         if self.init_flag:
             #print 'skip init search'
             self.init_flag = False#起動時判定フラグをさげる
             return
         search_text = self.selection_line.text()
+        if self.pre_pre_sel_text == search_text:
+            #print 'same text not search'
+            return
         if not search_text or search_text.startswith('MULTI('):
             self.selection_line.clearFocus()
             return
@@ -2294,6 +2378,7 @@ class SiSideBarWeight(qt.DockWindow):
             for filter_type, flag in zip(self.select_type_list[1:], all_flags[1:]):
                 if not flag:
                     continue
+                print filter_type
                 selection_node += cmds.ls(search_list, l=True, type=filter_type)
         #print 'get selection node :', selection_node
         #オブジェクトモードの時は新規選択、コンポーネントの場合は追加選択する
@@ -2353,25 +2438,41 @@ class SiSideBarWeight(qt.DockWindow):
         
     global key_mod
     key_mod = None#1刻み
-    count=0
     mouse_flag = False
     def eventFilter(self, obj, event):
         global key_mod
-        value = obj.text()
+        try:
+            value = obj.text()
+        except:
+            return
         #print 'move event', obj, event
         #print 'obj :', obj, obj.text()
         #print 'ev type :', event.type()
         if event.type() == QEvent.MouseButtonPress:
-            print 'mouse clicked'
+            #print 'mouse clicked'
+            self.first_move_flag = True
+            self.pre_pos = map(float, [QCursor.pos().x(), QCursor.pos().y()*-1])
+            self.pre_vec = [0, 1]
+            self.count = 0
             self.mouse_flag = True
         if event.type() == QEvent.MouseButtonRelease:
-            print 'mouse released'
+            #print 'mouse released'
             self.mouse_flag = False
         if self.mouse_flag:
             if event.type() == QEvent.MouseMove:
-                #print 'mouse moved', self.count
-                self.count +=1
-            
+                mod = event.modifiers()
+                #print 'ev mod', mod
+                if mod == Qt.ControlModifier:
+                    key_mod = 'ctrl'#10刻み
+                elif mod == Qt.ShiftModifier:
+                    key_mod = 'shift'#0.1きざみ
+                delta = self.mouse_vector()
+                if value =='':
+                    value = '0.0'
+                #print 'mouse move delta :', delta
+                if delta is not None:
+                    self.save_pre_value()
+                    self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
         if event.type() == QEvent.FocusIn:
             self.keep_focused_text(text=obj.text())
         if event.type() == QEvent.KeyPress:
@@ -2405,9 +2506,80 @@ class SiSideBarWeight(qt.DockWindow):
             #print 'wheel event :', event.delta()
             self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
             
+    #マウスの座標計算してぐるぐる入力を実現
+    def mouse_vector(self):
+        #一定間隔ごとに計算
+        if self.first_move_flag:
+            threshold = 40
+        #print threshold
+        else:
+            threshold = mouse_gesture_speed
+        if self.count <=  threshold:
+            self.count += 1
+            return None
+        else:
+            self.count = 0
+            self.cur_pos = map(float, [QCursor.pos().x(), QCursor.pos().y()*-1])
+            
+            if self.cur_pos != self.pre_pos:
+                #print 'get mouse pos :', self.pre_pos, 'to', self.cur_pos
+                #現在のベクトルを求める
+                self.cur_vec = [self.cur_pos[0]-self.pre_pos[0], self.cur_pos[1]-self.pre_pos[1]]
+                #print 'pre_vec', self.pre_vec, 'get_vec :', self.cur_vec
+                #動き出しの符号を決定する
+                if self.first_move_flag:
+                    self.first_move_flag = False
+                    self.operator = self.get_first_operator(self.cur_vec)
+                #正規化して内積をとる
+                self.angle = self.culc_angle(self.cur_vec, self.pre_vec)
+                if self.angle >= 120:
+                    #print 'reverse operator :', self.operator
+                    self.operator *= -1
+                #print 'get line operation :', self.operator
+                self.pre_pos = self.cur_pos
+                self.pre_vec = self.cur_vec
+                delta = self.operator*mouse_gesture_ratio
+                #print delta
+                return delta
+        return None
+            
+    def get_first_operator(self, a):
+        #print 'get first operator'
+        #value = a[0]*a[1]
+        #SIの対角で符号反転するのが使い辛いので左右で一意に決める
+        value = a[0]
+        if value > 0:
+            return 1.0
+        else:
+            return -1.0
+    #2つのベクトルの角度を算出
+    def culc_angle(self, a, b):
+        dot = self.dot_poduct(a, b, norm=True)
+        rad = math.acos(dot)
+        #print u'ラジアン :', rad
+        angle = rad*180/math.pi
+        #print u'角度 :', angle
+        return angle
+    #内積とる
+    def dot_poduct(self, a, b, norm=False):
+        if norm:#正規化オプション
+            a = self.normalize(a)
+            b = self.normalize(b)
+        dot = (a[0]*b[0])+(a[1]*b[1])
+        #print u'内積 :', dot
+        return dot
+    #ベクトルを正規化して戻す
+    def normalize(self, a):
+        length = self.get_length(a)
+        return [a[0]/length, a[1]/length]
+    #長さを出す
+    def get_length(self, a):
+        return math.sqrt(a[0]**2+a[1]**2)
+        
+            
     #入力を計算して返す
     def culc_input_event(self,obj=None, delta=0, mod=None, value=0, mode='gesture'):
-        print 'input formula :', value
+        #print value
         if obj is None:
             return
         try:
@@ -2421,7 +2593,8 @@ class SiSideBarWeight(qt.DockWindow):
                 add = 0.1 * delta
             value = str(float(value)+add)
         except Exception as e:
-            #print e
+            print 'Input Event Culicurationo Errot:', e.message
+            print 'value :', value, 'delta :', delta, 'mod :',mod
             value =  ''
         #print event.orient()
         #print value
@@ -2436,7 +2609,7 @@ class SiSideBarWeight(qt.DockWindow):
     #[]入力の場合はテキストがおかしくなるので入力後にジョブで実行
     def re_input_value(self, obj=None, value=None):
         obj.setFocus()#先にフォーカスとること！じゃないと入力反映が遅れる
-        obj.setText(value)
+        obj.setText(str(value))
         #print 'set_text :', value
         self.apply_wheel_value()
         
@@ -2455,6 +2628,7 @@ class SiSideBarWeight(qt.DockWindow):
                 value = a_line.text()
                 #print value
                 #以前の入力と違っていたらフォーカス外さないモードでSRT実行
+                #print 'compare pre_text :', pre_text_value[i][j], 'value :', value, 'mode', i
                 if pre_text_value[i][j] != value:
                     if i == 0:
                         self.scaling(text=value, axis=j, focus=False)
@@ -2593,93 +2767,131 @@ class SiSideBarWeight(qt.DockWindow):
     #コンテキストメニューとフローティングメニューを再帰的に作成する
     def create_f_trans_menu(self):#ウィンドウ切り離しの場合はインスタンスを別にして再作成
         top_f_menus = self.create_trans_menu(add_float=False)
-        FloatingWindow(menus=top_f_menus, offset=transform_offset)
+        global transform_manu_window
+        transform_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset)
         
     def create_trans_menu(self, add_float=True):
         self.top_menus = QMenu(self.transfrom_top)
         qt.change_button_color(self.top_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         if add_float:#切り離しウィンドウメニュー
-            action10 = self.top_menus.addAction(u'----------------------------------------------✂--')
+            action10 = self.top_menus.addAction(u'-----------------------------------------------------✂----')
             action10.triggered.connect(self.create_f_trans_menu)
-        mag = lang.Lang(en='   Reset Actor to Bind Pose',
-                                ja=u'   バインドポーズに戻す')
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Transform Preference...',
+                                ja=u'変換設定')
+        action25 = QAction(mag.output(), self.top_menus, icon=QIcon(image_path+'setting'))
+        action25.setToolTip('test')
+        self.top_menus.addAction(action25)
+        action25.triggered.connect(lambda : self.pop_option_window(mode='transform'))
+        self.top_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Reset Actor to Bind Pose',
+                                ja=u'バインドポーズに戻す')
         action12 = self.top_menus.addAction(mag.output())
         action12.triggered.connect(transform.reset_actor)
         self.top_menus.addSeparator()#分割線追加
-        mag = lang.Lang(en='   Transfer Rotate to Joint Orient',
-                                ja=u'   回転をジョイントの方向に変換')
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Transfer Rotate to Joint Orient',
+                                ja=u'回転をジョイントの方向に変換')
         action17 = self.top_menus.addAction(mag.output())
         action17.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=True)))
-        mag = lang.Lang(en='   Transfer Joint Orient to Rotate',
-                                ja=u'   ジョイントの方向を回転に変換')
+        mag = lang.Lang(en='Transfer Joint Orient to Rotate',
+                                ja=u'ジョイントの方向を回転に変換')
         action18 = self.top_menus.addAction(mag.output())
         action18.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=False)))
         self.top_menus.addSeparator()#分割線追加
-        mag = lang.Lang(en='   Reset All Transforms',
-                                ja=u'   すべての変換をリセット')
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Reset All Transforms',
+                                ja=u'すべての変換をリセット')
         action13 = self.top_menus.addAction(mag.output())
         action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all')))
-        mag = lang.Lang(en='   Reset Scaling',
-                                ja=u'   スケーリングのリセット')
+        mag = lang.Lang(en='Reset Scaling',
+                                ja=u'スケーリングのリセット')
         action14 = self.top_menus.addAction(mag.output())
         action14.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='scale')))
-        mag = lang.Lang(en='   Reset Rotation',
-                                ja=u'   回転のリセット')
+        mag = lang.Lang(en='Reset Rotation',
+                                ja=u'回転のリセット')
         action15 = self.top_menus.addAction(mag.output())
         action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot')))
-        mag = lang.Lang(en='   Reset Translation',
-                                ja=u'   移動のリセット')
+        mag = lang.Lang(en='Reset Translation',
+                                ja=u'移動のリセット')
         action16 = self.top_menus.addAction(mag.output())
         action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans')))
         self.top_menus.addSeparator()#分割線追加
-        mag = lang.Lang(en='   Freeze All Transforms',
-                                ja=u'   すべての変換をフリーズ')
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Freeze All Transforms',
+                                ja=u'すべての変換をフリーズ')
         action0 = self.top_menus.addAction(mag.output())
         action0.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='all')))
-        mag = lang.Lang(en='   Freeze Scaling',
-                                ja=u'   スケーリングのフリーズ')
+        mag = lang.Lang(en='Freeze Scaling',
+                                ja=u'スケーリングのフリーズ')
         action1 = self.top_menus.addAction(mag.output())
         action1.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='scale')))
-        mag = lang.Lang(en='   Freeze Rotation',
-                                ja=u'   回転のフリーズ')
+        mag = lang.Lang(en='Freeze Rotation',
+                                ja=u'回転のフリーズ')
         action2 = self.top_menus.addAction(mag.output())
         action2.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='rot')))
-        mag = lang.Lang(en='   Freeze Translation',
-                                ja=u'   移動のフリーズ')
+        mag = lang.Lang(en='Freeze Translation',
+                                ja=u'移動のフリーズ')
         action3 = self.top_menus.addAction(mag.output())
         action3.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='trans')))
-        mag = lang.Lang(en='   Freeze Joint Orientation',
-                                ja=u'   ジョイントの方向のフリーズ')
+        mag = lang.Lang(en='Freeze Joint Orientation',
+                                ja=u'ジョイントの方向のフリーズ')
         action4 = self.top_menus.addAction(mag.output())
         action4.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='joint')))
-        mag = lang.Lang(en='   Match All Transform',
-                                ja=u'   すべての変換の一致')
         self.top_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Round All Transform / Decimal'+str(round_decimal_value),
+                                ja=u'すべての変換を丸める / 桁数'+str(round_decimal_value))
+        self.action20 = self.top_menus.addAction(mag.output())
+        self.action20.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='all', digit=round_decimal_value)))
+        mag = lang.Lang(en='Round Scaling / Decimal'+str(round_decimal_value),
+                                ja=u'スケーリングを丸める / 桁数'+str(round_decimal_value))
+        self.action21 = self.top_menus.addAction(mag.output())
+        self.action21.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='scale', digit=round_decimal_value)))
+        mag = lang.Lang(en='Round Rotation / Decimal'+str(round_decimal_value),
+                                ja=u'回転を丸める / 桁数'+str(round_decimal_value))
+        self.action22 = self.top_menus.addAction(mag.output())
+        self.action22.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='rotate', digit=round_decimal_value)))
+        mag = lang.Lang(en='Round Translation / Decimal'+str(round_decimal_value),
+                                ja=u'移動値を丸める / 桁数'+str(round_decimal_value))
+        self.action23 = self.top_menus.addAction(mag.output())
+        self.action23.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='translate', digit=round_decimal_value)))
+        mag = lang.Lang(en='Round Joint Orient / Decimal'+str(round_decimal_value),
+                                ja=u'ジョイントの方向を丸める / 桁数'+str(round_decimal_value))
+        self.action24 = self.top_menus.addAction(mag.output())
+        self.action24.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='jointOrient', digit=round_decimal_value)))
+        self.round_action_list = [self.action20, self.action21, self.action22, self.action23, self.action24]
+        self.top_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Match All Transform',
+                                ja=u'すべての変換の一致')
         action6 = self.top_menus.addAction(mag.output())
         action6.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='all')))
-        mag = lang.Lang(en='   Match Scaling',
-                                ja=u'   スケーリングの一致')
+        mag = lang.Lang(en='Match Scaling',
+                                ja=u'スケーリングの一致')
         action7 = self.top_menus.addAction(mag.output())
         action7.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='scale')))
-        mag = lang.Lang(en='   Match Rotation',
-                                ja=u'   回転の一致')
+        mag = lang.Lang(en='Match Rotation',
+                                ja=u'回転の一致')
         action8 = self.top_menus.addAction(mag.output())
-        action8.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='rot')))
-        mag = lang.Lang(en='   Match Translation',
-                                ja=u'   移動値の一致')
+        action8.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='rotate')))
+        mag = lang.Lang(en='Match Translation',
+                                ja=u'移動値の一致')
         action9 = self.top_menus.addAction(mag.output())
-        action9.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='trans')))
-        mag = lang.Lang(en='   Move Center to Selection (Center of all selection)',
-                                ja=u'   センターを選択に移動（すべての選択の中心）')
+        action9.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='translate')))
         self.top_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Move Center to Selection (Center of all selection)',
+                                ja=u'センターを選択に移動（すべての選択の中心）')
         action5 = self.top_menus.addAction(mag.output())
         action5.triggered.connect(transform.move_center2selection)
-        mag = lang.Lang(en='   Move Center to Selection (Center of each object selection)',
-                                ja=u'   センターを選択に移動（オブジェクトごとの選択の中心）')
+        mag = lang.Lang(en='Move Center to Selection (Center of each object)',
+                                ja=u'センターを選択に移動（オブジェクトごとの中心）')
         action11 = self.top_menus.addAction(mag.output())
         action11.triggered.connect(transform.move_center_each_object)
         self.top_menus.addSeparator()#分割線追加
-        
+        #----------------------------------------------------------------------------------------------------
         self.trs_setting_path = self.dir_path+'\\sisidebar_trs_data_'+str(maya_ver)+'.json'
         #print self.trs_setting_path
         global cp_abs_flag
@@ -2687,14 +2899,14 @@ class SiSideBarWeight(qt.DockWindow):
         self.load_transform_setting()
         #print cp_abs_flag
         
-        self.cp_mag_0 = lang.Lang(en=u'✔Collapse Point For Snapping/Absolute Translation',
-                                ja=u'✔スナップ移動/絶対移動でポイントを集約')
-        self.cp_mag_1 = lang.Lang(en=u'   Collapse Point For Snapping/Absolute Translation',
-                                ja=u'   スナップ移動/絶対移動でポイントを集約')
+        self.cp_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
+                                ja=u'スナップ移動/絶対移動でポイントを集約')
+                                
+        self.action19 = self.top_menus.addAction(self.cp_mag.output())
         if cp_abs_flag:
-            self.action19 = self.top_menus.addAction(self.cp_mag_0.output())
+            self.action19.setIcon(QIcon(image_path+self.check_icon))
         else:
-            self.action19 = self.top_menus.addAction(self.cp_mag_1.output())
+            self.action19.setIcon(QIcon(None))
         
         self.action19.triggered.connect(self.toggle_cp_absolute)
         #self.top_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
@@ -2712,7 +2924,8 @@ class SiSideBarWeight(qt.DockWindow):
         if cp_abs_flag:
             try:
                 #print  'try0'
-                self.action19.setText(self.cp_mag_0.output())
+                #self.action19.setText(self.cp_mag.output())
+                self.action19.setIcon(QIcon(image_path+self.check_icon))
             except:
                 #print  'except'
                 top_menus = self.create_trans_menu()
@@ -2722,7 +2935,8 @@ class SiSideBarWeight(qt.DockWindow):
             try:
                 #print  'try1'
                 #self.top_menus.removeWidget(self.action19)
-                self.action19.setText(self.cp_mag_1.output())
+                #self.action19.setText(self.cp_mag.output())
+                self.action19.setIcon(QIcon(None))
             except:
                 #print  'except'
                 top_menus = self.create_trans_menu()
@@ -2906,6 +3120,13 @@ class SiSideBarWeight(qt.DockWindow):
             filter_window = FilterOption()
             for but in self.filter_but_list:
                 but.clicked.connect(filter_window.load_filter_but)
+        if mode == 'transform':
+            global trs_setting_window
+            try:
+                trs_setting_window.close()
+            except:
+                pass
+            trs_setting_window = TransformSettingOption()
             
         
     #Child_Compを切り替え
@@ -3152,8 +3373,7 @@ class SiSideBarWeight(qt.DockWindow):
             return
         #同じ数字が打っても効かないので前々回のラインとも比較する
         if text == str(pre_trans[axis]) and text == self.pre_pre_lines_text[2][axis]:
-            #print 'same!'
-            #print 'skip trans'
+            print 'same!  skip trans'
             return
         #print 'transration method :',axis , 'pre :', pre_trans, 'current :', text
         space = self.space_list[space_group.checkedId()]
@@ -3313,6 +3533,7 @@ class SiSideBarWeight(qt.DockWindow):
         
     #計算式を解析して戻す
     def formula_analyze(self, text):
+        #print 'input formula :',  text
         text = text.upper()
         text = text.replace(' ', '')
         text = text.replace('R(', 'r(')
@@ -3328,7 +3549,7 @@ class SiSideBarWeight(qt.DockWindow):
         try:
             #evalで式を評価、失敗したらNoneを返す
             ans = eval(text)
-            print 'culc anser :', ans
+            #print 'culc anser :', ans
             return ans
         except Exception as e:
             #print e
@@ -4222,6 +4443,185 @@ class SymOption(qt.MainWindow):
         self.preserve_seam.setChecked(True)
         self.seam_tol.setValue(0.001)
         
+class TransformSettingOption(qt.MainWindow):
+    dir_path = os.path.join(
+        os.getenv('MAYA_APP_dir'),
+        'Scripting_Files')
+    save_file = dir_path+'\\sisidebar_transform_setting_'+str(maya_ver)+'.json'
+    def __init__(self, parent = None):
+        super(TransformSettingOption, self).__init__(parent)
+        
+        load_transform_setting()
+        
+        wrapper = QWidget()
+        self.setCentralWidget(wrapper)
+        
+        self.main_layout = QVBoxLayout()
+        wrapper.setLayout(self.main_layout)
+        qt.change_widget_color(self, textColor=menu_text, bgColor=ui_color)
+        
+        #print 'Init Transform Setting Option'
+        
+        msg = lang.Lang(
+        en='- View number of decimal places -',
+        ja=u'- 少数点以下の表示桁数 -:')
+        label = QLabel(msg.output(),self)
+        qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
+        self.main_layout.addWidget(label)
+        
+        self.sliderLayout = QHBoxLayout()
+        self.main_layout.addLayout(self.sliderLayout)
+        self.view_decimal = QSpinBox(self)#スピンボックス
+        self.view_decimal.setRange(0, 10)
+        self.view_decimal.setValue(view_decimal_value)#値を設定
+        self.sliderLayout.addWidget(self.view_decimal)
+        qt.change_widget_color(self.view_decimal, textColor=string_col, bgColor=mid_color, baseColor=bg_col)
+        #スライダバーを設定
+        self.view_decimal_sld = QSlider(Qt.Horizontal,self)
+        self.view_decimal_sld.setRange(0, 10)
+        self.view_decimal_sld.setValue(self.view_decimal.value())
+        self.sliderLayout.addWidget(self.view_decimal_sld)
+        #mainLayout.addWidget(self.view_decimal_sld)
+        #スライダーとボックスの値をコネクト。連動するように設定。
+        self.view_decimal_sld.valueChanged[int].connect(self.view_decimal.setValue)
+        self.view_decimal.valueChanged[int].connect(self.view_decimal_sld.setValue)
+        self.view_decimal_sld.valueChanged[int].connect(self.change_view_decimal)
+        self.view_decimal_sld.valueChanged[int].connect(self.save_setting)
+        
+        self.main_layout.addWidget(make_h_line())
+        
+        msg = lang.Lang(
+        en='- Round number of decimal places -',
+        ja=u'- 少数点以下の丸める桁数 -:')
+        label = QLabel(msg.output(),self)
+        qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
+        self.main_layout.addWidget(label)
+        
+        self.sliderLayout = QHBoxLayout()
+        self.main_layout.addLayout(self.sliderLayout)
+        self.round_decimal = QSpinBox(self)#スピンボックス
+        self.round_decimal.setRange(0, 10)
+        self.round_decimal.setValue(round_decimal_value)#値を設定
+        self.sliderLayout.addWidget(self.round_decimal)
+        qt.change_widget_color(self.round_decimal, textColor=string_col, bgColor=mid_color, baseColor=bg_col)
+        #スライダバーを設定
+        self.round_decimal_sld = QSlider(Qt.Horizontal,self)
+        self.round_decimal_sld.setRange(0, 10)
+        self.round_decimal_sld.setValue(self.round_decimal.value())
+        self.sliderLayout.addWidget(self.round_decimal_sld)
+        #mainLayout.addWidget(self.round_decimal_sld)
+        #スライダーとボックスの値をコネクト。連動するように設定。
+        self.round_decimal_sld.valueChanged[int].connect(self.round_decimal.setValue)
+        self.round_decimal.valueChanged[int].connect(self.round_decimal_sld.setValue)
+        self.round_decimal_sld.valueChanged[int].connect(self.change_round_decimal)
+        self.round_decimal_sld.valueChanged[int].connect(self.save_setting)
+        
+        self.main_layout.addWidget(make_h_line())
+        
+        msg = lang.Lang(
+        en='- Mouse gesture input speed -',
+        ja=u'- マウスジェスチャー入力速度 -:')
+        label = QLabel(msg.output(),self)
+        qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
+        self.main_layout.addWidget(label)
+        
+        self.sliderLayout = QHBoxLayout()
+        self.main_layout.addLayout(self.sliderLayout)
+        self.mouse_gesture = QSpinBox(self)#スピンボックス
+        self.mouse_gesture.setRange(0, 20)
+        self.mouse_gesture.setValue(mouse_gesture_speed)#値を設定
+        self.sliderLayout.addWidget(self.mouse_gesture)
+        qt.change_widget_color(self.mouse_gesture, textColor=string_col, bgColor=mid_color, baseColor=bg_col)
+        #スライダバーを設定
+        self.mouse_gesture_sld = QSlider(Qt.Horizontal,self)
+        self.mouse_gesture_sld.setRange(0, 20)
+        self.mouse_gesture_sld.setValue(self.mouse_gesture.value())
+        self.sliderLayout.addWidget(self.mouse_gesture_sld)
+        #mainLayout.addWidget(self.mouse_gesture_sld)
+        #スライダーとボックスの値をコネクト。連動するように設定。
+        self.mouse_gesture_sld.valueChanged[int].connect(self.mouse_gesture.setValue)
+        self.mouse_gesture.valueChanged[int].connect(self.mouse_gesture_sld.setValue)
+        self.mouse_gesture_sld.valueChanged[int].connect(change_mouse_gesture)
+        self.mouse_gesture_sld.valueChanged[int].connect(self.save_setting)
+        
+        self.show()
+        move_to_best_pos(object=self, offset=transform_offset)
+      
+    def save_setting(self):
+        if not os.path.exists(self.dir_path):
+            os.makedirs(self.dir_path)
+        with open(self.save_file, 'w') as f:
+            save_data = {}
+            save_data['view_decimal'] = self.view_decimal_sld.value()
+            save_data['round_decimal'] = self.round_decimal_sld.value()
+            save_data['mouse_gesture'] = self.mouse_gesture_sld.value()
+            json.dump(save_data, f)
+            
+            
+    def change_view_decimal(self, value):
+        global view_decimal_value
+        sisidebar_sub.set_view_decimal(decimal=value)
+        view_decimal_value = value
+        sisidebar_sub.get_matrix()
+        
+    def change_round_decimal(self, value):
+        global round_decimal_value
+        sisidebar_sub.set_round_decimal(decimal=value)
+        round_decimal_value = value
+        sisidebar_sub.get_matrix()
+        top_menus = window.create_trans_menu()
+        window.transfrom_top.setMenu(top_menus)
+        if 'transform_manu_window' in globals():
+            transform_manu_window.re_init_window()
+        
+#マウスジェスチャー設定から速度と比率を決定する
+def change_mouse_gesture(value):
+    global mouse_gesture_speed
+    global mouse_gesture_ratio
+    if value <= 10:
+        mouse_gesture_speed =  11 - value
+        mouse_gesture_ratio = 1.0
+    else:
+        mouse_gesture_speed =  1
+        mouse_gesture_ratio = value / 10.0
+         
+global view_decimal_value
+global round_decimal_value
+global mouse_gesture_speed
+global mouse_gesture_ratio
+view_decimal_value = 3
+round_decimal_value = 3
+mouse_gesture_speed = 5
+mouse_gesture_ratio = 1.0
+def load_transform_setting():
+    global view_decimal_value
+    global round_decimal_value
+    global mouse_gesture_speed
+    dir_path = os.path.join(
+        os.getenv('MAYA_APP_dir'),
+        'Scripting_Files')
+    save_file = dir_path+'\\sisidebar_transform_setting_'+str(maya_ver)+'.json'
+    if os.path.exists(save_file):#保存ファイルが存在したら
+        with open(save_file, 'r') as f:
+            try:
+                save_data = json.load(f)
+                #print save_data
+                view_decimal_value = save_data['view_decimal']
+                round_decimal_value = save_data['round_decimal']
+                mouse_gesture_speed = save_data['mouse_gesture']
+            except Exception as e:
+                view_decimal_value = 3
+                round_decimal_value = 3
+                mouse_gesture_speed = 5
+                print e.message   
+    else:
+        view_decimal_value = 3
+        round_decimal_value = 3
+        mouse_gesture_speed = 5
+    sisidebar_sub.set_view_decimal(decimal=view_decimal_value)
+    sisidebar_sub.set_round_decimal(decimal=round_decimal_value)
+    change_mouse_gesture(mouse_gesture_speed)
+        
 #選択フィルターのオプション設定
 class FilterOption(qt.MainWindow):
     dir_path = os.path.join(
@@ -4281,11 +4681,13 @@ class FilterOption(qt.MainWindow):
         self.main_layout.addWidget(self.dummy_but_c)
         self.dummy_but_c.setVisible(False)
         
-        self.filter_but_list = [self.all_filter, self.transform_filter, self.joint_filter,
+        self.filter_but_list = [self.all_filter, self.transform_filter, 
+                                    self.joint_filter,self.shape_filter, 
                                     self.dummy_but_a, self.dummy_but_b, 
-                                    self.shape_filter, self.parent_cons_filter, self.point_cons_filter, 
-                                    self.orient_cons_filter, self.scale_cons_filter, self.aim_cons_filter, 
-                                    self.dummy_but_c]
+                                    self.parent_cons_filter, self.point_cons_filter, 
+                                    self.orient_cons_filter, self.scale_cons_filter, 
+                                    self.aim_cons_filter, self.dummy_but_c]
+                                    
         for but in self.filter_but_list:
             but.clicked.connect(window.load_filter_but)
         
@@ -4326,7 +4728,12 @@ class FilterOption(qt.MainWindow):
             os.makedirs(self.dir_path)
         with open(save_file, 'w') as f:
             json.dump({'all_flags':all_flags}, f)
-        
+    
+#明るめのラインを返す
+def make_h_line(text=255, bg=128):
+    line = qt.make_h_line()
+    qt.change_button_color(line, textColor=text, bgColor=bg)
+    return line    
 #Numpyモード比較計算時間を表示
 def view_np_time(culc_time):
     try:
