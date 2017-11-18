@@ -2513,7 +2513,7 @@ class SiSideBarWeight(qt.DockWindow):
             threshold = 40
         #print threshold
         else:
-            threshold = mouse_gesture_speed
+            threshold = mouse_count_ratio
         if self.count <=  threshold:
             self.count += 1
             return None
@@ -4576,23 +4576,25 @@ class TransformSettingOption(qt.MainWindow):
         
 #マウスジェスチャー設定から速度と比率を決定する
 def change_mouse_gesture(value):
-    global mouse_gesture_speed
+    global mouse_count_ratio
     global mouse_gesture_ratio
     if value <= 10:
-        mouse_gesture_speed =  11 - value
+        mouse_count_ratio =  11 - value
         mouse_gesture_ratio = 1.0
     else:
-        mouse_gesture_speed =  1
+        mouse_count_ratio =  1
         mouse_gesture_ratio = value / 10.0
          
 global view_decimal_value
 global round_decimal_value
 global mouse_gesture_speed
 global mouse_gesture_ratio
+global mouse_count_ratio
 view_decimal_value = 3
 round_decimal_value = 3
 mouse_gesture_speed = 5
 mouse_gesture_ratio = 1.0
+mouse_count_ratio = 6
 def load_transform_setting():
     global view_decimal_value
     global round_decimal_value
@@ -4613,11 +4615,13 @@ def load_transform_setting():
                 view_decimal_value = 3
                 round_decimal_value = 3
                 mouse_gesture_speed = 5
+                mouse_count_ratio = 6
                 print e.message   
     else:
         view_decimal_value = 3
         round_decimal_value = 3
         mouse_gesture_speed = 5
+        mouse_count_ratio = 6
     sisidebar_sub.set_view_decimal(decimal=view_decimal_value)
     sisidebar_sub.set_round_decimal(decimal=round_decimal_value)
     change_mouse_gesture(mouse_gesture_speed)
