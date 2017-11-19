@@ -326,11 +326,15 @@ class SiSideBarWeight(qt.DockWindow):
         ini_scale_mode = cmds.manipScaleContext('Scale', q=True, mode=True)
         ini_rot_mode = cmds.manipRotateContext('Rotate', q=True, mode=True)
         ini_trans_mode = cmds.manipMoveContext('Move', q=True, mode=True)
-        
-        scale_obj_list = [3, 1, 1, 1, 1, 1, 1, None, None, 1]
-        scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 1]
-        rot_list = [1, 0, 3, 4]
-        trans_list = [3, 1, 0, 2, 1, 1, 4, None, None, 5]
+        '''
+        print ini_scale_mode
+        print ini_rot_mode
+        print ini_trans_mode
+        '''
+        scale_obj_list = [3, 1, 1, 1, 1, 1, 1, None, None, 1, 1]
+        scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 1, 1]
+        rot_list = [1, 0, 3, 4, None, None, None, None, None, None, None]
+        trans_list = [3, 1, 0, 2, 1, 1, 4, None, None, 5, 5]
         
         self.scl_obj_space = scale_obj_list[ini_scale_mode]
         self.scl_cmp_space = scale_cmp_list[ini_scale_mode]
@@ -348,11 +352,19 @@ class SiSideBarWeight(qt.DockWindow):
             id = context_id[space_group.checkedId()]
             cmds.manipScaleContext('Scale', e=True, mode=id)
         if select_rot.isChecked():
-            context_id = [1, 0, 0, 2, 3, 0]
+            if maya_ver >= 2018:
+                context_id = [1, 0, 0, 2, 3, 10]
+            else:
+                context_id = [1, 0, 0, 2, 3, 9]
+                
             id = context_id[space_group.checkedId()]
             cmds.manipRotateContext('Rotate', e=True, mode=id)
         if select_trans.isChecked():
-            context_id = [2, 1, 3, 0, 6, 9]
+            #2018からコンポーネントモードが10番になったようなので差し替え
+            if maya_ver >= 2018:
+                context_id = [2, 1, 3, 0, 6, 10]
+            else:
+                context_id = [2, 1, 3, 0, 6, 9]
             id = context_id[space_group.checkedId()]
             cmds.manipMoveContext('Move', e=True, mode=id)
             
@@ -3373,7 +3385,7 @@ class SiSideBarWeight(qt.DockWindow):
             return
         #同じ数字が打っても効かないので前々回のラインとも比較する
         if text == str(pre_trans[axis]) and text == self.pre_pre_lines_text[2][axis]:
-            print 'same!  skip trans'
+            #print 'Same Input Text : Skip trans'
             return
         #print 'transration method :',axis , 'pre :', pre_trans, 'current :', text
         space = self.space_list[space_group.checkedId()]
@@ -3580,14 +3592,14 @@ class SiSideBarWeight(qt.DockWindow):
         if maxi is None and mini is None:
             return random.random()
         if mini is not None and maxi is None:
-            print 'only mini'
+            #print 'only mini'
             maxi = mini
             mini = 0.0
             return random.uniform(mini, maxi)
         if mini is not None and maxi is not None:
-            print 'min max'
+            #print 'min max'
             if seed is not None:
-                print 'seed'
+                #print 'seed'
                 random.seed(seed)
             return random.uniform(mini, maxi)
             
@@ -3970,13 +3982,13 @@ def set_active_mute(mode=0):
     global mute_text
     global hilite
     obj_mode_list = [['Global', 'Local', 'Uni', 'Object', u'/Ref', 'Vol'],
-                            ['Global', 'Local', 'View', 'Add', u'/Ref', 'None'],
-                            ['Global', 'Local', 'Normal', 'Par', u'/Ref', 'Avrg'],
-                            ['Global', 'Local', 'View', 'Par', u'/Ref', 'None']]
+                            ['Global', 'Local', 'View', 'Add', u'/Ref', 'Comp'],
+                            ['Global', 'Local', 'Normal', 'Par', u'/Ref', 'Comp'],
+                            ['Global', 'Local', 'View', 'Par', u'/Ref', 'Comp']]
     cmp_mode_list = [['Global', 'Local', 'Uni', 'Object', u'/Ref', 'Vol'],
-                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'None'],
-                            ['Global', 'Local', 'Normal', 'Object', u'/Ref', 'Avrg'],
-                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'None']]
+                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'Comp'],
+                            ['Global', 'Local', 'Normal', 'Object', u'/Ref', 'Comp'],
+                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'Comp']]
     #オブジェクトモード、スケールの時だけスペース設定にミュートが発生するので特殊処理
     mute_list = [True, False, False, False, True, False]
     sel_mute_list = [False, False, False, True, True, True]
@@ -3996,9 +4008,10 @@ def set_active_mute(mode=0):
         else:
             mute_flag = False
             color = text_col
-        if i == 5 and mode == 1:
-            mute_flag = True
-            color = mute_text
+        if maya_ver <= 2015:
+            if i == 5 and mode == 1:
+                mute_flag = True
+                color = mute_text
         button.setDisabled(mute_flag)
         button.setText(name)
         qt.change_button_color(button, textColor=color, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True)
@@ -4748,6 +4761,7 @@ def view_np_time(culc_time):
 def check_option_parm():
     #コンテキストからの変更をUIになるべく反映する
     window.check_ui_button()
+    #window.get_init_space()
     try:
         sym_window.init_data()
     except:
