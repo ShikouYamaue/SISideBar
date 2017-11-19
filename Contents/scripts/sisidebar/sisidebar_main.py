@@ -49,7 +49,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.7 -'
+version = ' - SI Side Bar / ver_2.0.8 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -71,6 +71,9 @@ else:
     prop_offset = [-55, -55, 315, -180]
     sym_offset = [-55, -55, 320, -180]
 filter_offset = [-100, -100, 215, -180]
+global uni_vol_dict
+#Uni/Volボタン仕様変更のため
+uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1}
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -331,9 +334,9 @@ class SiSideBarWeight(qt.DockWindow):
         print ini_rot_mode
         print ini_trans_mode
         '''
-        scale_obj_list = [3, 1, 1, 1, 1, 1, 1, None, None, 1, 1]
-        scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 1, 1]
-        rot_list = [1, 0, 3, 4, None, None, None, None, None, None, None]
+        scale_obj_list = [3, 1, 0, 1, 1, 1, 1, None, None, 5, 5]
+        scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 5, 5]
+        rot_list = [1, 0, 3, 4, None, None, None, None, None, 5, 5]
         trans_list = [3, 1, 0, 2, 1, 1, 4, None, None, 5, 5]
         
         self.scl_obj_space = scale_obj_list[ini_scale_mode]
@@ -346,9 +349,15 @@ class SiSideBarWeight(qt.DockWindow):
     def chane_context_space(self):
         if select_scale.isChecked():
             if cmds.selectMode(q=True, o=True):
-                context_id = [1, 1, 1, 0, 1, 1]
+                if maya_ver >= 2018:
+                    context_id = [2, 1, 1, 0, 6, 10]
+                else:
+                    context_id = [2, 1, 1, 0, 6, 9]
             if cmds.selectMode(q=True, co=True):
-                context_id = [2, 1, 1, 0, 6, 1]
+                if maya_ver >= 2018:
+                    context_id = [2, 1, 1, 0, 6, 10]
+                else:
+                    context_id = [2, 1, 1, 0, 6, 9]
             id = context_id[space_group.checkedId()]
             cmds.manipScaleContext('Scale', e=True, mode=id)
         if select_rot.isChecked():
@@ -510,11 +519,14 @@ class SiSideBarWeight(qt.DockWindow):
     #スロット,postDragCommand(pod)と接続
     def editing_manip(self):
         #print 'editing manip'
-        if scl_vol_group.checkedId() != -1 and select_scale.isChecked():
-            mode = scl_vol_group.checkedId()
+        if uni_vol_dict[view_but.text()] != -1 and select_scale.isChecked():
             #print 'volmode'
-            #sisidebar_sub.volume_scaling(mode)
+            
+            mode = uni_vol_dict[view_but.text()]
+            print mode
             sisidebar_sub.set_vol_mode(mode)
+            self.pre_vol_id = uni_vol_dict[view_but.text()]
+            #sisidebar_sub.volume_scaling(mode)
             vol_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.volume_scaling), protected=True)
         if maya_ver >= 2015:
             self.select_xyz_from_manip()
@@ -666,25 +678,53 @@ class SiSideBarWeight(qt.DockWindow):
     pre_obj_vol = -1
     pre_cmp_vol = -1
     
-    def toggle_uni_vol(self, num):
-        if num == self.pre_vol_id:
+    #以前の設定からUni/Volボタン状態を復旧する
+    def rebuild_uni_vol(self, mode):
+        #print 'rebuild_uni_vol', mode
+        if mode == 2:
+            view_but.setText('Uni')
+            view_but.setChecked(True)
+        elif mode == 5:
+            #print 'Vol'
+            view_but.setText('Vol')
+            view_but.setChecked(True)
+        else:
+            view_but.setText('Uni/Vol')
+            view_but.setChecked(False)
             self.unselect_vol_but()
-        self.pre_vol_id = scl_vol_group.checkedId()
+        #self.rebuild_uni_vol(mode=self.uni_obj_mode)
+        #self.rebuild_uni_vol(mode=self.uni_cmp_mode)
+        
+    
+    def toggle_uni_vol(self, num):
+        if view_but.text() == ('Uni/Vol'):
+            view_but.setText('Uni')
+            view_but.setChecked(True)
+        elif view_but.text() == ('Uni'):
+            view_but.setText('Vol')
+            view_but.setChecked(True)
+        else:
+            view_but.setText('Uni/Vol')
+            view_but.setChecked(False)
+            self.unselect_vol_but()
         #モード保存を一元化するためにボタン押されたタイミングで保存
         if cmds.selectMode(q=True, o=True):
-            self.uni_obj_mode = scl_vol_group.checkedId()
+            self.uni_obj_mode = uni_vol_dict[view_but.text()]
+            #print self.uni_obj_mode
         if cmds.selectMode(q=True, co=True):
-            self.uni_cmp_mode = scl_vol_group.checkedId()
-            
+            self.uni_cmp_mode = uni_vol_dict[view_but.text()]
+            #print self.uni_cmp_mode
+    
+    #選択解除のためにボタンを差し替える
     def unselect_vol_but(self):
         #print 'unselect uni vol but :'
         #return
         scl_vol_group.removeButton(view_but)
-        scl_vol_group.removeButton(plane_but)
+        #scl_vol_group.removeButton(plane_but)
         view_but.setChecked(False)
-        plane_but.setChecked(False)
+        #plane_but.setChecked(False)
         scl_vol_group.addButton(view_but, 2)
-        scl_vol_group.addButton(plane_but, 5)
+        #scl_vol_group.addButton(plane_but, 5)
     
     #以前の選択状態を保存しておく
     keep_srt_select_list = []
@@ -783,8 +823,9 @@ class SiSideBarWeight(qt.DockWindow):
                             #print 'pre scl object space :', self.scl_cmp_space
                             space_group.button(self.scl_obj_space).setChecked(True)
                             if self.uni_obj_mode != -1:
-                                if not scl_vol_group.button(self.uni_obj_mode).isChecked():
-                                    scl_vol_group.button(self.uni_obj_mode).setChecked(True)
+                                self.rebuild_uni_vol(mode=self.uni_obj_mode)
+                                #if not scl_vol_group.button(self.uni_obj_mode).isChecked():
+                                    #scl_vol_group.button(self.uni_obj_mode).setChecked(True)
                             else:
                                 self.unselect_vol_but()
                                 pass
@@ -792,8 +833,9 @@ class SiSideBarWeight(qt.DockWindow):
                             #print 'pre scl component space :', self.scl_cmp_space
                             space_group.button(self.scl_cmp_space).setChecked(True)
                             if self.uni_cmp_mode != -1:
-                                if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
-                                    scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
+                                self.rebuild_uni_vol(mode=self.uni_obj_mode)
+                                #if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
+                                    #scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
                             else:
                                 self.unselect_vol_but()
                                 pass
@@ -814,8 +856,9 @@ class SiSideBarWeight(qt.DockWindow):
                         print e.message
                         space_group.button(3).setChecked(True)
                     if self.uni_obj_mode != -1:
-                        if not scl_vol_group.button(self.uni_obj_mode).isChecked():
-                            scl_vol_group.button(self.uni_obj_mode).setChecked(True)
+                        self.rebuild_uni_vol(mode=self.uni_obj_mode)
+                        #if not scl_vol_group.button(self.uni_obj_mode).isChecked():
+                            #scl_vol_group.button(self.uni_obj_mode).setChecked(True)
                     else:
                         self.unselect_vol_but()
                         pass
@@ -823,8 +866,9 @@ class SiSideBarWeight(qt.DockWindow):
                     #print 'pre scl component space :', self.scl_cmp_space
                     space_group.button(self.scl_cmp_space).setChecked(True)
                     if self.uni_cmp_mode != -1:
-                        if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
-                            scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
+                        self.rebuild_uni_vol(mode=self.uni_cmp_mode)
+                        #if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
+                            #scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
                     else:
                         self.unselect_vol_but()
                         pass
@@ -878,13 +922,15 @@ class SiSideBarWeight(qt.DockWindow):
                             self.scl_obj_space = 1
                         #print 'pre scl object space :', self.scl_cmp_space
                         space_group.button(self.scl_obj_space).setChecked(True)
-                        if not scl_vol_group.button(self.uni_obj_mode).isChecked():
-                            scl_vol_group.button(self.uni_obj_mode).setChecked(True)
+                        self.rebuild_uni_vol(mode=self.uni_obj_mode)
+                        #if not scl_vol_group.button(self.uni_obj_mode).isChecked():
+                            #scl_vol_group.button(self.uni_obj_mode).setChecked(True)
                     if cmds.selectMode(q=True, co=True):
                         #print 'pre scl component space :', self.scl_cmp_space
                         space_group.button(self.scl_cmp_space).setChecked(True)
-                        if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
-                            scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
+                        self.rebuild_uni_vol(mode=self.uni_cmp_mode)
+                        #if not scl_vol_group.button(self.uni_cmp_mode).isChecked()
+                            #scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
                 if select_rot.isChecked():
                     space_group.button(self.rot_space).setChecked(True)
                 if select_trans.isChecked():
@@ -897,14 +943,16 @@ class SiSideBarWeight(qt.DockWindow):
                         #print 'pre scl object space :', self.scl_cmp_space
                         space_group.button(self.scl_obj_space).setChecked(True)
                         if self.uni_obj_mode != -1:
-                            if not scl_vol_group.button(self.uni_obj_mode).isChecked():
-                                scl_vol_group.button(self.uni_obj_mode).setChecked(True)
+                            self.rebuild_uni_vol(mode=self.uni_obj_mode)
+                            #if not scl_vol_group.button(self.uni_obj_mode).isChecked():
+                                #scl_vol_group.button(self.uni_obj_mode).setChecked(True)
                     if cmds.selectMode(q=True, co=True):
                         #print 'pre scl component space :', self.scl_cmp_space
                         space_group.button(self.scl_cmp_space).setChecked(True)
                         if self.uni_cmp_mode != -1:
-                            if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
-                                scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
+                            self.rebuild_uni_vol(mode=self.uni_cmp_mode)
+                            #if not scl_vol_group.button(self.uni_cmp_mode).isChecked():
+                                #scl_vol_group.button(self.uni_cmp_mode).setChecked(True)
             if mode == 5:
                 if select_rot.isChecked():
                     space_group.button(self.rot_space).setChecked(True)
@@ -2567,7 +2615,13 @@ class SiSideBarWeight(qt.DockWindow):
     #2つのベクトルの角度を算出
     def culc_angle(self, a, b):
         dot = self.dot_poduct(a, b, norm=True)
-        rad = math.acos(dot)
+        try:
+            rad = math.acos(dot)
+        except Exception as e:
+            print e.message
+            print 'Arc cos error : dot ', dot
+            dot = round(dot, 0)
+            rad = math.acos(dot)
         #print u'ラジアン :', rad
         angle = rad*180/math.pi
         #print u'角度 :', angle
@@ -2894,12 +2948,12 @@ class SiSideBarWeight(qt.DockWindow):
         action9.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='translate')))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
-        mag = lang.Lang(en='Move Center to Selection (Center of all selection)',
-                                ja=u'センターを選択に移動（すべての選択の中心）')
+        mag = lang.Lang(en='Move Center to Selection (All selection)',
+                                ja=u'センターを選択に移動（すべての選択）')
         action5 = self.top_menus.addAction(mag.output())
         action5.triggered.connect(transform.move_center2selection)
-        mag = lang.Lang(en='Move Center to Selection (Center of each object)',
-                                ja=u'センターを選択に移動（オブジェクトごとの中心）')
+        mag = lang.Lang(en='Move Center to Selection (Each object)',
+                                ja=u'センターを選択に移動（オブジェクトごと）')
         action11 = self.top_menus.addAction(mag.output())
         action11.triggered.connect(transform.move_center_each_object)
         self.top_menus.addSeparator()#分割線追加
@@ -3620,13 +3674,15 @@ class SiSideBarWeight(qt.DockWindow):
                 self.pre_group_mode = 'scale'
                 #print 'change to uni vol mode'
                 space_group.removeButton(view_but)
-                space_group.removeButton(plane_but)
+                #space_group.removeButton(plane_but)
                 scl_vol_group.addButton(view_but, 2)
-                scl_vol_group.addButton(plane_but, 5)
+                #scl_vol_group.addButton(plane_but, 5)
                 if cmds.selectMode(q=True, o=True):
                     space_group.button(self.scl_obj_space).setChecked(True)
+                    self.rebuild_uni_vol(mode=self.uni_obj_mode)
                 if cmds.selectMode(q=True, co=True):
                     space_group.button(self.scl_cmp_space).setChecked(True)
+                    self.rebuild_uni_vol(mode=self.uni_cmp_mode)
             except Exception as e:
                 #print 'change space error'
                 print e.message
@@ -3638,9 +3694,9 @@ class SiSideBarWeight(qt.DockWindow):
                 self.pre_group_mode = 'other'
                 #print 'change to normal mode'
                 space_group.addButton(view_but, 2)
-                space_group.addButton(plane_but, 5)
+                #space_group.addButton(plane_but, 5)
                 scl_vol_group.removeButton(view_but)
-                scl_vol_group.removeButton(plane_but)
+                #scl_vol_group.removeButton(plane_but)
                 if select_rot.isChecked():
                     space_group.button(self.rot_space).setChecked(True)
                 if select_trans.isChecked():
@@ -3887,7 +3943,8 @@ def toggle_center_mode(init=None, mode=None, change=False):
             cmds.selectMode(o=True)
             cmds.selectMode(co=True)
     #cmds.undoInfo(cn='tgl_center', cck=True)
-                    
+              
+#キーアニメの有無を確認して色を変える
 def check_key_anim():
     #print 'check_key_anim'
     selection = cmds.ls(sl=True, l=True, type='transform')
@@ -3981,18 +4038,36 @@ def set_active_mute(mode=0):
     global text_col
     global mute_text
     global hilite
-    obj_mode_list = [['Global', 'Local', 'Uni', 'Object', u'/Ref', 'Vol'],
-                            ['Global', 'Local', 'View', 'Add', u'/Ref', 'Comp'],
-                            ['Global', 'Local', 'Normal', 'Par', u'/Ref', 'Comp'],
-                            ['Global', 'Local', 'View', 'Par', u'/Ref', 'Comp']]
-    cmp_mode_list = [['Global', 'Local', 'Uni', 'Object', u'/Ref', 'Vol'],
-                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'Comp'],
-                            ['Global', 'Local', 'Normal', 'Object', u'/Ref', 'Comp'],
-                            ['Global', 'Local', 'View', 'Object', u'/Ref', 'Comp']]
+    if maya_ver <= 2015:
+        local_name = 'Local'
+        rotloc_name = 'Local'
+        comp_name = 'NAvrg'
+    else:
+        local_name = 'Parent'
+        rotloc_name = 'Object'
+        comp_name = 'Comp'
+    obj_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
+                            ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
+                            ['World', local_name, 'Normal', 'Object', u'/Ref', comp_name],
+                            ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
+    cmp_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
+                            ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
+                            ['World', local_name, 'Normal', 'Object', u'/Ref', comp_name],
+                            ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
+    '''SI準拠の軸命名、紛らわしいので廃止
+    obj_mode_list = [['Global', 'Local', 'Uni/Vol', 'Object', u'/Ref', comp_name],
+                            ['Global', 'Local', 'View', 'Add', u'/Ref', comp_name],
+                            ['Global', 'Local', 'Normal', 'Par', u'/Ref', comp_name],
+                            ['Global', 'Local', 'View', 'Par', u'/Ref', comp_name]]
+    cmp_mode_list = [['Global', 'Local', 'Uni/Vol', 'Object', u'/Ref', comp_name],
+                            ['Global', 'Local', 'View', 'Object', u'/Ref', comp_name],
+                            ['Global', 'Local', 'Normal', 'Object', u'/Ref', comp_name],
+                            ['Global', 'Local', 'View', 'Object', u'/Ref', comp_name]]
+    '''
     #オブジェクトモード、スケールの時だけスペース設定にミュートが発生するので特殊処理
-    mute_list = [True, False, False, False, True, False]
+    mute_list = [False, False, False, False, True, False]
     sel_mute_list = [False, False, False, True, True, True]
-    text_col_list = [mute_text, text_col, text_col, text_col, mute_text, text_col]
+    text_col_list = [text_col, text_col, text_col, text_col, mute_text, text_col]
     sel_text_col_list = [text_col, text_col, text_col, mute_text, mute_text, mute_text]
     if cmds.selectMode(q=True, o=True):
         name_list = obj_mode_list[mode]
@@ -4008,11 +4083,22 @@ def set_active_mute(mode=0):
         else:
             mute_flag = False
             color = text_col
+        #2015以下ではコンポーネントモードがローテーションで使えないので封印
         if maya_ver <= 2015:
             if i == 5 and mode == 1:
                 mute_flag = True
                 color = mute_text
         button.setDisabled(mute_flag)
+        #Uni-Volモードの名前が変わらないようにチェック
+        if name == 'Uni/Vol':
+            if cmds.selectMode(q=True, o=True):
+                mode = window.uni_obj_mode
+            else:
+                mode = window.uni_cmp_mode
+            if mode ==  2:
+                name='Uni'
+            if mode ==  5:
+                name='Vol'
         button.setText(name)
         qt.change_button_color(button, textColor=color, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True)
     #グループセレクションとクラスタセレクションモード切替
