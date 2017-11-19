@@ -2755,7 +2755,7 @@ class SiSideBarWeight(qt.DockWindow):
                             setNoSelectionPrompt='Select reference object or component'
                             )
         cmds.setToolTo(pick_ref_ctx)
-        ref_job = cmds.scriptJob(ro=True, ct=["SomethingSelected","sisidebar_sub.set_reference(mode='"+mode+"')"], protected=True)
+        ref_job = cmds.scriptJob(ro=True, ct=["SomethingSelected",lambda : sisidebar_sub.set_reference(mode=mode)], protected=True)
         
     def change_ui_color(self, mode=0):
         self.ui_col = mode
