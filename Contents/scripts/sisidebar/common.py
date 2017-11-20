@@ -10,7 +10,7 @@ import locale
 import datetime as dt
 import json
 
-def search_polygon_mesh(object, serchChildeNode=False, fullPath=False):
+def search_polygon_mesh(object, serchChildeNode=False, fullPath=False, nurbs=False):
     '''
     選択したものの中からポリゴンメッシュを返す関数
     serchChildeNode→子供のノードを探索するかどうか
@@ -37,12 +37,17 @@ def search_polygon_mesh(object, serchChildeNode=False, fullPath=False):
             meshnode = cmds.listRelatives(node, s=True, pa=True, type='mesh', fullPath=True)
             if meshnode:
                 polygonMesh.append(node)
+            if nurbs:
+                nurbsnode = cmds.listRelatives(node, s=True, pa=True, type='nurbsSurface', fullPath=True)
+                if nurbsnode:
+                    polygonMesh.append(node)
+                
         except:
             pass
     if len(polygonMesh) != 0:
         return polygonMesh
     else:
-        return
+        return []
 
 class TemporaryReparent():
     '''

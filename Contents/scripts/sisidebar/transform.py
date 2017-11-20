@@ -17,7 +17,7 @@ def move_center_each_object():
     object_mode = cmds.selectMode( q=True, o=True )
     cmds.selectMode(o=True)
     selection = cmds.ls(sl=True, l=True)
-    meshes = common.search_polygon_mesh(selection, fullPath=True)
+    meshes = common.search_polygon_mesh(selection, fullPath=True, nurbs=True)
     if not meshes:
         return
     dummy = common.TemporaryReparent().main(mode='create')
@@ -39,11 +39,18 @@ def move_center2selection():
     if cmds.selectMode( q=True, co=True ):
         selection = cmds.ls(sl=True)
         selMode='component'
-        verticies = cmds.polyListComponentConversion(selection , tv=True)
-        verticies = cmds.filterExpand(verticies, sm=31)
+        #カーブもとっておく
+        cv_selection = cmds.ls(sl=True, type='double3', fl=True)
+        verticies = cmds.polyListComponentConversion(selection, tv=True)
+        if verticies:
+            verticies = cmds.filterExpand(verticies, sm=31)+cv_selection
+        else:
+            verticies = cv_selection
+        #print verticies
         center = [0, 0, 0]
         for i in range(3):
             center[i] = sum([cmds.pointPosition(vtx, w=True)[i] for vtx in verticies])/len(verticies)
+        #print center
     elif cmds.selectMode( q=True, o=True ):
         selMode='object'
     #スムース直後だとうまくオブジェクト選択にならないときがあるのでいったんコンポーネントを経由
@@ -51,7 +58,8 @@ def move_center2selection():
     cmds.selectMode(o=True)
     selection = cmds.ls(sl=True, l=True, tr=True)
     
-    childeNodes = common.search_polygon_mesh(selection, serchChildeNode=True, fullPath=True)
+    childeNodes = common.search_polygon_mesh(selection, serchChildeNode=True, fullPath=True, nurbs=True)
+    #print childeNodes
     
     selection = list(set(selection + childeNodes))
     preLock = {}
@@ -72,6 +80,7 @@ def move_center2selection():
         if np_flag:
             sel_pos = np.array(cmds.xform(sel, q=True, t=True, ws=True))
             offset = sel_pos - np.array(center)
+           # offset *= 2
         else:
             sel_pos = cmds.xform(sel, q=True, t=True, ws=True)
             offset = [p-c for p, c in zip(sel_pos, center)]
@@ -81,9 +90,16 @@ def move_center2selection():
 
         cmds.xform(sel, t=center, ws=True)
 
+        #カーブもとっておく
+        cv_selection = cmds.ls(sel+'.cv[*]', fl=True)
+        #print cv_selection
         verticies = cmds.polyListComponentConversion(sel, tv=True)
-        verticies = cmds.filterExpand(verticies, sm=31)
-
+        if verticies:
+            verticies = cmds.filterExpand(verticies, sm=31)+cv_selection
+        else:
+            verticies = cv_selection
+        #print verticies
+        #print offset
         cmds.xform(verticies, t=offset, r=True, ws=True)
         
         cmds.xform(sel+'.scalePivot', t=center, ws=True)
@@ -92,6 +108,9 @@ def move_center2selection():
         if preLock[sel]:
             for ax in ['X','Y','Z']:
                 cmds.setAttr(sel+'.translate'+ax, lock=True)
+                
+        #cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+        #cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
 
         common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
         common.TemporaryReparent().main(sel, dummyParent=dummy, mode='delete')

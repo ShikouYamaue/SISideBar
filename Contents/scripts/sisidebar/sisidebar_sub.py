@@ -94,6 +94,8 @@ def change_selection():
             return
     global pre_sel_obj
     pre_sel_obj = cmds.ls(sl=True, o=True)
+    #COGモードチェックしておく
+    sb.window.setup_object_center()
 
 def set_view_decimal(decimal):
     #print 'change decimal', decimal
@@ -185,13 +187,15 @@ def get_matrix():
         sb.view_np_time(culc_time='Culc Time '+str(culc_time))
         #表示桁数を調整する
     try:
-        scale = map(lambda a: round(float(a), view_decimal), scale)
-        rot = map(lambda a: round(float(a), view_decimal),  rot)
-        trans = map(lambda a: round(float(a), view_decimal),  trans)
-        #念のため0のマイナス符号を除去
-        scale = map(lambda a : float(str(a).replace('-0.0', '0.0')), scale)
-        rot = map(lambda a : float(str(a).replace('-0.0', '0.0')), rot)
-        trans = map(lambda a : float(str(a).replace('-0.0', '0.0')), trans)
+        scale = map(lambda a: round(float(a), view_decimal) if a != '' else '', scale)
+        rot = map(lambda a: round(float(a), view_decimal) if a != '' else '',  rot)
+        trans = map(lambda a: round(float(a), view_decimal) if a != '' else '',  trans)
+        #念のため0のマイナス符号を除去、main側のセットでもやってるんで一旦ミュート
+        #print rot
+        #scale = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, scale)
+        #rot = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, rot)
+        #trans = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, trans)
+        #print rot
         sb.set_pre_transform(trans, rot, scale)
         sb.set_srt_text(scale, rot, trans)
     except:

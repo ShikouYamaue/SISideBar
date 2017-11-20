@@ -49,7 +49,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.8 -'
+version = ' - SI Side Bar / ver_2.0.9 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -73,7 +73,7 @@ else:
 filter_offset = [-100, -100, 215, -180]
 global uni_vol_dict
 #Uni/Volボタン仕様変更のため
-uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1}
+uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -388,8 +388,8 @@ class SiSideBarWeight(qt.DockWindow):
             #return
         #COGの有効無効を切り替え
         if mode == 3:
-            self.cog_but.setDisabled(True)
-            qt.change_button_color(self.cog_but, textColor=120, bgColor=ui_color, mode='button')
+            #self.cog_but.setDisabled(True)
+            #qt.change_button_color(self.cog_but, textColor=120, bgColor=ui_color, mode='button')
             return
         self.all_srt_but_list[mode][3].setChecked(True)
         for i, srt_list in enumerate(self.all_srt_but_list):
@@ -521,7 +521,6 @@ class SiSideBarWeight(qt.DockWindow):
         #print 'editing manip'
         if uni_vol_dict[view_but.text()] != -1 and select_scale.isChecked():
             #print 'volmode'
-            
             mode = uni_vol_dict[view_but.text()]
             print mode
             sisidebar_sub.set_vol_mode(mode)
@@ -630,16 +629,14 @@ class SiSideBarWeight(qt.DockWindow):
         #センターモードに入っていたら解除する
         if center_mode:
             toggle_center_mode(mode=False)
+        #COGモードなら解除する
+        if self.cog_but.isChecked():
+            self.cog_but.setChecked(False)
+            self.setup_object_center()
     #Maya2014用
     def closeEvent(self, e):
         if maya_ver <= 2014:
-            print 'SI Side Bar : Close Event : Dock Window Closed'
-            self.remove_job()
-            self.display = False#ウィンドウスタートアップフラグを下げる
-            self.save(display=False)
-            #センターモードに入っていたら解除する
-            if center_mode:
-                toggle_center_mode(mode=False)
+            self.dockCloseEventTriggered()
                 
     #スクリプトジョブ作成
     def create_job(self):
@@ -1933,6 +1930,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         #編集モード
         self.cog_but = make_flat_btton(name = 'COG', text=text_col, bg=hilite)
+        self.cog_but.clicked.connect(qt.Callback(self.setup_object_center))
         self.main_layout.addWidget(self.cog_but, vn, 0, 1 ,4)
         prop = cmds.softSelect(q=True, softSelectEnabled=True)
         self.prop_but = make_flat_btton(name = '/Prop', text=text_col, bg=hilite)
@@ -2273,9 +2271,56 @@ class SiSideBarWeight(qt.DockWindow):
             self.main_layout.setRowStretch(n, 0)
         #一番下のラインが伸びるようにしてUIを上につめる
         self.main_layout.setRowStretch(vn, 1)
+    #オブジェクトのピボット位置を中心にそろえる
+    pre_sel_for_cog = []
+    spiv_list = []
+    rpiv_list = []
+    def setup_object_center(self):
+        #以前のピボット位置に戻す
+        for s, sp, rp in zip(self.pre_sel_for_cog, self.spiv_list, self.rpiv_list):
+            if cmds.nodeType(s) == 'joint':
+                continue
+            cmds.xform(s+'.scalePivot', t=sp, os=True)
+            cmds.xform(s+'.rotatePivot', t=rp, os=True)
+            
+        if self.cog_but.isChecked():
+            sel_obj = cmds.ls(sl=True, l=True, type='transform')
+            #pos_list = [cmds.xform(s, q=True, t=True, ws=True) for s in sel_obj]
+            self.pre_sel_for_cog = sel_obj
+            self.spiv_list = [cmds.xform(s+'.scalePivot', q=True, t=True, os=True) for s in sel_obj]
+            self.rpiv_list = [cmds.xform(s+'.rotatePivot', q=True, t=True, os=True) for s in sel_obj]
+            if not sel_obj:
+                return
+            '''
+            global np_flag
+            #print 'np_flag', np_flag
+            if np_flag:
+                #print 'center in numpy'
+                avr_pos = np.average(pos_list, axis=0).tolist()
+            else:
+                #print 'center in math'
+                pos_sum = [0.0, 0.0, 0.0]
+                for pos in pos_list:
+                    pos_sum[0] += pos[0]
+                    pos_sum[1] += pos[1]
+                    pos_sum[2] += pos[2]
+                avr_pos = map(lambda a: a/len(pos_list), pos_sum)
+            '''
+            #バウンディングボックスの中心に修正
+            bBox = cmds.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
+            avr_pos = [(bBox[i]+bBox[i+3])/2 for i in range(3)]
+            #print pos_list
+            #print avr_pos
+            #print 'set up center'
+            for s in sel_obj:
+                if cmds.nodeType(s) == 'joint':
+                    continue
+                cmds.xform(s+'.scalePivot', t=avr_pos, ws=True)
+                cmds.xform(s+'.rotatePivot', t=avr_pos, ws=True)
         
     #Numpy使うかどうかを変更
     def change_np_mode(self):
+        global np_flag
         if self.np_group.checkedId() == 0:
             if not np_exist:
                 print 'SI Side Bar : Numpy module does not exist'
@@ -2951,11 +2996,11 @@ class SiSideBarWeight(qt.DockWindow):
         mag = lang.Lang(en='Move Center to Selection (All selection)',
                                 ja=u'センターを選択に移動（すべての選択）')
         action5 = self.top_menus.addAction(mag.output())
-        action5.triggered.connect(transform.move_center2selection)
+        action5.triggered.connect(qt.Callback(transform.move_center2selection))
         mag = lang.Lang(en='Move Center to Selection (Each object)',
                                 ja=u'センターを選択に移動（オブジェクトごと）')
         action11 = self.top_menus.addAction(mag.output())
-        action11.triggered.connect(transform.move_center_each_object)
+        action11.triggered.connect(qt.Callback(transform.move_center_each_object))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         self.trs_setting_path = self.dir_path+'\\sisidebar_trs_data_'+str(maya_ver)+'.json'
@@ -3045,13 +3090,13 @@ class SiSideBarWeight(qt.DockWindow):
             select_but.setIcon(QIcon(image_path+self.sel_on_icon))
             cmds.setToolTo('selectSuperContext')
             self.set_disable(mode=None, but_id=None)
-            self.cog_but.setDisabled(True)
-            qt.change_button_color(self.cog_but, textColor=120, bgColor=hilite)
+            #self.cog_but.setDisabled(True)
+            #qt.change_button_color(self.cog_but, textColor=120, bgColor=hilite)
         else:
             select_group_but.setChecked(False)
-            self.cog_but.setDisabled(False)
+            #self.cog_but.setDisabled(False)
             #qt.change_button_color(self.cog_but, textColor=text_col, bgColor=hilite)
-            qt.change_button_color(self.cog_but, textColor=text_col, bgColor=ui_color, mode='button')
+            #qt.change_button_color(self.cog_but, textColor=text_col, bgColor=ui_color, mode='button')
         #セレクトボタンが解除された時の挙動、以前選択のコンテキストが無い場合はセレクトモードから動かない
         #ある時はいぜんのコンテキストに移行
         #print cmds.currentCtx() 
@@ -3238,6 +3283,10 @@ class SiSideBarWeight(qt.DockWindow):
                 
     #スケール入力をオブジェクトに反映
     def scaling(self, text='', axis=0, focus=True):
+        global world_str_mode
+        global world_str_axis
+        world_str_mode=0
+        world_str_axis=axis
         #print '/*/*/*/*/scaling'
         global pre_scale
         if text == str(pre_scale[axis]):
@@ -3271,8 +3320,13 @@ class SiSideBarWeight(qt.DockWindow):
         else:#コンポーネント選択の時の処理
             if pre_scale[axis] == value:
                 return
+            #カーブもとっておく
+            cv_selection = cmds.ls(sl=True, type='double3', fl=True)
             components = cmds.polyListComponentConversion(selection, tv=True)
-            components = cmds.filterExpand(components, sm=31)
+            if components:
+                components = cmds.filterExpand(components, sm=31)+cv_selection
+            else:
+                components = cv_selectione
             obj_list = list(set([vtx.split('.')[0] for vtx in components]))
             obj_dict = {obj:[] for obj in obj_list}
             [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
@@ -3332,6 +3386,10 @@ class SiSideBarWeight(qt.DockWindow):
         
     #ローテーション入力をオブジェクトに反映
     def rotation(self, text='', axis=0, focus=True):
+        global world_str_mode
+        global world_str_axis
+        world_str_mode=1
+        world_str_axis=axis
         #print '/*/*/*/*/rotation'
         global pre_rot
         if text == str(pre_rot[axis]):
@@ -3369,8 +3427,13 @@ class SiSideBarWeight(qt.DockWindow):
         else:#コンポーネント選択の時の処理
             if pre_rot[axis] == value:
                 return
+            #カーブもとっておく
+            cv_selection = cmds.ls(sl=True, type='double3', fl=True)
             components = cmds.polyListComponentConversion(selection, tv=True)
-            components = cmds.filterExpand(components, sm=31)
+            if components:
+                components = cmds.filterExpand(components, sm=31)+cv_selection
+            else:
+                components = cv_selection
             obj_list = list(set([vtx.split('.')[0] for vtx in components]))
             obj_dict = {obj:[] for obj in obj_list}
             [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
@@ -3432,6 +3495,10 @@ class SiSideBarWeight(qt.DockWindow):
             
     #移動をオブジェクトに反映
     def translation(self, text='', axis=0, focus=True):
+        global world_str_mode
+        global world_str_axis
+        world_str_mode=2
+        world_str_axis=axis
         #print '/*/*/*/*/translation'
         global pre_trans
         if text == self.focus_text:
@@ -3568,8 +3635,9 @@ class SiSideBarWeight(qt.DockWindow):
         if value:
             #リストタイプだったら特殊処理する
             if isinstance(value, list):
-                self.linear_sort_selection(value)
-                return 0.0, None
+                #ヒストリをまとめながら実行
+                qt.Callback(self.linear_sort_selection(value))
+                return None, None
             else:
                 return value, None
         else:
@@ -3618,13 +3686,21 @@ class SiSideBarWeight(qt.DockWindow):
             #print 'culc anser :', ans
             return ans
         except Exception as e:
-            #print e
+            print e.message
             return None
             
+    #リニア変換を行う
     def linear_sort_selection(self, value_list):
-        print 'cluc list type', value_list
+        global world_str_mode
+        global world_str_axis
+        print 'cluc list type :', value_list
+        print 'selection object :', self.linear_selection
+        srt_func_list = [self.scaling, self.rotation, self.translation]
         for sel, v in zip(self.linear_selection, value_list):
             print sel, v
+            cmds.select(sel, r=True)
+            srt_func_list[world_str_mode](text=str(v), axis=world_str_axis)
+        cmds.select(self.linear_selection, r=True)
             
     #オブジェクト数に対するリニア数リストを返す
     def linear_generater(self, mini=None, maxi=None):
@@ -3636,9 +3712,9 @@ class SiSideBarWeight(qt.DockWindow):
             self.linear_selection = cmds.ls(hi=True)
         if self.linear_selection:
             count = len(cmds.ls(sl=True))
-            par = (maxi-mini)/float(count-2)
-            l_list = [mini+(par*i) for i in range(count-1)]
-            #print l_list
+            par = (maxi-mini)/float(count-1)
+            l_list = [mini+(par*i) for i in range(count)]
+            print l_list
             return l_list
             
     #ランダム数を書式によって生成
@@ -4121,9 +4197,10 @@ def set_srt_text(scale, rot, trans):
     scale = map(str, scale)
     rot = map(str, rot)
     trans = map(str, trans)
-    scale = map(lambda a : a.replace('-0.0', '0.0'), scale)
-    rot = map(lambda a : a.replace('-0.0', '0.0'), rot)
-    trans = map(lambda a : a.replace('-0.0', '0.0'), trans)
+    #念のため0のマイナス符号を除去
+    scale = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, scale)
+    rot = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, rot)
+    trans = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, trans)
     scale_x.setText(scale[0])
     scale_y.setText(scale[1])
     scale_z.setText(scale[2])
