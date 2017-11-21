@@ -49,7 +49,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.0.9 -'
+version = ' - SI Side Bar / ver_2.1.0 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -633,6 +633,18 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cog_but.isChecked():
             self.cog_but.setChecked(False)
             self.setup_object_center()
+        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window']
+        for op_window in option_window_list:
+            try:
+                exec(op_window+'.close()')
+                exec('del '+op_window)
+            except:
+                pass
+    def hideEvent(self, e):
+        print 'hide', e
+        if maya_ver >= 2017:
+            self.dockCloseEventTriggered()
+        
     #Maya2014用
     def closeEvent(self, e):
         if maya_ver <= 2014:
@@ -2278,17 +2290,17 @@ class SiSideBarWeight(qt.DockWindow):
     def setup_object_center(self):
         #以前のピボット位置に戻す
         for s, sp, rp in zip(self.pre_sel_for_cog, self.spiv_list, self.rpiv_list):
-            if cmds.nodeType(s) == 'joint':
+            if pm.nodeType(s) == 'joint':
                 continue
-            cmds.xform(s+'.scalePivot', t=sp, os=True)
-            cmds.xform(s+'.rotatePivot', t=rp, os=True)
+            pm.xform(s+'.scalePivot', t=sp, os=True)
+            pm.xform(s+'.rotatePivot', t=rp, os=True)
             
         if self.cog_but.isChecked():
-            sel_obj = cmds.ls(sl=True, l=True, type='transform')
-            #pos_list = [cmds.xform(s, q=True, t=True, ws=True) for s in sel_obj]
+            sel_obj = pm.ls(sl=True, l=True, type='transform')
+            #pos_list = [pm.xform(s, q=True, t=True, ws=True) for s in sel_obj]
             self.pre_sel_for_cog = sel_obj
-            self.spiv_list = [cmds.xform(s+'.scalePivot', q=True, t=True, os=True) for s in sel_obj]
-            self.rpiv_list = [cmds.xform(s+'.rotatePivot', q=True, t=True, os=True) for s in sel_obj]
+            self.spiv_list = [pm.xform(s+'.scalePivot', q=True, t=True, os=True) for s in sel_obj]
+            self.rpiv_list = [pm.xform(s+'.rotatePivot', q=True, t=True, os=True) for s in sel_obj]
             if not sel_obj:
                 return
             '''
@@ -2307,16 +2319,16 @@ class SiSideBarWeight(qt.DockWindow):
                 avr_pos = map(lambda a: a/len(pos_list), pos_sum)
             '''
             #バウンディングボックスの中心に修正
-            bBox = cmds.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
+            bBox = pm.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
             avr_pos = [(bBox[i]+bBox[i+3])/2 for i in range(3)]
             #print pos_list
             #print avr_pos
             #print 'set up center'
             for s in sel_obj:
-                if cmds.nodeType(s) == 'joint':
+                if pm.nodeType(s) == 'joint':
                     continue
-                cmds.xform(s+'.scalePivot', t=avr_pos, ws=True)
-                cmds.xform(s+'.rotatePivot', t=avr_pos, ws=True)
+                pm.xform(s+'.scalePivot', t=avr_pos, ws=True)
+                pm.xform(s+'.rotatePivot', t=avr_pos, ws=True)
         
     #Numpy使うかどうかを変更
     def change_np_mode(self):
@@ -2879,6 +2891,10 @@ class SiSideBarWeight(qt.DockWindow):
     def create_f_trans_menu(self):#ウィンドウ切り離しの場合はインスタンスを別にして再作成
         top_f_menus = self.create_trans_menu(add_float=False)
         global transform_manu_window
+        try:
+            transform_manu_window.close()
+        except:
+            pass
         transform_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset)
         
     def create_trans_menu(self, add_float=True):
