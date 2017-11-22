@@ -19,6 +19,7 @@ import math
 import datetime as dt
 import random
 import copy
+import time
 #PySide2、PySide両対応
 import imp
 try:
@@ -49,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.0 -'
+version = ' - SI Side Bar / ver_2.1.1 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -74,6 +75,9 @@ filter_offset = [-100, -100, 215, -180]
 global uni_vol_dict
 #Uni/Volボタン仕様変更のため
 uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
+destroy_flag =False
+destroy_name = 'Destroy'
+evolution_flag = False
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -87,11 +91,11 @@ def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=N
         button.setIcon(QIcon(icon))
     if flat:
         button.setFlat(True)#ボタンをフラットに
-        qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', hover=hover)
-        button.toggled.connect(lambda : qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', toggle=True, hover=hover))
+        qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+        button.toggled.connect(lambda : qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', toggle=True, hover=hover, destroy=destroy_flag, dsColor=border_col))
     else:
         button.setFlat(False)
-        qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover)
+        qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
     if w_max:
         button.setMaximumWidth(w_max)
     if w_min:
@@ -139,6 +143,7 @@ def read_save_file(init_pos=False):
     def_data['ui_col'] = 0
     def_data['vol_obj'] = -1
     def_data['vol_cmp'] = -1
+    def_data['destroy'] = False
     if init_pos:
         print 'SI Side Bar : Init Window Position'
         return def_data
@@ -196,6 +201,7 @@ class FloatingWindow(qt.SubWindow):
         #print 'window close', e
         trs_window_flag = False
             #print 're_init'
+        del self
         
 #フローティングで出した窓をベストな位置に移動する
 def move_to_best_pos(object=None, offset=None):
@@ -307,6 +313,7 @@ class SiSideBarWeight(qt.DockWindow):
         self._initUI()
         self.chane_context_space()
         self.set_up_manip()
+        
         
     def dropEvent(self,event):
         #ドラッグされたオブジェクトの、ドロップ許可がおりた場合の処理
@@ -543,6 +550,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.w_file = self.dir_path+'/'+temp[-1]+'_window_'+str(maya_ver)+'.json'
         
     def load(self, init_pos=False):
+        #print 'load data'
         save_data = read_save_file(init_pos=init_pos)
         if maya_ver >= 2015:
             offset_w = -8
@@ -571,6 +579,21 @@ class SiSideBarWeight(qt.DockWindow):
         except:
             self.uni_obj_mode = -1
             self.uni_cmp_mode = -1
+        global destroy_flag
+        try:
+            destroy_flag = save_data['destroy']
+        except:
+            destroy_flag = False
+        global evolution_flag
+        try:
+            evolution_flag = save_data['evolution']
+            if evolution_flag:
+                global destroy_name
+                destroy_name = 'Evolution'
+        except:
+            evolution_flag = False
+        #print destroy_flag
+        
         return save_data
         
     def save(self, display=True):
@@ -612,6 +635,11 @@ class SiSideBarWeight(qt.DockWindow):
         save_data['vol_obj'] = self.uni_obj_mode
         save_data['vol_cmp'] = self.uni_cmp_mode
         #print 'save data :', save_data
+        global destroy_flag
+        save_data['destroy'] = destroy_flag
+        global evolution_flag
+        save_data['evolution'] = evolution_flag
+        #print destroy_flag
         if not os.path.exists(self.dir_path):
             os.makedirs(self.dir_path)
         with open(self.w_file, 'w') as f:
@@ -641,7 +669,7 @@ class SiSideBarWeight(qt.DockWindow):
             except:
                 pass
     def hideEvent(self, e):
-        print 'hide', e
+        #print 'hide', e
         if maya_ver >= 2017:
             self.dockCloseEventTriggered()
         
@@ -1292,6 +1320,9 @@ class SiSideBarWeight(qt.DockWindow):
                 
     #UI構築
     def _initUI(self):
+        self.ds_line_list=[]
+        global line_list
+        line_list = []
         self.init_flag = True#起動時かどうかを判定するフラグを立てておく
         
         global text_col
@@ -1310,6 +1341,8 @@ class SiSideBarWeight(qt.DockWindow):
         global radio_base_col
         global gray_text
         global push_col
+        global line_col
+        global border_col
         self.ui_preset = 'maya'
         
         if self.ui_col == 0:
@@ -1331,7 +1364,12 @@ class SiSideBarWeight(qt.DockWindow):
             menu_bg=224
             base_col = 224
             radio_base_col = [192, 189, 188]
-            line_col = [200, 110, 110]
+            if evolution_flag:
+                line_col = [90, 240, 190]
+                border_col = [90, 210, 170]
+            else:
+                line_col = [220, 130, 130]
+                border_col = [200, 110, 110]
             gray_text = 160
             push_col = [132, 130, 128]
             
@@ -1368,7 +1406,8 @@ class SiSideBarWeight(qt.DockWindow):
             string_col = 235
             immed = [189, 138, 138]
             mute_text = 120
-            line_col = [240, 200, 80]
+            line_col = [230, 190, 70]
+            border_col = [180, 140, 30]
             gray_text = 160
             push_col = 120
             
@@ -1427,6 +1466,9 @@ class SiSideBarWeight(qt.DockWindow):
         self.select_top = make_flat_btton(name='Select', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         self.main_layout.addWidget(self.select_top, vn, 0, 1 ,11)
         vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
+        #--------------------------------------------------------------------------------
         #選択モードボタン--------------------------------------------------------------------------------
         #select_but = QPushButton(QIcon(image_path+'Select_On.png'), '', self)
         global select_but
@@ -1445,6 +1487,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.setRowStretch(vn,0)
         self.main_layout.setRowStretch(vn,1)
         self.main_layout.setRowStretch(vn+1,0)
+        
         
         global select_group_but
         select_group_but = make_flat_btton(name='Group', text=text_col, bg=hilite)
@@ -1490,6 +1533,8 @@ class SiSideBarWeight(qt.DockWindow):
         self.filter_group.buttonClicked.connect(lambda : self.select_filter_mode(mode=self.filter_group .checkedId()))
         self.select_filter_mode(mode=self.filter_group .checkedId())#フィルターを初期化しておく
         vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #選択入力ラインエディット--------------------------------------------------------------------------------
         #フィルターセットしているときにウインドウ触るとフォーカスとって暴発することがあるのを防ぐためのダミーライン
         self.dummy_line = self.make_line_edit(text=string_col, bg=bg_col)
@@ -1523,6 +1568,8 @@ class SiSideBarWeight(qt.DockWindow):
         self.pick_right.clicked.connect(lambda : self.pick_walk(mode='right'))
         self.main_layout.addWidget(self.pick_right, vn, 10, 2, 1)
         vn+=2
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #検索タイプフィルタリング
         vh = 0
         hw = 2
@@ -1578,6 +1625,8 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.dummy_but_c , vn, vh, 1, 1)
         vh += hw
         vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #self.main_layout.addWidget(self.select_line_c, vn, 0, 1 ,11)
         #vn+=1
         #一括操作ようにリストにしておく
@@ -1611,6 +1660,8 @@ class SiSideBarWeight(qt.DockWindow):
         #qt.change_button_color(self.transfrom_top, textColor=text_col, bgColor=mid_color)
         #検索、セレクション表示窓--------------------------------------------------------------------------------
         self.main_layout.addWidget(self.transfrom_top, vn, 0, 1 ,11)
+        vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
         #スケール
@@ -1989,11 +2040,16 @@ class SiSideBarWeight(qt.DockWindow):
         #開閉コネクト
         self.trs_section_height = [but.height() for but in self.trs_section_widgets]
         self.transfrom_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.trs_section_widgets,  heights=self.trs_section_height))
+        
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #--------------------------------------------------------------------------------
         #スナップエリア
         self.snap_top = make_flat_btton(name='Snap', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.snap_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.snap_top, vn, 0, 1 ,11)
+        vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
         snap_mode = cmds.snapMode(q=True, grid=True)
@@ -2063,11 +2119,15 @@ class SiSideBarWeight(qt.DockWindow):
         self.snap_section_height = [but.height() for but in self.snap_section_but]
         self.snap_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.snap_section_but,  heights=self.snap_section_height))
         
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #--------------------------------------------------------------------------------
         #コンストレインエリア
         self.constrain_top = make_flat_btton(name='Costrain', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.constrain_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.constrain_top, vn, 0, 1 ,11)
+        vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
         #parent
@@ -2080,10 +2140,17 @@ class SiSideBarWeight(qt.DockWindow):
         self.cut_but.clicked.connect(self.cut_node)
         vn+=1
         #conscomp
-        self.cns_comp_but = make_flat_btton(name = 'CnsComp', text=text_col, bg=immed)
-        self.main_layout.addWidget(self.cns_comp_but, vn, 0, 1 ,6)
-        self.cns_comp_but.setDisabled(True)#今のところ無効
-        qt.change_button_color(self.cns_comp_but, textColor=120, bgColor=red)#今のところ無効
+        #self.cns_comp_but = make_flat_btton(name = 'CnsComp', text=mute_text, bg=immed)
+        #self.main_layout.addWidget(self.cns_comp_but, vn, 0, 1 ,6)
+        #self.cns_comp_but.setDisabled(True)#今のところ無効
+        
+        #--------------------------------------------------------------------------------
+        #デストロイモードボタンを挿入
+        self.destroy_but = make_flat_btton(name=destroy_name, text=text_col, bg=hilite)
+        self.main_layout.addWidget(self.destroy_but, vn, 0, 1 ,6)
+        self.destroy_but.clicked.connect(self.destroy_mode)
+        #vn+=1
+        #qt.change_button_color(self.cns_comp_but, textColor=120, bgColor=red, destroy=destroy_flag, dsColor=border_col)#今のところ無効
         #childcomp
         #設定はシーンのこのトランスフォームの維持を引き継ぐ
         child_comp = cmds.manipMoveContext('Move', q=True, pcp=True)
@@ -2097,14 +2164,18 @@ class SiSideBarWeight(qt.DockWindow):
         #self.main_layout.addWidget(self.const_line_a, vn, 0, 1 ,11)
         #vn+=1
         #一括操作のためにボタンをリスト化
-        self.const_section_but = [self.parent_but, self.cut_but, self.cns_comp_but, self.child_comp_but]
+        self.const_section_but = [self.parent_but, self.cut_but, self.destroy_but, self.child_comp_but]
         self.const_section_height = [but.height() for but in self.const_section_but]
         self.constrain_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.const_section_but,  heights=self.const_section_height))
         #--------------------------------------------------------------------------------
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #エディットエリア
         self.edit_top = make_flat_btton(name='Edit', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.edit_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.edit_top, vn, 0, 1 ,11)
+        vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
         #Freeze
@@ -2160,20 +2231,24 @@ class SiSideBarWeight(qt.DockWindow):
         #self.culc_time_line.setText('Calculation time')
         #self.culc_time_line.setReadOnly(True)
         vn+=1
+        self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        vn+=1
         #--------------------------------------------------------------------------------
         self.numpy = make_flat_btton(name='Numpy', text=text_col, bg=hilite, h_max=12, w_min=si_w, w_max=si_w)
         self.main_layout.addWidget(self.numpy, vn, 0, 1 ,6)
-        self.Standard = make_flat_btton(name = 'Standard', text=text_col, bg=hilite, h_max=12, w_min=maya_w, w_max=maya_w)
-        self.main_layout.addWidget(self.Standard, vn, 6, 1 ,5)
+        self.standard = make_flat_btton(name = 'Standard', text=text_col, bg=hilite, h_max=12, w_min=maya_w, w_max=maya_w)
+        self.main_layout.addWidget(self.standard, vn, 6, 1 ,5)
         self.np_group = QButtonGroup(self)
         self.np_group.addButton(self.numpy, 0)
-        self.np_group.addButton(self.Standard,  1)
+        self.np_group.addButton(self.standard,  1)
         if np_flag:
             self.np_group.button(0).setChecked(True)
         else:
             self.np_group.button(1).setChecked(True)
         self.np_group.buttonClicked.connect(self.change_np_mode)
         vn+=1
+        #self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
+        #vn+=1
         
         #ボタンをまとめて切り替えられるようにリストに
         #全部まとめてコネクトしておく※一括全ループだとidをかえられなかったので個別に
@@ -2283,6 +2358,74 @@ class SiSideBarWeight(qt.DockWindow):
             self.main_layout.setRowStretch(n, 0)
         #一番下のラインが伸びるようにしてUIを上につめる
         self.main_layout.setRowStretch(vn, 1)
+        
+        if destroy_flag:
+            self.destroy_but.setChecked(True)
+            self.view_ds_line()
+            self.change_ds_line()
+            #self.destroy_mode(init_ui=False)
+    #デストロイモード用のラインを隠した状態で作っておく
+    ds_line_list=[]
+    def make_ds_line(self):
+        ds_line = make_h_line(text=line_col, bg=line_col)
+        self.ds_line_list.append(ds_line)
+        ds_line.setVisible(False)
+        return ds_line
+    #デストロイモードに変形する
+    def destroy_mode(self, init_ui=True):
+        global destroy_flag
+        global destroy_name
+        global evolution_flag
+        
+        if self.destroy_but.isChecked():
+            #print 'ds'
+            evolution_flag = False
+            destroy_name = 'Destroy'
+            change_col = line_col
+            destroy_flag = True
+            msg = 'SI Side Bar : Activate Destroy mode'
+        else:
+            if self.ui_col == 0 and self.destroy_but.text() == 'Destroy':
+                #print 'uc'
+                evolution_flag = True
+                destroy_name = 'Evolution'
+                change_col = line_col
+                destroy_flag = True
+                msg = 'SI Side Bar : Activate Evolution mode'
+            else:
+                #print 'nm'
+                evolution_flag = False
+                destroy_name = 'Destroy'
+                change_col = 128
+                destroy_flag = False
+                msg = 'SI Side Bar : Exit Destroy mode'
+        if init_ui:
+            self._initUI()
+        self.destroy_but.setChecked(destroy_flag)
+        print evolution_flag
+        self.change_ds_line()
+        print msg
+        cmds.inViewMessage(amg=msg, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
+        #qt.change_border_style(self.numpy)
+    #既存のラインをデストロイカラーにする
+    def change_ds_line(self):
+        for line in line_list[1:]:
+            if self.destroy_but.isChecked() or self.destroy_but.text()=='Evolution':
+                change_col = line_col
+            else:
+                change_col = 128
+            qt.change_button_color(line, textColor=change_col, bgColor=change_col)
+            #sisidebar_sub.move_window()
+        
+    #隠されたデストロイラインを表示する
+    def view_ds_line(self):
+        if self.destroy_but.isChecked() or self.destroy_but.text()=='Evolution':
+            visible=True
+        else:
+            visible=False
+        return
+        for ds_line in self.ds_line_list:
+            ds_line.setVisible(visible)
     #オブジェクトのピボット位置を中心にそろえる
     pre_sel_for_cog = []
     spiv_list = []
@@ -2749,7 +2892,7 @@ class SiSideBarWeight(qt.DockWindow):
         for i, m_line in enumerate(self.all_xyz_list):
             for j, a_line in enumerate(m_line):
                 value = a_line.text()
-                #print value
+                #print value, pre_text_value[i][j]
                 #以前の入力と違っていたらフォーカス外さないモードでSRT実行
                 #print 'compare pre_text :', pre_text_value[i][j], 'value :', value, 'mode', i
                 if pre_text_value[i][j] != value:
@@ -2759,6 +2902,8 @@ class SiSideBarWeight(qt.DockWindow):
                         self.rotation(text=value, axis=j, focus=False)
                     if i == 2:
                         self.translation(text=value, axis=j, focus=False)
+                    self.keep_focused_text(value)
+                #self.keep_pre_line_text(text=value, current=(i,  j))
     #入力後の暴発を防ぐためにフォーカスを外す
     def out_focus(self):
         #print 'out_forcus', input_srt_id, input_line_id
@@ -2881,10 +3026,16 @@ class SiSideBarWeight(qt.DockWindow):
         ref_job = cmds.scriptJob(ro=True, ct=["SomethingSelected",lambda : sisidebar_sub.set_reference(mode=mode)], protected=True)
         
     def change_ui_color(self, mode=0):
+        global destroy_flag
+        #destroy_flag = False
         self.ui_col = mode
         #print mode
         self.dockCloseEventTriggered()
         self._initUI()
+        #print destroy_flag
+        if destroy_flag:
+            self.destroy_but.setChecked(True)
+            self.destroy_mode()
         #self.close()
         #Option()
     #コンテキストメニューとフローティングメニューを再帰的に作成する
@@ -3028,14 +3179,20 @@ class SiSideBarWeight(qt.DockWindow):
         
         self.cp_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
                                 ja=u'スナップ移動/絶対移動でポイントを集約')
-                                
-        self.action19 = self.top_menus.addAction(self.cp_mag.output())
-        if cp_abs_flag:
-            self.action19.setIcon(QIcon(image_path+self.check_icon))
+        if add_float:
+            self.action19 = self.top_menus.addAction(self.cp_mag.output())
+            if cp_abs_flag:
+                self.action19.setIcon(QIcon(image_path+self.check_icon))
+            else:
+                self.action19.setIcon(QIcon(None))
+            self.action19.triggered.connect(self.toggle_cp_absolute)
         else:
-            self.action19.setIcon(QIcon(None))
-        
-        self.action19.triggered.connect(self.toggle_cp_absolute)
+            self.f_action19 = self.top_menus.addAction(self.cp_mag.output())
+            if cp_abs_flag:
+                self.f_action19.setIcon(QIcon(image_path+self.check_icon))
+            else:
+                self.f_action19.setIcon(QIcon(None))
+            self.f_action19.triggered.connect(self.toggle_cp_absolute)
         #self.top_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
         return self.top_menus
         
@@ -3049,25 +3206,13 @@ class SiSideBarWeight(qt.DockWindow):
             cp_abs_flag = True
         self.save_transform_setting()
         if cp_abs_flag:
-            try:
-                #print  'try0'
-                #self.action19.setText(self.cp_mag.output())
-                self.action19.setIcon(QIcon(image_path+self.check_icon))
-            except:
-                #print  'except'
-                top_menus = self.create_trans_menu()
-                self.transfrom_top.setMenu(top_menus)
+            self.f_action19.setIcon(QIcon(image_path+self.check_icon))
+            top_menus = self.create_trans_menu()
+            self.transfrom_top.setMenu(top_menus)
         else:
-            #self.top_menus.removeItem(self.action19)
-            try:
-                #print  'try1'
-                #self.top_menus.removeWidget(self.action19)
-                #self.action19.setText(self.cp_mag.output())
-                self.action19.setIcon(QIcon(None))
-            except:
-                #print  'except'
-                top_menus = self.create_trans_menu()
-                self.transfrom_top.setMenu(top_menus)
+            self.f_action19.setIcon(QIcon(None))
+            top_menus = self.create_trans_menu()
+            self.transfrom_top.setMenu(top_menus)
         #print 'cp_abs_flag', cp_abs_flag
     
     def load_transform_setting(self):
@@ -4182,17 +4327,20 @@ def set_active_mute(mode=0):
                 color = mute_text
         button.setDisabled(mute_flag)
         #Uni-Volモードの名前が変わらないようにチェック
-        if name == 'Uni/Vol':
-            if cmds.selectMode(q=True, o=True):
-                mode = window.uni_obj_mode
-            else:
-                mode = window.uni_cmp_mode
-            if mode ==  2:
-                name='Uni'
-            if mode ==  5:
-                name='Vol'
+        try:
+            if name == 'Uni/Vol':
+                if cmds.selectMode(q=True, o=True):
+                    mode = window.uni_obj_mode
+                else:
+                    mode = window.uni_cmp_mode
+                if mode ==  2:
+                    name='Uni'
+                if mode ==  5:
+                    name='Vol'
+        except:
+            pass
         button.setText(name)
-        qt.change_button_color(button, textColor=color, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True)
+        qt.change_button_color(button, textColor=color, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True, destroy=destroy_flag, dsColor=border_col)
     #グループセレクションとクラスタセレクションモード切替
     if cmds.selectMode(q=True, o=True):
         select_group_but.setText('Group')
@@ -4202,12 +4350,12 @@ def set_active_mute(mode=0):
     if cmds.selectMode(q=True, o=True):
         select_group_but.setText('Group')
         center_mode_but.setDisabled(False)
-        qt.change_button_color(center_mode_but, textColor=text_col, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True)
+        qt.change_button_color(center_mode_but, textColor=text_col, bgColor=ui_color, hiColor=hilite, mode='button', toggle=True, destroy=destroy_flag, dsColor=border_col)
     else:
         select_group_but.setText('Cluster')
         center_mode_but.setDisabled(True)
         center_mode_but.setChecked(False)
-        qt.change_button_color(center_mode_but, textColor=mute_text, bgColor=ui_color, mode='button', toggle=True)
+        qt.change_button_color(center_mode_but, textColor=mute_text, bgColor=ui_color, mode='button', toggle=True, destroy=destroy_flag, dsColor=border_col)
         
 def set_srt_text(scale, rot, trans):
     scale = map(str, scale)
@@ -4926,9 +5074,13 @@ class FilterOption(qt.MainWindow):
             json.dump({'all_flags':all_flags}, f)
     
 #明るめのラインを返す
+global line_list
+line_list = []
 def make_h_line(text=255, bg=128):
+    global line_list
     line = qt.make_h_line()
     qt.change_button_color(line, textColor=text, bgColor=bg)
+    line_list.append(line)
     return line    
 #Numpyモード比較計算時間を表示
 def view_np_time(culc_time):

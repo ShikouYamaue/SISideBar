@@ -7,6 +7,7 @@ import qt
 import datetime as dt
 import imp
 import os
+import time
 from . import sisidebar_main as sb
 try:
     import numpy as np

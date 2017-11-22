@@ -161,9 +161,14 @@ NColorRoles = ToolTipText + 1
 Foreground = WindowText
 Background = Window // ### Qt 5: remove
 '''
+def change_border_style(button):
+    button. setStyleSheet('QPushButton{border-style:solid; border-width: 2px; border-color: red ; border-radius: 1px;}' +\
+                                    'QPushButton:hover{border-style:solid; border-width: 2px; border-color: red ; border-radius: 1px;}'+\
+                                    'QPushButton:pressed{border-style:solid; border-width: 2px; border-color: red ; border-radius: 1px;}')
+
 #ボタンカラーを変更する関数
-def change_button_color(button, textColor=200, bgColor=68, hiColor=68, hiText=255, hiBg=[97, 132, 167], 
-                                        mode='common', toggle=False, hover=True):
+def change_button_color(button, textColor=200, bgColor=68, hiColor=68, hiText=255, hiBg=[97, 132, 167], dsColor=[255, 128, 128],
+                                        mode='common', toggle=False, hover=True, destroy=False, dsWidth=1):
     '''引数
     button 色を変えたいウィジェットオブジェクト
     textColor ボタンのテキストカラーをRGBのリストか0～255のグレースケールで指定、省略可能。
@@ -175,6 +180,7 @@ def change_button_color(button, textColor=200, bgColor=68, hiColor=68, hiText=25
     hiColor = to_3_list(hiColor)
     hiText = to_3_list(hiText)
     hiBg = to_3_list(hiBg)
+    dsColor = to_3_list(dsColor)
     #ボタンをハイライトカラーにする
     if toggle and button.isChecked():
         bgColor = hiColor
@@ -190,14 +196,21 @@ def change_button_color(button, textColor=200, bgColor=68, hiColor=68, hiText=25
     hiHex = convert_2_hex(hiColor)
     htHex = convert_2_hex(hiText)
     hbHex = convert_2_hex(hiBg)
+    dsHex = convert_2_hex(dsColor)
     
+    #destroy=True
     #ボタンはスタイルシートで色変更、色は16進数かスタイルシートの色名で設定するので注意
     if mode == 'common':
         button.setStyleSheet('color: '+textHex+' ; background-color: '+bgHex)
     if mode == 'button':
-        button. setStyleSheet('QPushButton{background-color: '+bgHex+'; color:  '+textHex+' ; border: black 0px}' +\
-                                        'QPushButton:hover{background-color: '+hvHex+'; color:  '+textHex+' ; border: black 0px}'+\
-                                        'QPushButton:pressed{background-color: '+hiHex+'; color: '+textHex+'; border: black 2px}')
+        if not destroy:
+            button. setStyleSheet('QPushButton{background-color: '+bgHex+'; color:  '+textHex+' ; border: black 0px}' +\
+                                            'QPushButton:hover{background-color: '+hvHex+'; color:  '+textHex+' ; border: black 0px}'+\
+                                            'QPushButton:pressed{background-color: '+hiHex+'; color: '+textHex+'; border: black 2px}')
+        if destroy:
+            button. setStyleSheet('QPushButton{background-color: '+bgHex+'; color:  '+textHex+'; border-style:solid; border-width: '+str(dsWidth)+'px; border-color:'+dsHex+'; border-radius: 0px;}' +\
+                                            'QPushButton:hover{background-color: '+hvHex+'; color:  '+textHex+'; border-style:solid; border-width: '+str(dsWidth)+'px; border-color:'+dsHex+'; border-radius: 0px;}'+\
+                                            'QPushButton:pressed{background-color: '+hiHex+'; color: '+textHex+'; border-style:solid; border-width: '+str(dsWidth)+'px; border-color:'+dsHex+'; border-radius: 0px;}')
     if mode == 'window':
         button. setStyleSheet('color: '+textHex+';'+\
                         'background-color: '+bgHex+';'+\
