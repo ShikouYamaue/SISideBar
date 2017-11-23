@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.1 -'
+version = ' - SI Side Bar / ver_2.1.2 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -78,6 +78,7 @@ uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
 destroy_flag =False
 destroy_name = 'Destroy'
 evolution_flag = False
+ommit_manip_link = True
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -453,6 +454,8 @@ class SiSideBarWeight(qt.DockWindow):
             active_list = scl_move_active_list
         #print 'handle id :', handle_id
         for i, but in enumerate(self.all_axis_but_list[mode][0:3]):
+            if ommit_manip_link:
+                continue
             #print i, mode, handle_id
             #print 'check xyz but active :', active_list[handle_id][i]
             but.setChecked(active_list[handle_id][i])
@@ -529,7 +532,7 @@ class SiSideBarWeight(qt.DockWindow):
         if uni_vol_dict[view_but.text()] != -1 and select_scale.isChecked():
             #print 'volmode'
             mode = uni_vol_dict[view_but.text()]
-            print mode
+            #print mode
             sisidebar_sub.set_vol_mode(mode)
             self.pre_vol_id = uni_vol_dict[view_but.text()]
             #sisidebar_sub.volume_scaling(mode)
@@ -540,6 +543,17 @@ class SiSideBarWeight(qt.DockWindow):
             #2014以前はアンドゥインフォから強引に軸を取得する
             handle_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.current_handle_getter), protected=True)
         self.reload.emit()
+        #
+        if ommit_manip_link:
+            current_tool = cmds.currentCtx()
+            tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext']
+            try:
+                #print 'Froce select handle'
+                mode = tools_list.index(current_tool)
+                self.select_manip_handle(mode=mode)
+            except Exception as e:
+                print e.message
+                pass
         #センター一致を実行する→culcのget_matrix時に実行するように変更
         
     def init_save(self):
@@ -1128,8 +1142,8 @@ class SiSideBarWeight(qt.DockWindow):
             else:
                 cmds.manipRotateContext('Rotate', e=True, ah=handle_id)
         if mode == 2:
-            if maya_ver >= 2015:
             #print 'set manip scale handle', handle_id
+            if maya_ver >= 2015:
                 cmds.manipMoveContext('Move', e=True, cah=handle_id, ah=handle_id)
             else:
                 cmds.manipMoveContext('Move', e=True, ah=handle_id)
@@ -3193,8 +3207,46 @@ class SiSideBarWeight(qt.DockWindow):
             else:
                 self.f_action19.setIcon(QIcon(None))
             self.f_action19.triggered.connect(self.toggle_cp_absolute)
+        #Mayaのマニプハンドルを乗っ取る設定
+        self.hl_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
+                                ja=u'サイドバーの軸選択状態を優先する')
+        if add_float:
+            self.action20 = self.top_menus.addAction(self.hl_mag.output())
+            if ommit_manip_link:
+                self.action20.setIcon(QIcon(image_path+self.check_icon))
+            else:
+                self.action20.setIcon(QIcon(None))
+            self.action20.triggered.connect(self.toggle_manip_priority)
+        else:
+            self.f_action20 = self.top_menus.addAction(self.hl_mag.output())
+            if ommit_manip_link:
+                self.f_action20.setIcon(QIcon(image_path+self.check_icon))
+            else:
+                self.f_action20.setIcon(QIcon(None))
+            self.f_action20.triggered.connect(self.toggle_manip_priority)
         #self.top_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
         return self.top_menus
+        
+    #マニプ優先設定を切り替える
+    def toggle_manip_priority(self):
+        global ommit_manip_link
+        #print 'pre_cp_abs_flag', cp_abs_flag
+        if ommit_manip_link:
+            ommit_manip_link = False
+        else:
+            ommit_manip_link = True
+        self.save_transform_setting()
+        if ommit_manip_link:
+            set_icon = QIcon(image_path+self.check_icon)
+        else:
+            set_icon = QIcon(None)
+        try:
+            self.f_action20.setIcon(set_icon)
+        except Exception as e:
+            pass
+        top_menus = self.create_trans_menu()
+        self.transfrom_top.setMenu(top_menus)
+        
         
     #絶対値に移動を切り替える
     def toggle_cp_absolute(self):
@@ -3206,27 +3258,73 @@ class SiSideBarWeight(qt.DockWindow):
             cp_abs_flag = True
         self.save_transform_setting()
         if cp_abs_flag:
-            self.f_action19.setIcon(QIcon(image_path+self.check_icon))
+            set_icon = QIcon(image_path+self.check_icon)
+        else:
+            set_icon = QIcon(None)
+        try:
+            self.f_action19.setIcon(set_icon)
+        except Exception as e:
+            pass
+        top_menus = self.create_trans_menu()
+        self.transfrom_top.setMenu(top_menus)
+        
+    #絶対値に移動を切り替える
+    def toggle_action_check(self, item_id, flags, flag_str):
+        global cp_abs_flag
+        global ommit_manip_link
+        try:
+            exec('f_item = self.f_action'+str(item_id))
+        except Exception as e:
+            print e.message
+        exec('m_item = self.action'+str(item_id))
+            
+        #print 'pre_cp_abs_flag', cp_abs_flag
+        print flags
+        if flags:
+            exec(flag_str+' = False')
+        else:
+            exec(flag_str+' = True')
+        exec('print '+flag_str)
+        self.save_transform_setting()
+        if flags:
+            try:
+                f_item.setIcon(QIcon(image_path+self.check_icon))
+            except Exception as e:
+                print e.message
+                pass
             top_menus = self.create_trans_menu()
             self.transfrom_top.setMenu(top_menus)
         else:
-            self.f_action19.setIcon(QIcon(None))
+            try:
+                f_item.setIcon(QIcon(None))
+            except Exception as e:
+                print e.message
+                pass
             top_menus = self.create_trans_menu()
             self.transfrom_top.setMenu(top_menus)
         #print 'cp_abs_flag', cp_abs_flag
     
     def load_transform_setting(self):
         global cp_abs_flag
+        global ommit_manip_link
         if os.path.isfile(self.trs_setting_path):#保存ファイルが存在したら
             with open(self.trs_setting_path, 'r') as f:
                 save_data = json.load(f)
-            cp_abs_flag = save_data['cp_abs']
+            try:
+                cp_abs_flag = save_data['cp_abs']
+                ommit_manip_link = save_data['manip_link']
+            except:
+                cp_abs_flag = False
+                ommit_manip_link = False
                 
     def save_transform_setting(self):
         if not os.path.exists(self.dir_path):
             os.makedirs(self.dir_path)
+        save_data = {}
+        save_data['cp_abs'] = cp_abs_flag
+        save_data['manip_link'] = ommit_manip_link
         with open(self.trs_setting_path, 'w') as f:
-            json.dump({'cp_abs':cp_abs_flag}, f)
+            json.dump(save_data, f)
             
     #リセットアクターバインドポーズを実行
     def reset_actor(self):
