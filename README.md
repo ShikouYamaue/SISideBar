@@ -88,6 +88,7 @@
     ・ResetTransform
     ・MoveCenterToSelection
     ・絶対値に移動
+    ・サイドバーの軸選択状態を優先するモード
 
     ・アニメーションキーボタンをついか（右クリックで3軸一括設定）
 
