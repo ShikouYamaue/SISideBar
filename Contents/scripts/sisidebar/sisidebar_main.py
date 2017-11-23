@@ -3205,7 +3205,7 @@ class SiSideBarWeight(qt.DockWindow):
                 self.f_action19.setIcon(QIcon(None))
             self.f_action19.triggered.connect(self.toggle_cp_absolute)
         #Mayaのマニプハンドルを乗っ取る設定
-        self.hl_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
+        self.hl_mag = lang.Lang(en=u'Force Side Bar axis selection status',
                                 ja=u'サイドバーの軸選択状態を優先する')
         if add_float:
             self.action20 = self.top_menus.addAction(self.hl_mag.output())
