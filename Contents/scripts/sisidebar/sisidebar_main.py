@@ -78,7 +78,8 @@ uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
 destroy_flag =False
 destroy_name = 'Destroy'
 evolution_flag = False
-ommit_manip_link = True
+cp_abs_flag = False
+ommit_manip_link = False
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
@@ -3186,10 +3187,6 @@ class SiSideBarWeight(qt.DockWindow):
         #----------------------------------------------------------------------------------------------------
         self.trs_setting_path = self.dir_path+'\\sisidebar_trs_data_'+str(maya_ver)+'.json'
         #print self.trs_setting_path
-        global cp_abs_flag
-        cp_abs_flag=False
-        self.load_transform_setting()
-        #print cp_abs_flag
         
         self.cp_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
                                 ja=u'スナップ移動/絶対移動でポイントを集約')
