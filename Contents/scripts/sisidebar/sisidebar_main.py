@@ -683,10 +683,10 @@ class SiSideBarWeight(qt.DockWindow):
                 exec('del '+op_window)
             except:
                 pass
-    def hideEvent(self, e):
-        #print 'hide', e
-        if maya_ver >= 2017:
-            self.dockCloseEventTriggered()
+    #タブ隠すだけで無効になるので使用中止
+    #def hideEvent(self, e):
+        #if maya_ver >= 2017:
+            #self.dockCloseEventTriggered()
         
     #Maya2014用
     def closeEvent(self, e):
@@ -3949,8 +3949,8 @@ class SiSideBarWeight(qt.DockWindow):
     def linear_sort_selection(self, value_list):
         global world_str_mode
         global world_str_axis
-        print 'cluc list type :', value_list
-        print 'selection object :', self.linear_selection
+        #print 'cluc list type :', value_list
+        #print 'selection object :', self.linear_selection
         srt_func_list = [self.scaling, self.rotation, self.translation]
         for sel, v in zip(self.linear_selection, value_list):
             print sel, v
@@ -5303,6 +5303,7 @@ def load_floating_data():
     return dict_
     
 def main(x=None, y=None, init_pos=False):
+    print 'si side bar : main'
     #Maya2016以下はいままで通りのしょり
     if maya_ver <= 2016:
         Option(init_pos=init_pos)
@@ -5319,6 +5320,27 @@ def main(x=None, y=None, init_pos=False):
         height = None
 
     ui_script = "import sisidebar.sisidebar_main;sisidebar.sisidebar_main.restoration_workspacecontrol()"
+    
+    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
+    opts = {
+        "dockable": True,
+        "floating": False,
+        "area": "left",
+        "allowedArea": None,
+        "x": None,
+        "y": None,
+        # below options have been introduced at 2017
+        "widthSizingProperty": None,
+        "heightSizingProperty": None,
+        "initWidthAsMinimum": None,
+        "retain": False,
+        "plugins": None,
+        "controls": None,
+        "uiScript": ui_script,
+        "closeCallback": None
+    }
+    window.setDockableParameters(**opts)
+    '''
     # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
     opts = {
         "dockable": True,
@@ -5345,10 +5367,10 @@ def main(x=None, y=None, init_pos=False):
     }
 
     window.setDockableParameters(**opts)
-
+    '''
 
 def restoration_workspacecontrol():
-    #print 'si side bar : restoration_workspacecontrol'
+    print 'si side bar : restoration_workspacecontrol'
     # workspacecontrolの再現用
     global window
     window = make_ui()
