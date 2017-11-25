@@ -2413,7 +2413,7 @@ class SiSideBarWeight(qt.DockWindow):
                 destroy_name = 'Destroy'
                 change_col = 128
                 destroy_flag = False
-                msg = 'SI Side Bar : Exit Destroy mode'
+                msg = 'SI Side Bar : Deactivate Destroy mode'
         if init_ui:
             self._initUI()
         self.destroy_but.setChecked(destroy_flag)
@@ -2821,7 +2821,7 @@ class SiSideBarWeight(qt.DockWindow):
     def get_first_operator(self, a):
         #print 'get first operator'
         #value = a[0]*a[1]
-        #SIの対角で符号反転するのが使い辛いので左右で一意に決める
+        #SIの対角で符号反転するのが使いづらいので左右で一意に決める
         value = a[0]
         if value > 0:
             return 1.0
