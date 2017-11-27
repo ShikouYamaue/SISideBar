@@ -5312,6 +5312,7 @@ def main(x=None, y=None, init_pos=False):
     # 画面中央に表示
     global window
     window = make_ui()
+    save_data = window.load(init_pos=False)
     _floating = load_floating_data()
     if _floating:
         width = _floating['width']
@@ -5325,7 +5326,7 @@ def main(x=None, y=None, init_pos=False):
     # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
     opts = {
         "dockable": True,
-        "floating": False,
+        "floating": True,
         "area": "right",
         "allowedArea": None,
         "x": None,
