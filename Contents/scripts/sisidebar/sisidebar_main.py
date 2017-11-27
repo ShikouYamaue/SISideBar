@@ -168,7 +168,7 @@ def read_save_file(init_pos=False):
 global trs_window_flag
 trs_window_flag = False
 #フローティングメニュー作成
-class FloatingWindow(qt.MainWindow):
+class FloatingWindow(qt.SubWindow):
     def __init__(self, parent = None, menus=[], offset=None):
         global trs_window_flag 
         trs_window_flag = True
@@ -5326,7 +5326,7 @@ def main(x=None, y=None, init_pos=False):
     opts = {
         "dockable": True,
         "floating": False,
-        "area": "left",
+        "area": "right",
         "allowedArea": None,
         "x": None,
         "y": None,

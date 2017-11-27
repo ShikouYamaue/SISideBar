@@ -35,16 +35,22 @@ try:
         from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
         
     class MainWindow(MayaQWidgetBaseMixin, QMainWindow):
-       def __init__(self, *args, **kwargs):
-           super(MainWindow, self).__init__(*args, **kwargs)
+        def __init__(self, *args, **kwargs):
+            super(MainWindow, self).__init__(*args, **kwargs)
     class DockWindow(MayaQWidgetDockableMixin, QMainWindow):
-       def __init__(self, *args, **kwargs):
-           super(DockWindow, self).__init__(*args, **kwargs)
+        def __init__(self, *args, **kwargs):
+            super(DockWindow, self).__init__(*args, **kwargs)
            
     #2018の不具合対応のためにQMainWindow用意しておく
-    class SubWindow(QMainWindow):
-        def __init__(self, parent = maya_window):
-            super(SubWindow, self).__init__(maya_window)
+    if 2017 <= maya_ver and maya_ver < 2019:
+        class SubWindow(QMainWindow):
+            def __init__(self, parent = maya_window):
+                super(SubWindow, self).__init__(maya_window)
+    else:
+        class SubWindow(MayaQWidgetBaseMixin, QMainWindow):
+            def __init__(self, *args, **kwargs):
+                super(SubWindow, self).__init__(*args, **kwargs)
+        
            
 #2014以前はMixin無いのでMainWindow使う
 except ImportError:
