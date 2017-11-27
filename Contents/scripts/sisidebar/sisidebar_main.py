@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.3 -'
+version = ' - SI Side Bar / ver_2.1.4 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -168,7 +168,7 @@ def read_save_file(init_pos=False):
 global trs_window_flag
 trs_window_flag = False
 #フローティングメニュー作成
-class FloatingWindow(qt.SubWindow):
+class FloatingWindow(qt.MainWindow):
     def __init__(self, parent = None, menus=[], offset=None):
         global trs_window_flag 
         trs_window_flag = True
@@ -1306,6 +1306,7 @@ class SiSideBarWeight(qt.DockWindow):
     #ラインエディットを作って返す
     def make_line_edit(self, text=200, bg=40):
         line = QLineEdit()
+        line.setAcceptDrops(False)
         qt.change_button_color(line, textColor=text, bgColor=bg)
         return line
         
@@ -3079,7 +3080,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Reset Actor to Bind Pose',
-                                ja=u'バインドポーズに戻す')
+                                ja=u'リセットアクター/バインドポーズに戻す')
         action12 = self.top_menus.addAction(mag.output())
         action12.triggered.connect(transform.reset_actor)
         self.top_menus.addSeparator()#分割線追加
