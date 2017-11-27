@@ -113,6 +113,9 @@ https://youtu.be/tC5p24b9sUQ
 https://youtu.be/dZUoGX0SBOQ
 
 更新履歴
+    
+    SI Side Bar ver2.1.4
+     ・トランスフォームメニューをティアオフして触ってるとメニューが消えることがあるバグを修正、2017だけ解消できずorz
 
     2017/11/25 ver2.1.3
      ・Maya2017以降でタブをHideしたらトランス情報取得機能が止まるバグを修正
