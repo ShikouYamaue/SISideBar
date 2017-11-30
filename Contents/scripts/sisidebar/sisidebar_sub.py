@@ -116,6 +116,11 @@ def get_matrix():
     #print 'current tool ;',  current_tool
     #cmds.setToolTo('selectSuperContext')
     #cmds.setToolTo(current_tool)
+    #ロックの有無をチェック
+    try:
+        sb.window.attribute_lock_state(mode=3, check_only=True)
+    except:
+        pass
         
     #一旦スケールX値をリセットしてメインウィンドウクラスに変更をお知らせする
     #sb.set_temp_text('change')

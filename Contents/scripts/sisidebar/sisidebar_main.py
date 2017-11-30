@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.4 -'
+version = ' - SI Side Bar / ver_2.1.5 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -314,6 +314,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.setWindowTitle(window_name)
         self._initUI()
         self.chane_context_space()
+        self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
         
         
@@ -1187,7 +1188,7 @@ class SiSideBarWeight(qt.DockWindow):
                     if m == 2:
                         self.translation(text=text, axis=a, focus=focus)
                     button = self.all_xyz_list[m][a]
-                    qt.change_button_color(button, textColor=string_col, bgColor=bg_col)
+                    #qt.change_button_color(button, textColor=string_col, bgColor=bg_col)
                     self.all_multi_list[m][a] = False
                     
     def keep_focused_text(self, text):
@@ -1220,11 +1221,13 @@ class SiSideBarWeight(qt.DockWindow):
             if any(multi_list):
                 #print 'disable multi line selection'
                 bg_color = bg_col
+                st_color = string_col
                 self.all_multi_list[mode] = [False]*3
                 self.multi_focus_list[mode] = [True]*3#暴発無視リスト
             else:
                 #print 'enable multi line selection'
                 bg_color = multi_sel_col
+                st_color = string_col
                 self.all_multi_list[mode] = [True]*3
                 self.multi_focus_list[mode] = [False]*3#暴発無視リスト
             multi_list = self.all_multi_list[mode]
@@ -1237,7 +1240,17 @@ class SiSideBarWeight(qt.DockWindow):
                         num = len(line.text())
                         line.setSelection(0, 0)
                         self.reselect_current_line()#一番上のラインを再選択
-                    qt.change_button_color(line, textColor=string_col, bgColor=bg_color)
+                    if not self.all_multi_list[mode][i]:
+                        if self.attr_lock_flag_list[mode][i] is True:
+                            bg_color = locked_bg_col
+                            st_color = locked_text_col
+                        elif self.attr_lock_flag_list[mode][i]== 'multi':
+                            bg_color = multi_lock_bg
+                            st_color = locked_text_col
+                        else:
+                            bg_color = bg_col
+                            st_color = string_col
+                    qt.change_button_color(line, textColor=st_color, bgColor=bg_color)
         #一行づつトグルする
         else:
             current_flag = self.all_multi_list[mode][axis]
@@ -1247,15 +1260,24 @@ class SiSideBarWeight(qt.DockWindow):
                 self.all_multi_list[mode][axis] = False
                 self.multi_focus_list[mode][axis] = True#暴発無視リスト
                 self.reselect_current_line()#一番上のラインを再選択
-                qt.change_button_color(line, textColor=string_col, bgColor=bg_col)
+                if self.attr_lock_flag_list[mode][axis] is True:
+                    bg_color = locked_bg_col
+                    st_color = locked_text_col
+                elif self.attr_lock_flag_list[mode][axis] == 'multi':
+                    bg_color = multi_lock_bg
+                    st_color = locked_text_col
+                else:
+                    bg_color = bg_col
+                    st_color = string_col
+                qt.change_button_color(line, textColor=st_color, bgColor=bg_color)
             else:
                 self.all_multi_list[mode][axis] = True
                 self.multi_focus_list[mode][axis] = False#暴発無視リスト
                 #print 'select part line', line.text()
                 self.set_active_line(line)
                 qt.change_button_color(line, textColor=string_col, bgColor=multi_sel_col)
-        for m_list in self.all_multi_list:
-            print m_list
+        #for m_list in self.all_multi_list:
+            #print m_list
                 
     def set_active_line(self, line):
         line.setFocus()
@@ -1359,6 +1381,9 @@ class SiSideBarWeight(qt.DockWindow):
         global push_col
         global line_col
         global border_col
+        global locked_bg_col
+        global locked_text_col
+        global multi_lock_bg
         self.ui_preset = 'maya'
         
         if self.ui_col == 0:
@@ -1380,6 +1405,9 @@ class SiSideBarWeight(qt.DockWindow):
             menu_bg=224
             base_col = 224
             radio_base_col = [192, 189, 188]
+            locked_bg_col = [92, 104, 116]
+            locked_text_col = 0
+            multi_lock_bg = [128,128,192]
             if evolution_flag:
                 line_col = [90, 240, 190]
                 border_col = [90, 210, 170]
@@ -1401,6 +1429,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.s = 's_si.png'
             self.r = 'r_si.png'
             self.t = 't_si.png'
+            self.l = 'l_si.png'
             self.check_icon = 'check_si'
             
         elif self.ui_col == 1:
@@ -1426,6 +1455,9 @@ class SiSideBarWeight(qt.DockWindow):
             border_col = [180, 140, 30]
             gray_text = 160
             push_col = 120
+            locked_bg_col = [92, 104, 116]
+            locked_text_col = 0
+            multi_lock_bg = [128,128,192]
             
             all_axis_icon = 'All_Axis_Maya.png'
             self.sel_on_icon = 'Select_On_Maya.png'
@@ -1439,6 +1471,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.s = 's_maya.png'
             self.r = 'r_maya.png'
             self.t = 't_maya.png'
+            self.l = 'l_maya.png'
             self.check_icon = 'check_maya'
         
         sq_widget = QScrollArea(self)
@@ -1751,6 +1784,11 @@ class SiSideBarWeight(qt.DockWindow):
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_scale_y, vn, tw, 1 ,axis_b)
         tw += axis_b
+        #ロック状態切り替え
+        self.lock_attribute_scale = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.lock_attribute_scale.clicked.connect(lambda : self.attribute_lock_state(mode=0))
+        self.main_layout.addWidget(self.lock_attribute_scale, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
@@ -1837,6 +1875,11 @@ class SiSideBarWeight(qt.DockWindow):
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_rot_y, vn, tw, 1 ,axis_b)
         tw += axis_b
+        #ロック状態切り替え
+        self.lock_attribute_rot = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.lock_attribute_rot.clicked.connect(lambda : self.attribute_lock_state(mode=1))
+        self.main_layout.addWidget(self.lock_attribute_rot, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
@@ -1922,6 +1965,11 @@ class SiSideBarWeight(qt.DockWindow):
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_trans_y, vn, tw, 1 ,axis_b)
         tw += axis_b
+        #ロック状態切り替え
+        self.lock_attribute_trans = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.lock_attribute_trans.clicked.connect(lambda : self.attribute_lock_state(mode=2))
+        self.main_layout.addWidget(self.lock_attribute_trans, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
@@ -2039,9 +2087,9 @@ class SiSideBarWeight(qt.DockWindow):
         #self.main_layout.addWidget(self.trs_line_d, vn, 0, 1 ,11)
         #vn+=1
         #SRTボタンをまとめてリスト化
-        self.scale_but_list = [self.but_scale_x, self.but_scale_y, self.but_scale_z, select_scale, self.but_scale_all]
-        self.rot_but_list = [self.but_rot_x, self.but_rot_y, self.but_rot_z, select_rot, self.but_rot_all]
-        self.trans_but_list = [self.but_trans_x, self.but_trans_y, self.but_trans_z, select_trans, self.but_trans_all]
+        self.scale_but_list = [self.but_scale_x, self.but_scale_y, self.but_scale_z, select_scale, self.but_scale_all, self.lock_attribute_scale]
+        self.rot_but_list = [self.but_rot_x, self.but_rot_y, self.but_rot_z, select_rot, self.but_rot_all, self.lock_attribute_rot]
+        self.trans_but_list = [self.but_trans_x, self.but_trans_y, self.but_trans_z, select_trans, self.but_trans_all, self.lock_attribute_trans]
         self.all_axis_but_list = [self.scale_but_list, self.rot_but_list, self.trans_but_list]
         self.key_buts = [key_scale_x, key_scale_y, key_scale_z, key_rot_x, key_rot_y, key_rot_z, key_trans_x, key_trans_y, key_trans_z]
         self.trs_option_but = [self.cog_but, self.prop_but, self.sym_but]
@@ -2418,9 +2466,9 @@ class SiSideBarWeight(qt.DockWindow):
         if init_ui:
             self._initUI()
         self.destroy_but.setChecked(destroy_flag)
-        print evolution_flag
+        #print evolution_flag
         self.change_ds_line()
-        print msg
+        #print msg
         cmds.inViewMessage(amg=msg, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
         #qt.change_border_style(self.numpy)
     #既存のラインをデストロイカラーにする
@@ -2654,7 +2702,7 @@ class SiSideBarWeight(qt.DockWindow):
             for filter_type, flag in zip(self.select_type_list[1:], all_flags[1:]):
                 if not flag:
                     continue
-                print filter_type
+                #print filter_type
                 selection_node += cmds.ls(search_list, l=True, type=filter_type)
         #print 'get selection node :', selection_node
         #オブジェクトモードの時は新規選択、コンポーネントの場合は追加選択する
@@ -3277,7 +3325,7 @@ class SiSideBarWeight(qt.DockWindow):
         exec('m_item = self.action'+str(item_id))
             
         #print 'pre_cp_abs_flag', cp_abs_flag
-        print flags
+        #print flags
         if flags:
             exec(flag_str+' = False')
         else:
@@ -3537,6 +3585,70 @@ class SiSideBarWeight(qt.DockWindow):
             except Exception as e:
                 print e.message
                 pass
+                
+    #アトリビュートのロック状態を調べてUIに反映する
+    attr_lock_flag_list = [[None, None, None], [None, None, None], [None, None, None]]
+    all_attr_list = [['.sx', '.sy', '.sz'], ['.rx', '.ry', '.rz'], ['.tx', '.ty', '.tz'],[]]
+    def attribute_lock_state(self, mode=0, check_only=False):
+        #print 'check attribute lock', mode
+        if mode == 3:#モード3なら全部処理する
+            #print 'check all lines'
+            self.attribute_lock_state(mode=0, check_only=True)
+            self.attribute_lock_state(mode=1, check_only=True)
+            self.attribute_lock_state(mode=2, check_only=True)
+            return
+        lock_state_list = [None, None, None]
+        all_lock_flag = True
+        attr_list = self.all_attr_list[mode]
+        selection = cmds.ls(sl=True, l=True)
+        for s in selection:
+            for i, attr in enumerate(attr_list):
+                lock_flag = cmds.getAttr(s+attr, lock=True)
+                #print lock_flag, s+attr
+                #一個でもロックされてたら全解除
+                if lock_flag:
+                    if not check_only:
+                        self.toggle_lock_attr(mode=mode, state=False, objects=selection)
+                        check_key_anim()
+                        return
+                #前回の状態と比較して、ロック状態が違えばマルチフラグを立てる
+                pre_lock_flag = lock_state_list[i]
+                if pre_lock_flag is None:
+                    lock_state_list[i] = lock_flag
+                    continue
+                else:
+                    if pre_lock_flag != lock_flag:
+                        lock_state_list[i] = 'multi'
+        #チェックモードでなければロック実行
+        if selection:
+            if check_only:
+                #チェックモードの時はラインカラー変換のみ
+                self.change_lock_color(mode=mode, lock_state_list=lock_state_list)
+            else:
+                self.toggle_lock_attr(mode=mode, state=True, objects=selection)
+        else:
+            self.change_lock_color(mode=mode, lock_state_list=[False]*3)
+        check_key_anim()
+            
+    def toggle_lock_attr(self, mode=0, state=False, objects=None):
+        attr_list = self.all_attr_list[mode]
+        for s in objects:
+            for i, attr in enumerate(attr_list):
+                cmds.setAttr(s+attr, lock=state)
+        state_list = [state]*3
+        self.change_lock_color(mode=mode, lock_state_list=state_list)
+        
+    def change_lock_color(self, mode=0, lock_state_list=None):
+        lines_list = self.all_xyz_list[mode]
+        for line, lock_state in zip(lines_list, lock_state_list):
+            if lock_state is True:
+                qt.change_button_color(line, textColor=locked_text_col, bgColor=locked_bg_col )
+            elif lock_state is False:
+                qt.change_button_color(line, textColor=string_col, bgColor=bg_col)
+            else:
+                qt.change_button_color(line, textColor=locked_text_col, bgColor=multi_lock_bg)
+        #マルチライン入力後にリセットするためにステイトを保存しておく
+        self.attr_lock_flag_list[mode] = lock_state_list[:]
                 
     #スケール入力をオブジェクトに反映
     def scaling(self, text='', axis=0, focus=True):
@@ -3954,7 +4066,7 @@ class SiSideBarWeight(qt.DockWindow):
         #print 'selection object :', self.linear_selection
         srt_func_list = [self.scaling, self.rotation, self.translation]
         for sel, v in zip(self.linear_selection, value_list):
-            print sel, v
+            #print sel, v
             cmds.select(sel, r=True)
             srt_func_list[world_str_mode](text=str(v), axis=world_str_axis)
         cmds.select(self.linear_selection, r=True)
@@ -3971,7 +4083,7 @@ class SiSideBarWeight(qt.DockWindow):
             count = len(cmds.ls(sl=True))
             par = (maxi-mini)/float(count-1)
             l_list = [mini+(par*i) for i in range(count)]
-            print l_list
+            #print l_list
             return l_list
             
     #ランダム数を書式によって生成
@@ -4093,8 +4205,8 @@ def set_key_frame(mode=0, axis=0, force=None):
         if set_key_flag:
             #print 'set key', k_name, c_val[axis]
             cmds.setKeyframe(s, at=k_name, v=c_val[axis])
-            key_buts[mode][axis].setIcon(QIcon(image_path+'Key_R.png'))
-            key_colors[id] = 3
+            #key_buts[mode][axis].setIcon(QIcon(image_path+'Key_R.png'))
+            #key_colors[id] = 3
         else:
             cmds.cutKey(s, at=k_name, t=(c_time, c_time))
             if mode == 0:
@@ -4104,6 +4216,7 @@ def set_key_frame(mode=0, axis=0, force=None):
             if mode == 2:
                 cmds.xform(s, t=c_val)
             f_curves = cmds.keyframe(s, query=True, name=True)
+            '''
             if not f_curves:
                 f_curves = []
             for fc in f_curves:
@@ -4119,6 +4232,8 @@ def set_key_frame(mode=0, axis=0, force=None):
             else:
                 key_buts[mode][axis].setIcon(QIcon(image_path+'Key_N.png'))
                 key_colors[id] = 0
+            '''
+    check_key_anim()
                 
 #何もしないコンテキストを用意しておく
 def clear_prd():
