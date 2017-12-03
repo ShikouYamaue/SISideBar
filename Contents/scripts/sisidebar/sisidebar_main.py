@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.5 -'
+version = ' - SI Side Bar / ver_2.1.6 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -3603,7 +3603,11 @@ class SiSideBarWeight(qt.DockWindow):
         selection = cmds.ls(sl=True, l=True)
         for s in selection:
             for i, attr in enumerate(attr_list):
-                lock_flag = cmds.getAttr(s+attr, lock=True)
+                try:
+                    lock_flag = cmds.getAttr(s+attr, lock=True)
+                except Exception as e:
+                    #print e.message
+                    lock_flag = False
                 #print lock_flag, s+attr
                 #一個でもロックされてたら全解除
                 if lock_flag:
