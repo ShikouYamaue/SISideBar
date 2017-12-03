@@ -55,7 +55,7 @@
     ・コンポーネントへの入力対応
     ・3軸ボタン、を右クリックで一括入力、各XYZ軸右クリックで一括入力状態をトグル
     ・アトリビュートのロック状態の表示、ロック/アンロック一括切り替え機能
-    ![default](https://user-images.githubusercontent.com/28256498/33526068-27f318aa-d87e-11e7-81dd-ec940fd98879.gif)
+![default](https://user-images.githubusercontent.com/28256498/33526068-27f318aa-d87e-11e7-81dd-ec940fd98879.gif)
     
     
     ・マウスジェスチャー入力に対応
