@@ -277,3 +277,11 @@ def make_h_line():
     hline.setFrameShadow(QFrame.Sunken)
     return hline
     
+#ctrl,shiftでフォーカスが飛ばないカスタムラインエディット
+class LineEdit(QLineEdit):
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == Qt.Key.Key_Control or key == Qt.Key.Key_Shift:
+            return
+        super(LineEdit, self).keyPressEvent(event)
+        

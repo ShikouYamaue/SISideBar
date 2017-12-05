@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.6 -'
+version = ' - SI Side Bar / ver_2.1.7 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -1327,7 +1327,7 @@ class SiSideBarWeight(qt.DockWindow):
             
     #ラインエディットを作って返す
     def make_line_edit(self, text=200, bg=40):
-        line = QLineEdit()
+        line = qt.LineEdit()
         line.setAcceptDrops(False)
         qt.change_button_color(line, textColor=text, bgColor=bg)
         return line

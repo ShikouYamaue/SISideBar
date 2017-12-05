@@ -42,46 +42,32 @@ pre_mode = None
 def change_selection():
     #print '*+*+*+*+*+*+*+selection changed+*+*+*+*+*+*+* :', cmds.ls(sl=True)
     global bake_mode
-    #print 'check bake_mode in culc sel:', bake_mode
     if bake_mode:
-        #print 'return for center bake mode from change_selection:'
         return
     #return
     if group_mode:
         group_selection()
-        #return
+    #コンポーネント選択の時はアンドゥできなくなるのでヒストリ取得を無効にしてからマトリックス取得実行
+    cmds.undoInfo(swf=False)
     get_matrix()
+    cmds.undoInfo(swf=True)
+
     #コンテキストのpodモードを選択タイプによって切り替える
     sb.chenge_manip_type()
     sb.change_selection_display()
-    #sel = cmds.ls(sl=True)
-    #cmds.select(cl=True)
-    #cmds.select(sel, r=True)
     #コンテキストを切り替えてリアルタイム検出を有効にする。
     target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
     global current_mode
     global pre_mode
     current_mode = cmds.selectMode(q=True, o=True)
     current_tool = cmds.currentCtx()
-    #print 'current tool ;',  current_tool
     #選択オブジェクトが切り替わったときだけ切り替え実行
     if 'pre_sel_obj' in globals():
         if pre_sel_obj != cmds.ls(sl=True, o=True):
             if current_tool in target_tool_list:
                 cmds.setToolTo('selectSuperContext')
                 cmds.setToolTo(current_tool)
-    '''
-    #エッジループ、フェースアイランド選択を利用出来るように、オブジェクトモードとコンポーネントモード切替時のみコンテキスト変更を行う
-    if current_mode or pre_mode:
-        if current_tool in target_tool_list:
-            #print 'chanege context', current_tool
-            cmds.setToolTo('selectSuperContext')
-            cmds.setToolTo(current_tool)
-    '''
     pre_mode = current_mode
-    #cmds.undo()
-    #get_matrix()
-    #sb.check_option_parm()
     #オブジェクト変更があった場合はセンターをベイクして再度センターモードに入りなおす
     #print 'check center mode in culc :', center_mode
     if cmds.selectMode(q=True, o=True):
@@ -121,7 +107,6 @@ def get_matrix():
         sb.window.attribute_lock_state(mode=3, check_only=True)
     except:
         pass
-        
     #一旦スケールX値をリセットしてメインウィンドウクラスに変更をお知らせする
     #sb.set_temp_text('change')
     sb.set_active_mute()
