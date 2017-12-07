@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.7 -'
+version = ' - SI Side Bar / ver_2.1.8 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -83,8 +83,14 @@ ommit_manip_link = False
 #-------------------------------------------------------------
 
 #フラットボタンを作って返す
+global all_flat_buttons
+all_flat_buttons = []
+global all_flat_button_palams
+all_flat_button_palams = []
 def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=None, w_min=None, 
                                 h_max=22, h_min=20, policy=None, icon_size=None, tip=None, flat=True, hover=True):
+    global all_flat_buttons
+    global all_flat_button_palams
     button = RightClickButton()
     button.setText(name)
     if checkable:
@@ -112,6 +118,11 @@ def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=N
         button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
     if tip:
         button.setToolTip(tip)
+    all_flat_buttons.append(button)
+    if flat:
+        all_flat_button_palams.append([text, ui_color, bg, 'button', hover, destroy_flag, border_col])
+    else:
+        all_flat_button_palams.append([text, bg, push_col, 'button', hover, destroy_flag, border_col])
     return button
     
 #右クリックボタンクラスの作成
@@ -684,6 +695,10 @@ class SiSideBarWeight(qt.DockWindow):
                 exec('del '+op_window)
             except:
                 pass
+        if destroy_flag:
+            print 'timer stop'
+            self.timer.stop()
+            
     #タブ隠すだけで無効になるので使用中止
     #def hideEvent(self, e):
         #if maya_ver >= 2017:
@@ -720,12 +735,14 @@ class SiSideBarWeight(qt.DockWindow):
         global timeline_job
         global undo_job
         global redo_job
+        global workspace_job
         if script_job is not None:
             cmds.scriptJob(k=script_job)
             cmds.scriptJob(k=timeline_job)
             cmds.scriptJob(k=context_job)
             cmds.scriptJob(k=redo_job)
             cmds.scriptJob(k=undo_job)
+            cmds.scriptJob(k=workspace_job)
             script_job = None
     pre_vol_id = -1
     pre_obj_vol = -1
@@ -1332,10 +1349,11 @@ class SiSideBarWeight(qt.DockWindow):
         qt.change_button_color(line, textColor=text, bgColor=bg)
         return line
         
-    #明るめのラインを返す
     def make_h_line(self, text=255, bg=128):
+        global line_list
         line = qt.make_h_line()
         qt.change_button_color(line, textColor=text, bgColor=bg)
+        line_list.appned(line)
         return line
         
     #ホイールを作る
@@ -1362,6 +1380,10 @@ class SiSideBarWeight(qt.DockWindow):
         global line_list
         line_list = []
         self.init_flag = True#起動時かどうかを判定するフラグを立てておく
+        global all_flat_buttons
+        all_flat_buttons = []
+        global all_flat_button_palams
+        all_flat_button_palams = []
         
         global text_col
         global mute_text
@@ -2426,7 +2448,7 @@ class SiSideBarWeight(qt.DockWindow):
         if destroy_flag:
             self.destroy_but.setChecked(True)
             self.view_ds_line()
-            self.change_ds_line()
+            self.destroy_mode(init_ui=False)
             #self.destroy_mode(init_ui=False)
     #デストロイモード用のラインを隠した状態で作っておく
     ds_line_list=[]
@@ -2470,6 +2492,47 @@ class SiSideBarWeight(qt.DockWindow):
         self.change_ds_line()
         #print msg
         cmds.inViewMessage(amg=msg, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
+        #print 'destroy flag :', destroy_flag
+        if destroy_flag:
+            self.blinking_times = 0
+            self.timer = QTimer()
+            self.timer.start(20)
+            self.timer.timeout.connect(self.destroy_blinking)
+            self.bk_line_col = line_col
+            self.bk_border_col = border_col
+        else:
+            try:
+                self.timer.stop()
+            except:
+                pass
+    blinking_times = 0
+    add_flag = True
+    def destroy_blinking(self):
+        global all_flat_buttons
+        global all_flat_button_palams
+        if self.blinking_times > 80:
+            self.add_flag = False
+        if self.blinking_times < -30:
+            self.add_flag = True
+        if self.add_flag:
+            self.bk_line_col = map(lambda a:a+1, self.bk_line_col )
+            self.bk_border_col = map(lambda a:a+1, self.bk_border_col)
+            self.blinking_times += 1
+        else:
+            self.bk_line_col = map(lambda a:a-1, self.bk_line_col )
+            self.bk_border_col = map(lambda a:a-1, self.bk_border_col)
+            self.blinking_times -= 1
+        #print self.bk_line_col
+        bk_col = map(lambda a:a if a < 255 else 255, self.bk_line_col )
+        bk_col = map(lambda a:a if a > 100 else 100, bk_col )
+        bk_bd_col = map(lambda a:a if a < 255 else 255, self.bk_border_col )
+        bk_bd_col = map(lambda a:a if a > 100 else 100, bk_bd_col )
+        for line in  line_list:
+            qt.change_button_color(line, textColor=bk_col,  bgColor=bk_col)
+        for but, pt in zip(all_flat_buttons, all_flat_button_palams):
+            qt.change_button_color(but, textColor=pt[0], bgColor=pt[1], hiColor=pt[2], mode=pt[3], hover=pt[4], destroy=pt[5], dsColor=bk_bd_col)
+        #print 'test'
+            
         #qt.change_border_style(self.numpy)
     #既存のラインをデストロイカラーにする
     def change_ds_line(self):
@@ -2829,6 +2892,7 @@ class SiSideBarWeight(qt.DockWindow):
             delta /= abs(delta)
             #print 'wheel event :', event.delta()
             self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
+        return False
             
     #マウスの座標計算してぐるぐる入力を実現
     def mouse_vector(self):

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*- 
 from maya import cmds
+from maya import mel
 from . import lang
 import os
 
@@ -73,16 +74,19 @@ def open_scene(mime_data):
         msg02 = msg02.output()
         msg03 = msg03.output()
         msg04 = msg04.output()
-        proc = cmds.confirmDialog(m=msg01, t='', b= [msg02, msg03, msg04], db=msg02, cb=msg04, icn='question',ds=msg03)
-        if proc == msg04:
-            return
-        elif proc == msg03:
-            pass
-        elif proc == msg02:
-            if scene_path == msg05:
-                mel.eval("SaveSceneAs;")
-            else:
-                cmds.file(save=True)
+        fileModified = cmds.file(q=True, modified=True)
+        if fileModified:
+            print 'modefie'
+            proc = cmds.confirmDialog(m=msg01, t='', b= [msg02, msg03, msg04], db=msg02, cb=msg04, icn='question',ds=msg03)
+            if proc == msg04:
+                return
+            elif proc == msg03:
+                pass
+            elif proc == msg02:
+                if scene_path == msg05:
+                    mel.eval("SaveSceneAs;")
+                else:
+                    cmds.file(save=True)
         
         if file.startswith('/'):
             file_path = file[1:]
