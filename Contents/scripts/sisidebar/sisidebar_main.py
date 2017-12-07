@@ -2530,7 +2530,8 @@ class SiSideBarWeight(qt.DockWindow):
         for line in  line_list:
             qt.change_button_color(line, textColor=bk_col,  bgColor=bk_col)
         for but, pt in zip(all_flat_buttons, all_flat_button_palams):
-            qt.change_button_color(but, textColor=pt[0], bgColor=pt[1], hiColor=pt[2], mode=pt[3], hover=pt[4], destroy=pt[5], dsColor=bk_bd_col)
+            check = but.isChecked()
+            qt.change_button_color(but, textColor=pt[0], bgColor=pt[1], hiColor=pt[2], mode=pt[3], hover=pt[4], destroy=pt[5], dsColor=bk_bd_col, toggle=True)
         #print 'test'
             
         #qt.change_border_style(self.numpy)
