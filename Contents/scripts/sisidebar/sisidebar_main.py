@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.8 -'
+version = ' - SI Side Bar / ver_2.1.9 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -299,6 +299,7 @@ global script_job
 #script_job = None#二個目を許可するときは一時的に開放すべし
 class SiSideBarWeight(qt.DockWindow):
     def __init__(self, parent = None, init_pos=False):
+        self.init_flag = True#起動時かどうかを判定するフラグを立てておく
         super(SiSideBarWeight, self).__init__(parent)
         global sisidebar_sub
         from . import sisidebar_sub as sisidebar_sub
@@ -696,8 +697,16 @@ class SiSideBarWeight(qt.DockWindow):
             except:
                 pass
         if destroy_flag:
-            print 'timer stop'
-            self.timer.stop()
+            #print 'timer stop'
+            try:
+                self.timer.stop()
+            except:
+                pass
+            try:
+                self.collapse_timer.stop()
+            except:
+                pass
+                
             
     #タブ隠すだけで無効になるので使用中止
     #def hideEvent(self, e):
@@ -1353,7 +1362,7 @@ class SiSideBarWeight(qt.DockWindow):
         global line_list
         line = qt.make_h_line()
         qt.change_button_color(line, textColor=text, bgColor=bg)
-        line_list.appned(line)
+        line_list.append(line)
         return line
         
     #ホイールを作る
@@ -1373,18 +1382,8 @@ class SiSideBarWeight(qt.DockWindow):
         pass
     def init_maya_color(self):
         pass
-                
-    #UI構築
-    def _initUI(self):
-        self.ds_line_list=[]
-        global line_list
-        line_list = []
-        self.init_flag = True#起動時かどうかを判定するフラグを立てておく
-        global all_flat_buttons
-        all_flat_buttons = []
-        global all_flat_button_palams
-        all_flat_button_palams = []
         
+    def set_ui_color(self):
         global text_col
         global mute_text
         global hilite
@@ -1406,6 +1405,7 @@ class SiSideBarWeight(qt.DockWindow):
         global locked_bg_col
         global locked_text_col
         global multi_lock_bg
+        global immed
         self.ui_preset = 'maya'
         
         if self.ui_col == 0:
@@ -1439,7 +1439,7 @@ class SiSideBarWeight(qt.DockWindow):
             gray_text = 160
             push_col = [132, 130, 128]
             
-            all_axis_icon = 'All_Axis.png'
+            self.all_axis_icon = 'All_Axis.png'
             self.sel_on_icon = 'Select_On.png'
             self.sel_off_icon = 'Select_Off.png'
             self.x_on = 'x_on_si.png'
@@ -1481,7 +1481,7 @@ class SiSideBarWeight(qt.DockWindow):
             locked_text_col = 0
             multi_lock_bg = [128,128,192]
             
-            all_axis_icon = 'All_Axis_Maya.png'
+            self.all_axis_icon = 'All_Axis_Maya.png'
             self.sel_on_icon = 'Select_On_Maya.png'
             self.sel_off_icon = 'Select_Off_Maya.png'
             self.x_on = 'x_on_maya.png'
@@ -1495,6 +1495,18 @@ class SiSideBarWeight(qt.DockWindow):
             self.t = 't_maya.png'
             self.l = 'l_maya.png'
             self.check_icon = 'check_maya'
+                
+    #UI構築
+    def _initUI(self, color_only=False):
+        self.ds_line_list=[]
+        global line_list
+        line_list = []
+        global all_flat_buttons
+        all_flat_buttons = []
+        global all_flat_button_palams
+        all_flat_button_palams = []
+        
+        self.set_ui_color()
         
         sq_widget = QScrollArea(self)
         sq_widget.setWidgetResizable(True)#リサイズに中身が追従するかどうか
@@ -1583,7 +1595,7 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
         self.main_layout.addWidget(self.select_all_but, vn, 0, 1 ,2)
-        self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Handel')
+        self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Handle')
         self.main_layout.addWidget(self.select_Marker_but, vn, 2, 1 ,2)
         self.select_joint_but = make_flat_btton(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Joint')
         self.main_layout.addWidget(self.select_joint_but, vn, 4, 1 ,2)
@@ -1834,7 +1846,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw += axis_b
         
         #XYZ全部ボタン
-        self.but_scale_all = make_flat_btton(icon=image_path+all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_scale_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_scale_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1924,7 +1936,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.but_rot_z, vn, tw, 1 ,axis_b)
         tw += axis_b
         #XYZ全部ボタン
-        self.but_rot_all = make_flat_btton(icon=image_path+all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_rot_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_rot_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -2013,7 +2025,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.but_trans_z, vn, tw, 1 , axis_b)
         tw += axis_b
         #XYZ全部ボタン
-        self.but_trans_all = make_flat_btton(icon=image_path+all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_trans_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_trans_all, vn, tw, 1 ,sel_b)
         vn+=1
         #アイコン変更をまとめてコネクト, オンオフアイコンを切り替える
@@ -2209,7 +2221,7 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #コンストレインエリア
-        self.constrain_top = make_flat_btton(name='Costrain', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.constrain_top = make_flat_btton(name='Constrain', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.constrain_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.constrain_top, vn, 0, 1 ,11)
         vn+=1
@@ -2459,6 +2471,8 @@ class SiSideBarWeight(qt.DockWindow):
         return ds_line
     #デストロイモードに変形する
     def destroy_mode(self, init_ui=True):
+        self.init_ui_flag_in_ds = init_ui
+        self.c_count = 0
         global destroy_flag
         global destroy_name
         global evolution_flag
@@ -2485,28 +2499,49 @@ class SiSideBarWeight(qt.DockWindow):
                 change_col = 128
                 destroy_flag = False
                 msg = 'SI Side Bar : Deactivate Destroy mode'
-        if init_ui:
-            self._initUI()
         self.destroy_but.setChecked(destroy_flag)
-        #print evolution_flag
-        self.change_ds_line()
-        #print msg
-        cmds.inViewMessage(amg=msg, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
-        #print 'destroy flag :', destroy_flag
-        if destroy_flag:
-            self.blinking_times = 0
-            self.timer = QTimer()
-            self.timer.start(20)
-            self.timer.timeout.connect(self.destroy_blinking)
-            self.bk_line_col = line_col
-            self.bk_border_col = border_col
-        else:
+        if init_ui and not destroy_flag:
+            print 'reinitui'
             try:
                 self.timer.stop()
             except:
                 pass
+            self._initUI()
+        #print evolution_flag
+        #self.change_ds_line()
+        #print msg
+        cmds.inViewMessage(amg=msg, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
+        #print 'destroy flag :', destroy_flag
+        if destroy_flag:
+            self.set_ui_color()
+            self.collapse_list = [self.select_section_but, self.trs_section_widgets, self.snap_section_but, self.const_section_but, self.edit_section_but][::-1]
+            self.height_list = [self.select_section_height, self.trs_section_height, self.snap_section_height, self.const_section_height, self.edit_section_height][::-1]
+            self.blinking_count = 0
+            self.blinking_times = 0
+            self.collapse_timer = QTimer()
+            self.collapse_timer.start(150)
+            self.select_section_but
+            self.collapse_timer.timeout.connect(self.destroy_collapse)
+    def destroy_collapse(self):
+        #self.collapse_ds_ui(buttons=self.collapse_list[self.c_count],  heights=self.height_list[self.c_count])
+        if self.c_count == 5:
+            self.start_blinging()
+            self.collapse_timer.stop()
+        else:
+            self.toggle_ui(buttons=self.collapse_list[self.c_count],  heights=self.height_list[self.c_count])
+        self.c_count += 1
+        
+    def start_blinging(self):
+        self.timer = QTimer()
+        self.timer.start(2)
+        self.timer.timeout.connect(self.destroy_blinking)
+        self.bk_line_col = line_col
+        self.bk_border_col = border_col
+        self._initUI()
+    
     blinking_times = 0
     add_flag = True
+    blinking_count = 0
     def destroy_blinking(self):
         global all_flat_buttons
         global all_flat_button_palams
@@ -2532,6 +2567,15 @@ class SiSideBarWeight(qt.DockWindow):
         for but, pt in zip(all_flat_buttons, all_flat_button_palams):
             check = but.isChecked()
             qt.change_button_color(but, textColor=pt[0], bgColor=pt[1], hiColor=pt[2], mode=pt[3], hover=pt[4], destroy=pt[5], dsColor=bk_bd_col, toggle=True)
+        self.blinking_count += 1
+        if self.blinking_count > 500 and self.blinking_times == 0:
+            #print 'stop blinking'
+            self.timer.stop()
+            for line in  line_list:
+                qt.change_button_color(line, textColor=line_col,  bgColor=line_col)
+            for but, pt in zip(all_flat_buttons, all_flat_button_palams):
+                check = but.isChecked()
+                qt.change_button_color(but, textColor=pt[0], bgColor=pt[1], hiColor=pt[2], mode=pt[3], hover=pt[4], destroy=pt[5], dsColor= border_col, toggle=True)
         #print 'test'
             
         #qt.change_border_style(self.numpy)
@@ -2620,24 +2664,30 @@ class SiSideBarWeight(qt.DockWindow):
             sisidebar_sub.change_np_mode(mode=False)
     
     def toggle_ui(self, buttons=None, heights=None):
-        #self.filter_but_list
-        #i = 0
         if buttons[0].isVisible():
-        #if buttons[0].height() != 0:
             for but in buttons:
-                #i+=1
-                #print i
-                #but.setMaximumHeight(0)
                 but.setVisible(False)
-                
-                #self.main_layout.removeWidget(but)
         else:
             for but, h in zip(buttons, heights):
-                #i+=1
-                #print i
                 but.setVisible(True)
-                #but.setMaximumHeight(h)
-                #self.main_layout.addWidget(but)
+    def collapse_ds_ui(self, buttons=None, heights=None):
+        self.collapse_count = len(buttons)
+        self.cb_count = 0
+        self.collapse_buttons = buttons
+        self.col_timer = QTimer()
+        self.col_timer.start(100)
+        self.col_timer.timeout.connect(self.collapse_but)
+    def collapse_but(self):
+        try:
+            self.collapse_buttons[self.cb_count].setVisible(False)
+        except:
+            self.col_timer.stop()
+            
+        self.cb_count += 1
+        if self.cb_count == self.collapse_count-1:
+            self.col_timer.stop()
+            
+        
         
     #セレクションフィルター状態をロード
     def load_filter_but(self):
@@ -3155,6 +3205,7 @@ class SiSideBarWeight(qt.DockWindow):
         ref_job = cmds.scriptJob(ro=True, ct=["SomethingSelected",lambda : sisidebar_sub.set_reference(mode=mode)], protected=True)
         
     def change_ui_color(self, mode=0):
+        self.init_flag = True
         global destroy_flag
         #destroy_flag = False
         self.ui_col = mode
