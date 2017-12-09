@@ -2948,7 +2948,11 @@ class SiSideBarWeight(qt.DockWindow):
             delta /= abs(delta)
             #print 'wheel event :', event.delta()
             self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
+        if event.type() == QEvent.FocusIn:
+            cmds.scriptJob(ro=True, e=("idle", lambda : self.select_text_all(obj)), protected=True)
         return False
+    def select_text_all(self, obj):
+        obj.selectAll()
             
     #マウスの座標計算してぐるぐる入力を実現
     def mouse_vector(self):

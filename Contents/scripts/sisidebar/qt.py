@@ -284,8 +284,4 @@ class LineEdit(QLineEdit):
         if key == Qt.Key.Key_Control or key == Qt.Key.Key_Shift:
             return
         super(LineEdit, self).keyPressEvent(event)
-    def focusInEvent(self, event):
-        #print 'forcusin'
-        self.selectAll()
-        self.setSelection(0, 100)
         
