@@ -13,6 +13,13 @@ try:
 except:
     np_flag = False
     
+def reset_pivot_pos(nodes):
+    if not nodes:
+        nodes = cmds.ls(sl=True, tr=True, l=True)
+    for s in nodes:
+        cmds.xform(s+'.scalePivot', t=[0, 0, 0], ws=True)
+        cmds.xform(s+'.rotatePivot', t=[0, 0, 0], ws=True)
+        
 def move_center_each_object():
     object_mode = cmds.selectMode( q=True, o=True )
     cmds.selectMode(o=True)

@@ -50,7 +50,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.1.9 -'
+version = ' - SI Side Bar / ver_2.2.0 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -194,6 +194,7 @@ class FloatingWindow(qt.SubWindow):
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         self.show()#Showしてから移動しないとほしい位置が取れない
         move_to_best_pos(object=self, offset=offset)
+        
     def re_init_window(self, mode='transform_top'):
         #桁数の変更があったらUIを丸ごと描画しなおす
         #UIのテキスト再描画のみができなかったので苦肉の策
@@ -209,6 +210,7 @@ class FloatingWindow(qt.SubWindow):
             self.menus = window.create_trans_menu(add_float=False)
             self.f_layout.addWidget(self.menus)
             self.show()
+            
     def closeEvent(self, e):
         global trs_window_flag 
         #print 'window close', e
@@ -286,6 +288,7 @@ class Option():
             )
         else:
             if maya_ver >= 2015:
+                #print 'show 2015'
                 window.show(dockable=True)
             else:
                 window.show()
@@ -1571,7 +1574,6 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.setRowStretch(vn,1)
         self.main_layout.setRowStretch(vn+1,0)
         
-        
         global select_group_but
         select_group_but = make_flat_btton(name='Group', text=text_col, bg=hilite)
         global pre_sel_group_but
@@ -1822,6 +1824,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.lock_attribute_scale = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.lock_attribute_scale.clicked.connect(lambda : self.attribute_lock_state(mode=0))
+        self.lock_attribute_scale.rightClicked.connect(lambda : RockAttrMenu(name='Scale', mode=0))
         self.main_layout.addWidget(self.lock_attribute_scale, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1913,6 +1916,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.lock_attribute_rot = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.lock_attribute_rot.clicked.connect(lambda : self.attribute_lock_state(mode=1))
+        self.lock_attribute_rot.rightClicked.connect(lambda : RockAttrMenu(name='Rot', mode=1))
         self.main_layout.addWidget(self.lock_attribute_rot, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -2003,6 +2007,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.lock_attribute_trans = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.lock_attribute_trans.clicked.connect(lambda : self.attribute_lock_state(mode=2))
+        self.lock_attribute_trans.rightClicked.connect(lambda : RockAttrMenu(name='Trans', mode=2))
         self.main_layout.addWidget(self.lock_attribute_trans, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -3259,6 +3264,16 @@ class SiSideBarWeight(qt.DockWindow):
         action18.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=False)))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Set Neutral Pose Node',
+                                ja=u'ニュートラルポーズノードを設定')
+        action26 = self.top_menus.addAction(mag.output())
+        action26.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True)))
+        mag = lang.Lang(en='Remove Neutral Pose Node',
+                                ja=u'ニュートラルポーズノードを解除')
+        action27 = self.top_menus.addAction(mag.output())
+        action27.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=False, ntpose=True)))
+        self.top_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Reset All Transforms',
                                 ja=u'すべての変換をリセット')
         action13 = self.top_menus.addAction(mag.output())
@@ -3705,7 +3720,7 @@ class SiSideBarWeight(qt.DockWindow):
     #アトリビュートのロック状態を調べてUIに反映する
     attr_lock_flag_list = [[None, None, None], [None, None, None], [None, None, None]]
     all_attr_list = [['.sx', '.sy', '.sz'], ['.rx', '.ry', '.rz'], ['.tx', '.ty', '.tz'],[]]
-    def attribute_lock_state(self, mode=0, check_only=False):
+    def attribute_lock_state(self, mode=0, check_only=False, axis=None):
         #print 'check attribute lock', mode
         if mode == 3:#モード3なら全部処理する
             #print 'check all lines'
@@ -3717,46 +3732,60 @@ class SiSideBarWeight(qt.DockWindow):
         all_lock_flag = True
         attr_list = self.all_attr_list[mode]
         selection = cmds.ls(sl=True, l=True)
-        for s in selection:
+        if cmds.selectMode(q=True, co=True):
+            lock_flag = False
             for i, attr in enumerate(attr_list):
-                try:
-                    lock_flag = cmds.getAttr(s+attr, lock=True)
-                except Exception as e:
-                    #print e.message
-                    lock_flag = False
-                #print lock_flag, s+attr
-                #一個でもロックされてたら全解除
-                if lock_flag:
-                    if not check_only:
-                        self.toggle_lock_attr(mode=mode, state=False, objects=selection)
-                        check_key_anim()
-                        return
-                #前回の状態と比較して、ロック状態が違えばマルチフラグを立てる
-                pre_lock_flag = lock_state_list[i]
-                if pre_lock_flag is None:
-                    lock_state_list[i] = lock_flag
-                    continue
-                else:
-                    if pre_lock_flag != lock_flag:
-                        lock_state_list[i] = 'multi'
+                lock_state_list[i] = lock_flag
+        else:
+            for s in selection:
+                for i, attr in enumerate(attr_list):
+                    if axis is not None:
+                        if axis != i:
+                            continue
+                    try:
+                        lock_flag = cmds.getAttr(s+attr, lock=True)
+                    except Exception as e:
+                        #print e.message
+                        lock_flag = False
+                    #print lock_flag, s+attr
+                    #一個でもロックされてたら全解除
+                    if lock_flag:
+                        if not check_only:
+                            self.toggle_lock_attr(mode=mode, state=False, objects=selection, axis=axis)
+                            check_key_anim()
+                            return
+                    #前回の状態と比較して、ロック状態が違えばマルチフラグを立てる
+                    pre_lock_flag = lock_state_list[i]
+                    if pre_lock_flag is None:
+                        lock_state_list[i] = lock_flag
+                        continue
+                    else:
+                        if pre_lock_flag != lock_flag:
+                            lock_state_list[i] = 'multi'
         #チェックモードでなければロック実行
         if selection:
             if check_only:
                 #チェックモードの時はラインカラー変換のみ
                 self.change_lock_color(mode=mode, lock_state_list=lock_state_list)
             else:
-                self.toggle_lock_attr(mode=mode, state=True, objects=selection)
+                self.toggle_lock_attr(mode=mode, state=True, objects=selection, axis=axis)
         else:
             self.change_lock_color(mode=mode, lock_state_list=[False]*3)
         check_key_anim()
             
-    def toggle_lock_attr(self, mode=0, state=False, objects=None):
+    def toggle_lock_attr(self, mode=0, state=False, objects=None, axis=None):
         attr_list = self.all_attr_list[mode]
         for s in objects:
             for i, attr in enumerate(attr_list):
+                if axis is not None:
+                    if axis != i:
+                        continue
                 cmds.setAttr(s+attr, lock=state)
         state_list = [state]*3
-        self.change_lock_color(mode=mode, lock_state_list=state_list)
+        if axis is not None:
+            self.attribute_lock_state(mode=3, check_only=True)
+        else:
+            self.change_lock_color(mode=mode, lock_state_list=state_list)
         
     def change_lock_color(self, mode=0, lock_state_list=None):
         lines_list = self.all_xyz_list[mode]
@@ -4413,14 +4442,19 @@ def transform_center():
     pm.select(current_selection, r=True)
     sisidebar_sub.set_bake_flag(mode=False)
     
-#センターモードを切り替える
-def toggle_center_mode(init=None, mode=None, change=False):
+#センターモードを切り替える、ニュートラルポーズノード設定と共通化
+def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
+    suffix = map(lambda a: '_ntpose' if a else '_cneter', [ntpose])[0]
+    #print suffix
     #cmds.undoInfo(cn='tgl_center', ock=True)
     global center_mode
     global center_objects
     global centers
     global pre_pcp_mode
     global pre_space
+    #センターモード時はニュートラルポーズ処理しない
+    if center_mode and ntpose:
+        return
     if change:#選択変更時の挙動
         transform_center()
         sisidebar_sub.get_matrix()
@@ -4448,6 +4482,7 @@ def toggle_center_mode(init=None, mode=None, change=False):
         centers = []
         if not change:
             center_objects = pm.ls(sl=True, l=True, tr=True)
+            original_objects = center_objects[:]
         else:
             center_objects = changed_selection
         #print 'start center mode :', center_objects
@@ -4455,19 +4490,37 @@ def toggle_center_mode(init=None, mode=None, change=False):
             #cmds.undoInfo(cn='tgl_center', cck=True)
             return
         for sel in center_objects:
+            if ntpose:
+                if str(sel).endswith('_ntpose'):#ニュートラルポーズ自体は処理しない
+                    continue
+                parent_node = pm.listRelatives(sel, p=True, f=True)
+                if parent_node:#元の親がニュートラルポーズならいったん消す
+                    #print str(parent_node[0])
+                    if str(parent_node[0]).endswith('_ntpose'):
+                        pm.select(sel, r=True)
+                        centers=parent_node
+                        toggle_center_mode(mode=False, ntpose=True)
             s = pm.xform(sel, q=True, s=True, os=True, r=True)
             #s=[1,1,1]
             r = pm.xform(sel, q=True, ro=True, ws=True)
             p = pm.xform(sel, q=True, t=True, ws=True)
-            pm.group(sel, n=str(sel)+'_center')
+            pm.group(sel, n=str(sel)+suffix)
             center = pm.ls(sl=True, l=True)[0]
             centers.append(center)
             #print center
             cmds.move(p[0], p[1], p[2], str(center), str(center)+'.scalePivot', str(center)+'.rotatePivot', ws=True, pcp=True)
             cmds.scale(s[0], s[1], s[2], str(center), os=True, pcp=True)
             cmds.rotate(r[0], r[1], r[2], str(center), ws=True, pcp=True)
-        pm.select(centers)
-    if not mode:
+        print 'start center mode :', center_objects
+        if ntpose:
+            pm.select(original_objects)
+            #グローバル変数初期化
+            centers = []
+            center_objects = []
+            transform.reset_pivot_pos(original_objects)
+        else:
+            pm.select(centers)
+    if not mode:#センターモード、ニュートラルポーズ解除モード
         #print 'end center mode :', center_objects
         if init == 'init':
             #ボタントグル時のモードをCulcに格納しておく
@@ -4480,10 +4533,19 @@ def toggle_center_mode(init=None, mode=None, change=False):
             cmds.manipRotateContext('Rotate', e=True, pcp=pre_pcp_mode[1])
             cmds.manipMoveContext('Move', e=True, pcp=pre_pcp_mode[2])
         #センターのトランスフォームをベイク
-        transform_center()
+        if not ntpose:
+            transform_center()
         #親子付けを解除して元に戻す
         center_dict=dict()
+        if ntpose:#ニュートラルポーズのときは親がntノードかどうかを判断して格納する
+            center_objects = [sel for sel in pm.ls(sl=True, l=True, tr=True) if not str(sel).endswith('_ntpose')]
+            centers = [pm.listRelatives(sel, p=True)[0] if pm.listRelatives(sel, p=True) else None for sel in center_objects]
         for sel, center in zip(center_objects, centers):
+            if ntpose:
+                if center is None:
+                    continue
+                if not str(center).endswith('_ntpose'):
+                    continue
             center_dict[center] = sel
             p_node = pm.listRelatives(center, p=True, f=True)
             #print 'reparent node to :', p_node, sel
@@ -4503,13 +4565,17 @@ def toggle_center_mode(init=None, mode=None, change=False):
                     pm.select(node, add=True)
         #まとめてセンターを消す
         pm.delete(centers)
-        #グローバル変数を初期化
-        centers = []
-        center_objects = []
-        #コンポーネントモードで終了したばあいはモード変異を反映する。
-        if cmds.selectMode(q=True, co=True):
-            cmds.selectMode(o=True)
-            cmds.selectMode(co=True)
+        if ntpose:
+            pm.select(center_objects, r=True)
+            transform.reset_pivot_pos(center_objects)
+        else:
+            #グローバル変数を初期化
+            centers = []
+            center_objects = []
+            #コンポーネントモードで終了したばあいはモード変異を反映する。
+            if cmds.selectMode(q=True, co=True):
+                cmds.selectMode(o=True)
+                cmds.selectMode(co=True)
     #cmds.undoInfo(cn='tgl_center', cck=True)
               
 #キーアニメの有無を確認して色を変える
@@ -5403,6 +5469,55 @@ class FilterOption(qt.MainWindow):
             os.makedirs(self.dir_path)
         with open(save_file, 'w') as f:
             json.dump({'all_flags':all_flags}, f)
+class RockAttrMenu(qt.SubWindow):
+    def __init__(self, parent = None, mode=0, name='Scale'):
+        super(RockAttrMenu, self).__init__(parent)
+        self.setWindowFlags(Qt.Window|Qt.FramelessWindowHint)
+        wrapper = QWidget(self)
+        self.setCentralWidget(wrapper)
+        p_layout = QVBoxLayout()
+        wrapper.setLayout(p_layout)
+        
+        rock_menu = QMenu(self)
+        rock_menu.installEventFilter(self)
+        qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        
+        action3 = rock_menu.addAction('All Axis')
+        action3.triggered.connect(lambda : window.attribute_lock_state(mode=mode))
+        rock_menu.addSeparator()#分割線追加
+        action0 = rock_menu.addAction(name + ' X')
+        action0.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=0))
+        rock_menu.addSeparator()#分割線追加
+        action1 = rock_menu.addAction(name + ' Y')
+        action1.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=1))
+        rock_menu.addSeparator()#分割線追加
+        action2 = rock_menu.addAction(name + ' Z')
+        action2.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
+        #action0.triggered.connect()
+        p_layout.addWidget(rock_menu)
+        button = make_flat_btton(name='Close', text=text_col, bg=menu_bg, checkable=False)
+        button.clicked.connect(self.close)
+        qt.change_button_color(button, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='button')
+        p_layout.addWidget(button)
+        #位置とサイズ調整
+        self.resize(90, 135)
+        pos = QCursor.pos()
+        self.move(pos.x()-70, pos.y()-40)
+        self.show()
+        
+        #ウィンドウを最前面にしてフォーカスを取る
+        self.activateWindow()
+        self.raise_()
+        
+        self.activateWindow()
+    #イベントフィルターを設定
+    def eventFilter(self, obj, event):
+        #print event.type()
+        if event.type() == QEvent.WindowDeactivate:
+            #print 'WindowDeactivate'
+            self.close()
+            return True
+        return False
     
 #明るめのラインを返す
 global line_list
