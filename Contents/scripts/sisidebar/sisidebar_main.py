@@ -20,6 +20,7 @@ import datetime as dt
 import random
 import copy
 import time
+import itertools
 #PySide2、PySide両対応
 import imp
 try:
@@ -50,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.0 -'
+version = ' - SI Side Bar / ver_2.2.1 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -87,7 +88,7 @@ global all_flat_buttons
 all_flat_buttons = []
 global all_flat_button_palams
 all_flat_button_palams = []
-def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=None, w_min=None, 
+def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=None, w_min=None, costom_push=None,
                                 h_max=22, h_min=20, policy=None, icon_size=None, tip=None, flat=True, hover=True):
     global all_flat_buttons
     global all_flat_button_palams
@@ -103,7 +104,11 @@ def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=N
         button.toggled.connect(lambda : qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', toggle=True, hover=hover, destroy=destroy_flag, dsColor=border_col))
     else:
         button.setFlat(False)
-        qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+        if costom_push is None:
+            qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+        else:
+            qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=costom_push, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+            
     if w_max:
         button.setMaximumWidth(w_max)
     if w_min:
@@ -332,12 +337,18 @@ class SiSideBarWeight(qt.DockWindow):
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
         
+    #UI上にポインタが来たらUI設定更新
+    def enterEvent(self, event):
+        #print 'enter event'
+        check_option_parm()
+        self.select_from_current_context()
+        check_key_anim()
         
-    def dropEvent(self,event):
+    def dropEvent(self, event):
         #ドラッグされたオブジェクトの、ドロップ許可がおりた場合の処理
         setup.open_scene(mime_data=event.mimeData())
         
-    def dragEnterEvent(self,event):
+    def dragEnterEvent(self, event):
         #ドラッグされたオブジェクトを許可するかどうかを決める
         #ドラッグされたオブジェクトが、ファイルなら許可する
         mime = event.mimeData()
@@ -1784,7 +1795,7 @@ class SiSideBarWeight(qt.DockWindow):
         
         scale_x = self.make_line_edit(text=string_col, bg=bg_col)
         scale_x.setMinimumWidth(line_min_size)
-        scale_x.editingFinished.connect(lambda : self.check_multi_selection(text=scale_x.text(), current=(0, 0)))
+        scale_x.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_x.text(), current=(0, 0))))
         scale_x.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_x.text(), current=(0, 0)))#入力変更が成されたかどうかを判定するように即時保存を実行
         scale_x.editingFinished.connect(lambda : self.scaling(text=scale_x.text(), axis=0))
         self.main_layout.addWidget(scale_x, vn, tw, 1, text_b)
@@ -1810,7 +1821,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_scale_y, vn, tw, 1, anim_b)
         tw += anim_b
         scale_y = self.make_line_edit(text=string_col, bg=bg_col)
-        scale_y.editingFinished.connect(lambda : self.check_multi_selection(text=scale_y.text(), current=(0, 1)))#マルチラインは先にコネクト
+        scale_y.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_y.text(), current=(0, 1))))#マルチラインは先にコネクト
         scale_y.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_y.text(), current=(0, 1)))#入力変更が成されたかどうかを判定するように即時保存を実行
         scale_y.editingFinished.connect(lambda : self.scaling(text=scale_y.text(), axis=1))
         self.main_layout.addWidget(scale_y, vn, tw, 1 ,text_b)
@@ -1837,7 +1848,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_scale_z, vn, tw, 1, anim_b)
         tw += anim_b
         scale_z = self.make_line_edit(text=string_col, bg=bg_col)
-        scale_z.editingFinished.connect(lambda : self.check_multi_selection(text=scale_z.text(), current=(0, 2)))
+        scale_z.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_z.text(), current=(0, 2))))
         scale_z.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_z.text(), current=(0, 2)))#入力変更が成されたかどうかを判定するように即時保存を実行
         scale_z.editingFinished.connect(lambda : self.scaling(text=scale_z.text(), axis=2))
         self.main_layout.addWidget(scale_z, vn, tw, 1 ,text_b)
@@ -1874,7 +1885,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_rot_x, vn, tw, 1, anim_b)
         tw += anim_b
         rot_x = self.make_line_edit(text=string_col, bg=bg_col)
-        rot_x.editingFinished.connect(lambda : self.check_multi_selection(text=rot_x.text(), current=(1, 0)))
+        rot_x.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=rot_x.text(), current=(1, 0))))
         rot_x.textChanged.connect(lambda : self.keep_pre_line_text(text=rot_x.text(), current=(1, 0)))#入力変更が成されたかどうかを判定するように即時保存を実行
         rot_x.editingFinished.connect(qt.Callback(lambda : self.rotation(text=rot_x.text(), axis=0)))
         self.main_layout.addWidget(rot_x, vn, tw, 1 ,text_b)
@@ -1902,7 +1913,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_rot_y, vn, tw, 1, anim_b)
         tw += anim_b
         rot_y = self.make_line_edit(text=string_col, bg=bg_col)
-        rot_y.editingFinished.connect(lambda : self.check_multi_selection(text=rot_y.text(), current=(1, 1)))
+        rot_y.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=rot_y.text(), current=(1, 1))))
         rot_y.textChanged.connect(lambda : self.keep_pre_line_text(text=rot_y.text(), current=(1, 1)))#入力変更が成されたかどうかを判定するように即時保存を実行
         rot_y.editingFinished.connect(qt.Callback(lambda : self.rotation(text=rot_y.text(), axis=1)))
         self.main_layout.addWidget(rot_y, vn, tw, 1 ,text_b)
@@ -1934,7 +1945,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.but_rot_z = make_flat_btton(icon=image_path+self.z_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         
-        rot_z.editingFinished.connect(lambda : self.check_multi_selection(text=rot_z.text(), current=(1, 2)))
+        rot_z.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=rot_z.text(), current=(1, 2))))
         rot_z.textChanged.connect(lambda : self.keep_pre_line_text(text=rot_z.text(), current=(1, 2)))#入力変更が成されたかどうかを判定するように即時保存を実行
         rot_z.editingFinished.connect(qt.Callback(lambda : self.rotation(text=rot_z.text(), axis=2)))
         self.main_layout.addWidget(self.but_rot_z, vn, tw, 1 ,axis_b)
@@ -1966,10 +1977,10 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_trans_x, vn, tw, 1, anim_b)
         tw += anim_b
         trans_x = self.make_line_edit(text=string_col, bg=bg_col)
-        trans_x.editingFinished.connect(lambda : self.check_multi_selection(text=trans_x.text(), current=(2, 0)))
+        trans_x.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=trans_x.text(), current=(2, 0))))
         trans_x.textChanged.connect(lambda : self.keep_pre_line_text(text=trans_x.text(), current=(2, 0)))#入力変更が成されたかどうかを判定するように即時保存を実行
         trans_x.editingFinished.connect(qt.Callback(lambda : self.translation(text=trans_x.text(), axis=0)))
-        trans_x.textChanged.connect(self.set_up_manip)
+        #trans_x.textChanged.connect(self.set_up_manip)
         self.main_layout.addWidget(trans_x, vn, tw, 1 ,text_b)
         tw += text_b
         
@@ -1994,7 +2005,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_trans_y, vn, tw, 1, anim_b)
         tw += anim_b
         trans_y = self.make_line_edit(text=string_col, bg=bg_col)
-        trans_y.editingFinished.connect(lambda : self.check_multi_selection(text=trans_y.text(), current=(2, 1)))
+        trans_y.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=trans_y.text(), current=(2, 1))))
         trans_y.textChanged.connect(lambda : self.keep_pre_line_text(text=trans_y.text(), current=(2, 1)))#入力変更が成されたかどうかを判定するように即時保存を実行
         trans_y.editingFinished.connect(qt.Callback(lambda : self.translation(text=trans_y.text(), axis=1)))
         self.main_layout.addWidget(trans_y, vn, tw, 1 ,text_b)
@@ -2020,7 +2031,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(key_trans_z, vn, tw, 1, anim_b)
         tw += anim_b
         trans_z = self.make_line_edit(text=string_col, bg=bg_col)
-        trans_z.editingFinished.connect(lambda : self.check_multi_selection(text=trans_z.text(), current=(2, 2)))
+        trans_z.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=trans_z.text(), current=(2, 2))))
         trans_z.textChanged.connect(lambda : self.keep_pre_line_text(text=trans_z.text(), current=(2, 2)))#入力変更が成されたかどうかを判定するように即時保存を実行
         trans_z.editingFinished.connect(qt.Callback(lambda : self.translation(text=trans_z.text(), axis=2)))
         self.main_layout.addWidget(trans_z, vn, tw, 1 , text_b)
@@ -4504,6 +4515,9 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
                         pm.select(sel, r=True)
                         centers=parent_node
                         toggle_center_mode(mode=False, ntpose=True)
+                centers = []
+                center_objects = original_objects
+        for sel in center_objects:
             s = pm.xform(sel, q=True, s=True, os=True, r=True)
             #s=[1,1,1]
             r = pm.xform(sel, q=True, ro=True, ws=True)
@@ -4518,6 +4532,8 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
         print 'start center mode :', center_objects
         if ntpose:
             pm.select(original_objects)
+            for m in range(3):
+                window.toggle_lock_attr(mode=m, state=True, objects=centers)
             #グローバル変数初期化
             centers = []
             center_objects = []
@@ -5482,10 +5498,11 @@ class RockAttrMenu(qt.SubWindow):
         p_layout = QVBoxLayout()
         wrapper.setLayout(p_layout)
         
-        rock_menu = QMenu(self)
-        rock_menu.installEventFilter(self)
-        qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        self.installEventFilter(self)
         
+        rock_menu = QMenu(self)
+        qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        '''
         action3 = rock_menu.addAction('All Axis')
         action3.triggered.connect(lambda : window.attribute_lock_state(mode=mode))
         rock_menu.addSeparator()#分割線追加
@@ -5499,10 +5516,25 @@ class RockAttrMenu(qt.SubWindow):
         action2.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
         #action0.triggered.connect()
         p_layout.addWidget(rock_menu)
-        button = make_flat_btton(name='Close', text=text_col, bg=menu_bg, checkable=False)
-        button.clicked.connect(self.close)
-        qt.change_button_color(button, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='button')
+        '''
+        button = make_flat_btton(name='All Axis', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button.clicked.connect(lambda : window.attribute_lock_state(mode=mode))
         p_layout.addWidget(button)
+        button = make_flat_btton(name=name+' X', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=0))
+        p_layout.addWidget(button)
+        button = make_flat_btton(name=name+' Y', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=1))
+        p_layout.addWidget(button)
+        button = make_flat_btton(name=name+' Z', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
+        p_layout.addWidget(button)
+        
+        
+        #button = make_flat_btton(name='Close', text=menu_text, bg=menu_bg, flat=False, checkable=False)
+        #button.clicked.connect(self.close)
+        #qt.change_button_color(button, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='button')
+        #p_layout.addWidget(button)
         #位置とサイズ調整
         self.resize(90, 135)
         pos = QCursor.pos()
@@ -5522,7 +5554,14 @@ class RockAttrMenu(qt.SubWindow):
             self.close()
             return True
         return False
-    
+#COGモードを外部から操作する、ホットキー割り当て用
+def toggle_cog():
+    flag = window.cog_but.isChecked()
+    if flag:
+        window.cog_but.setChecked(False)
+    else:
+        window.cog_but.setChecked(True)
+    qt.Callback(window.setup_object_center())
 #明るめのラインを返す
 global line_list
 line_list = []

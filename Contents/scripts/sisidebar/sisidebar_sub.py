@@ -83,7 +83,8 @@ def change_selection():
     pre_sel_obj = cmds.ls(sl=True, o=True)
     #COGモードチェックしておく
     sb.window.setup_object_center()
-
+    #UIの変更を反映する
+    sb.check_option_parm()
 def set_view_decimal(decimal):
     #print 'change decimal', decimal
     global view_decimal
@@ -119,6 +120,9 @@ def get_matrix():
             s_list, r_list, t_list = get_srt(selection)
             #print 'get matrix :', s_list, r_list, t_list
             for i in range(3):
+                s_list = [map(lambda a: round(float(a), view_decimal), xyz) for xyz in s_list]
+                r_list = [map(lambda a: round(float(a), view_decimal), xyz) for xyz in r_list]
+                t_list = [map(lambda a: round(float(a), view_decimal), xyz) for xyz in t_list]
                 if not all(s[i] == s_list[0][i] for s in s_list):
                     #print 'not same'
                     scale[i] = ''
@@ -126,8 +130,10 @@ def get_matrix():
                     #print 'same'
                     scale[i] = str(s_list[0][i])
                 if not all(r[i] == r_list[0][i] for r in r_list):
+                    #print 'not same', r_list
                     rot[i] = ''
                 else:
+                    #print 'same', r_list
                     rot[i] = str(r_list[0][i])
                 if not all(t[i] == t_list[0][i] for t in t_list):
                     trans[i] = ''
