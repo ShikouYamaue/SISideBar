@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.1 -'
+version = ' - SI Side Bar / ver_2.2.2 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -2909,9 +2909,13 @@ class SiSideBarWeight(qt.DockWindow):
             self.pre_vec = [0, 1]
             self.count = 0
             self.mouse_flag = True
+            #マウスジェスチャー入力のアンドゥを開く
+            cmds.undoInfo(openChunk=True)
         if event.type() == QEvent.MouseButtonRelease:
             #print 'mouse released'
             self.mouse_flag = False
+            #マウスジェスチャー入力のアンドゥを閉じる
+            cmds.undoInfo(closeChunk=True)
         if self.mouse_flag:
             if event.type() == QEvent.MouseMove:
                 mod = event.modifiers()
@@ -4568,10 +4572,11 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
                     continue
             center_dict[center] = sel
             p_node = pm.listRelatives(center, p=True, f=True)
-            #print 'reparent node to :', p_node, sel
-            if not p_node:
+            print 'reparent node to :', p_node, sel
+            if not p_node:#親がない場合はワールドへ親子付け
                 pm.parent(sel, w=True)
-            pm.parent(sel, p_node)
+            else:
+                pm.parent(sel, p_node)
         #print 'get center dict', center_dict
         if change:
             #print changed_selection, centers
