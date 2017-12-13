@@ -216,16 +216,20 @@ def reset_transform(mode='', c_comp=False):
         
 #フリーズスケーリングをまとめて
 def freeze_transform(mode='', c_comp=False):
-    global matching_obj
     from . import sisidebar_sub
     selections = cmds.ls(sl=True, l=True)
-    for sel in selections:
+    #下からのマルチ選択でも正しく上からフリーズできるように階層深さでソート
+    sel_depth = [[sel, check_depth(sel)] for sel in selections]
+    sel_depth = sorted(sel_depth, key=lambda a:a[1])
+    for sel in sel_depth:
+        sel = sel[0]
         dummy = common.TemporaryReparent().main(mode='create')
         srt_dummy = common.TemporaryReparent().main(mode='create')
         #common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
         if not c_comp:
+            set_maching(nodes=srt_dummy, mode='all', pre_sel=selections)
             matching_obj=srt_dummy
-            trs_matching(node=sel)
+            trs_matching(node=sel, sel_org=False)
         common.TemporaryReparent().main(sel,dummyParent=dummy, srtDummyParent=srt_dummy, mode='custom_cut', preSelection=selections)
                 
         if mode == 'all':
@@ -255,7 +259,16 @@ def freeze_transform(mode='', c_comp=False):
         common.TemporaryReparent().main(dummyParent=srt_dummy, mode='delete')#ダミー親削除
     cmds.select(selections, r=True)
     sisidebar_sub.get_matrix()
-        
+def check_depth(node):
+    count = 0
+    while True:
+        parent = cmds.listRelatives(node, p=True)
+        if not parent:
+            break
+        node = parent
+        count+=1
+    return count
+    
 def match_transform(mode=''):
     from . import sisidebar_sub
     pre_sel = cmds.ls(sl=True, l=True)
@@ -289,7 +302,7 @@ def set_maching(nodes=None, mode='', pre_sel=None):
     matching_pre_sel = pre_sel
     
 #マッチングを実行
-def trs_matching(node=None):
+def trs_matching(node=None, sel_org=True):
     global matching_obj
     global matching_mode
     mode = matching_mode
@@ -316,6 +329,7 @@ def trs_matching(node=None):
             cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=True)
         if mode == 'trans' or mode == 'all':
             cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=True)
+    if sel_org:
         cmds.select(matching_pre_sel, r=True)
     
 #アトリビュートの桁数を丸める
