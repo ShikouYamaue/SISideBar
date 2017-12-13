@@ -63,9 +63,11 @@ class TemporaryReparent():
     '''
     node_list = ['transform', 'joint', 'KTG_ModelRoot', 'KTG_SSCTransform']
 
-    def main(self, objects='', dummyParent='', mode='cut'):
+    def main(self, objects=None, dummyParent=None, srtDummyParent=None, mode='cut', preSelection=None):
         self.objects = objects
         self.dummyParent = dummyParent
+        self.srtDummyParent = srtDummyParent
+        self.preSelection = preSelection
         # リストタイプじゃなかったらリストに変換する
         if not isinstance(self.objects, list):
             temp = self.objects
@@ -81,6 +83,9 @@ class TemporaryReparent():
             elif mode == 'cut':
                 self.cutChildNode()
                 return
+            elif mode == 'custom_cut':
+                self.customCutChildNode()
+                return
             elif mode == 'parent':
                 self.reparentNode()
                 return
@@ -92,6 +97,18 @@ class TemporaryReparent():
             # 子のノードがトランスフォームならダミーに親子付けして退避
             if cmds.nodeType(child) in self.node_list:
                 cmds.parent(child, self.dummyParent)
+    #フリーズトランスフォーム用に場合分け親子付け関数を用意
+    #子を含むマルチ選択状態の場合は別のダミー親につけてフリーズ後のSRT状態を調整する
+    def customCutChildNode(self):
+        nodeChildren = cmds.listRelatives(self.node, children=True, fullPath=True)
+        for child in nodeChildren:
+            if cmds.nodeType(child) in self.node_list:
+                if child in self.preSelection:
+                    #print 'parent to dummy'
+                    cmds.parent(child, self.dummyParent)
+                else:
+                    #print 'parent to srt dummy'
+                    cmds.parent(child, self.srtDummyParent)
 
     def reparentNode(self):
         dummyChildren = cmds.listRelatives(self.dummyParent, children=True, fullPath=True)

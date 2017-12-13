@@ -249,40 +249,6 @@ def set_center_flag(mode):
     global center_mode
     center_mode=mode
     
-#マッチトランスフォームオブジェクト情報を格納しておく
-def set_maching(nodes=None, mode='', pre_sel=None):
-    global matching_obj
-    global matching_mode
-    global matching_pre_sel
-    matching_obj = nodes
-    matching_mode = mode
-    matching_pre_sel = pre_sel
-    
-def trs_matching():
-    global matching_obj
-    global matching_mode
-    mode = matching_mode
-    mached_obj = cmds.ls(sl=True, l=True, type='transform')
-    if not mached_obj:
-        cmds.select(matching_obj, r=True)
-        sb.match_transform(mode=mode)
-        return
-    else:
-        mached_obj = mached_obj[0]
-    scl = cmds.xform(mached_obj, q=True, s=True, ws=True)
-    rot = cmds.xform(mached_obj, q=True, ro=True, ws=True)
-    pos = cmds.xform(mached_obj, q=True, t=True, ws=True)
-    for obj in matching_obj:
-        if mode == 'scale' or mode == 'all':
-            cmds.scale(1.0, 1.0, 1.0, obj, pcp=True)
-            ws_scl = cmds.xform(obj, q=True, s=True, ws=True)
-            cmds.scale(scl[0]/ws_scl[0], scl[1]/ws_scl[1], scl[2]/ws_scl[2], obj, pcp=True)
-        if mode == 'rot' or mode == 'all':
-            cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=True)
-        if mode == 'trans' or mode == 'all':
-            cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=True)
-        cmds.select(matching_pre_sel, r=True)
-        
 def pre_pro_reference(sel=None):
     global pre_ref_mode, pre_sel, ctx_mode, pre_obj_list
     if cmds.selectMode(q=True, o=True):

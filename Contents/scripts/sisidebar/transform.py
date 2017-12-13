@@ -216,31 +216,43 @@ def reset_transform(mode='', c_comp=False):
         
 #フリーズスケーリングをまとめて
 def freeze_transform(mode='', c_comp=False):
+    global matching_obj
     from . import sisidebar_sub
     selections = cmds.ls(sl=True, l=True)
-    dummy = common.TemporaryReparent().main(mode='create')
     for sel in selections:
-        try:
-            if c_comp:
-                common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
-            if mode == 'all':
-                cmds.makeIdentity(sel, n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
-            if mode == 'trans':
-                cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
-            if mode == 'rot':
-                cmds.makeIdentity(sel, n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
-            if mode == 'scale':
-                cmds.makeIdentity(sel, n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
-            if mode == 'joint':
+        dummy = common.TemporaryReparent().main(mode='create')
+        srt_dummy = common.TemporaryReparent().main(mode='create')
+        #common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
+        if not c_comp:
+            matching_obj=srt_dummy
+            trs_matching(node=sel)
+        common.TemporaryReparent().main(sel,dummyParent=dummy, srtDummyParent=srt_dummy, mode='custom_cut', preSelection=selections)
+                
+        if mode == 'all':
+            cmds.makeIdentity(sel, n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
+            cmds.xform(srt_dummy, t=[0, 0, 0])
+            cmds.xform(srt_dummy, ro=[0, 0, 0])
+            cmds.xform(srt_dummy, s=[1, 1, 1])
+        if mode == 'trans':
+            cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
+            cmds.xform(srt_dummy, t=[0, 0, 0])
+        if mode == 'rot':
+            cmds.makeIdentity(sel, n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
+            cmds.xform(srt_dummy, ro=[0, 0, 0])
+        if mode == 'scale':
+            cmds.makeIdentity(sel, n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
+            cmds.xform(srt_dummy, s=[1, 1, 1])
+        if mode == 'joint':
+            if cmds.nodeType(sel) == 'joint':
                 cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
-            if mode == 'trans' or mode =='all':
-                cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
-                cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
-            if c_comp:
-                common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
-        except Exception as e:
-            print e.message
-    common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#ダミー親削除
+                cmds.xform(srt_dummy, ro=[0, 0, 0])
+        if mode == 'trans' or mode =='all':
+            cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+            cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+        common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
+        common.TemporaryReparent().main(sel, dummyParent=srt_dummy, mode='parent')
+        common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#
+        common.TemporaryReparent().main(dummyParent=srt_dummy, mode='delete')#ダミー親削除
     cmds.select(selections, r=True)
     sisidebar_sub.get_matrix()
         
@@ -250,7 +262,7 @@ def match_transform(mode=''):
     selection = cmds.ls(sl=True, l=True, type='transform')
     if not selection:
         return
-    sisidebar_sub.set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel)
+    set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel)
     
     msg = lang.Lang(en=u"<hl>Select Matching Object</hl>",
                             ja=u"<hl>一致対象オブジェクトを選択してください</hl>")
@@ -264,8 +276,47 @@ def match_transform(mode=''):
                         setNoSelectionPrompt='Select the object you want to matching transform.'
                         )
     cmds.setToolTo(maching_tool)
-    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(sisidebar_sub.trs_matching)), protected=True)
+    jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
+    
+#マッチトランスフォームオブジェクト情報を格納しておく
+def set_maching(nodes=None, mode='', pre_sel=None):
+    global matching_obj
+    global matching_mode
+    global matching_pre_sel
+    matching_obj = nodes
+    matching_mode = mode
+    matching_pre_sel = pre_sel
+    
+#マッチングを実行
+def trs_matching(node=None):
+    global matching_obj
+    global matching_mode
+    mode = matching_mode
+    if node is None:
+        mached_obj = cmds.ls(sl=True, l=True, type='transform')
+    else:
+        #print 'muched obj', node
+        mached_obj = node
+    if not mached_obj:
+        cmds.select(matching_obj, r=True)
+        return
+    else:
+        if isinstance(mached_obj, list):
+            mached_obj = mached_obj[0]
+    scl = cmds.xform(mached_obj, q=True, s=True, ws=True)
+    rot = cmds.xform(mached_obj, q=True, ro=True, ws=True)
+    pos = cmds.xform(mached_obj, q=True, t=True, ws=True)
+    for obj in matching_obj:
+        if mode == 'scale' or mode == 'all':
+            cmds.scale(1.0, 1.0, 1.0, obj, pcp=True)
+            ws_scl = cmds.xform(obj, q=True, s=True, ws=True)
+            cmds.scale(scl[0]/ws_scl[0], scl[1]/ws_scl[1], scl[2]/ws_scl[2], obj, pcp=True)
+        if mode == 'rot' or mode == 'all':
+            cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=True)
+        if mode == 'trans' or mode == 'all':
+            cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=True)
+        cmds.select(matching_pre_sel, r=True)
     
 #アトリビュートの桁数を丸める
 def round_transform(mode='', digit=3):
