@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.2 -'
+version = ' - SI Side Bar / ver_2.2.3 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -3283,10 +3283,14 @@ class SiSideBarWeight(qt.DockWindow):
         action18.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=False)))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
-        mag = lang.Lang(en='Set Neutral Pose Node',
-                                ja=u'ニュートラルポーズノードを設定')
+        mag = lang.Lang(en='Set Neutral Pose Node (UnLock Attr)',
+                                ja=u'ニュートラルポーズノードを設定 (ロックなし)')
         action26 = self.top_menus.addAction(mag.output())
-        action26.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True)))
+        action26.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True, lock=False)))
+        mag = lang.Lang(en='Set Neutral Pose Node (Lock Attr)',
+                                ja=u'ニュートラルポーズノードを設定 (ロック)')
+        action28 = self.top_menus.addAction(mag.output())
+        action28.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True, lock=True)))
         mag = lang.Lang(en='Remove Neutral Pose Node',
                                 ja=u'ニュートラルポーズノードを解除')
         action27 = self.top_menus.addAction(mag.output())
@@ -3296,41 +3300,41 @@ class SiSideBarWeight(qt.DockWindow):
         mag = lang.Lang(en='Reset All Transforms',
                                 ja=u'すべての変換をリセット')
         action13 = self.top_menus.addAction(mag.output())
-        action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all')))
+        action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Scaling',
                                 ja=u'スケーリングのリセット')
         action14 = self.top_menus.addAction(mag.output())
-        action14.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='scale')))
+        action14.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='scale', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Rotation',
                                 ja=u'回転のリセット')
         action15 = self.top_menus.addAction(mag.output())
-        action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot')))
+        action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Translation',
                                 ja=u'移動のリセット')
         action16 = self.top_menus.addAction(mag.output())
-        action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans')))
+        action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans', c_comp=self.child_comp_but.isChecked())))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Freeze All Transforms',
                                 ja=u'すべての変換をフリーズ')
         action0 = self.top_menus.addAction(mag.output())
-        action0.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='all')))
+        action0.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='all', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Scaling',
                                 ja=u'スケーリングのフリーズ')
         action1 = self.top_menus.addAction(mag.output())
-        action1.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='scale')))
+        action1.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='scale', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Rotation',
                                 ja=u'回転のフリーズ')
         action2 = self.top_menus.addAction(mag.output())
-        action2.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='rot')))
+        action2.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='rot', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Translation',
                                 ja=u'移動のフリーズ')
         action3 = self.top_menus.addAction(mag.output())
-        action3.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='trans')))
+        action3.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='trans', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Joint Orientation',
                                 ja=u'ジョイントの方向のフリーズ')
         action4 = self.top_menus.addAction(mag.output())
-        action4.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='joint')))
+        action4.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='joint', c_comp=self.child_comp_but.isChecked())))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Round All Transform / Decimal'+str(round_decimal_value),
@@ -4462,7 +4466,7 @@ def transform_center():
     sisidebar_sub.set_bake_flag(mode=False)
     
 #センターモードを切り替える、ニュートラルポーズノード設定と共通化
-def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
+def toggle_center_mode(init=None, mode=None, change=False, ntpose=False, lock=False):
     suffix = map(lambda a: '_ntpose' if a else '_cneter', [ntpose])[0]
     #print suffix
     #cmds.undoInfo(cn='tgl_center', ock=True)
@@ -4533,11 +4537,12 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False):
             cmds.move(p[0], p[1], p[2], str(center), str(center)+'.scalePivot', str(center)+'.rotatePivot', ws=True, pcp=True)
             cmds.scale(s[0], s[1], s[2], str(center), os=True, pcp=True)
             cmds.rotate(r[0], r[1], r[2], str(center), ws=True, pcp=True)
-        print 'start center mode :', center_objects
+        #print 'start center mode :', center_objects
         if ntpose:
             pm.select(original_objects)
-            for m in range(3):
-                window.toggle_lock_attr(mode=m, state=True, objects=centers)
+            if lock:
+                for m in range(3):
+                    window.toggle_lock_attr(mode=m, state=True, objects=centers)
             #グローバル変数初期化
             centers = []
             center_objects = []

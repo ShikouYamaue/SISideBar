@@ -184,12 +184,17 @@ def set_joint_orient(reset=True):
             cmds.joint(j, e=True, orientation=rot)
     sisidebar_sub.get_matrix()
             
-def reset_transform(mode=''):
+def reset_transform(mode='', c_comp=False):
+    #print 'comp mode :', c_comp
     from . import sisidebar_sub
     if cmds.selectMode(q=True, co=True):
         return
-    sel = cmds.ls(sl=True, l=True)
-    if sel:
+    selections = cmds.ls(sl=True, l=True)
+    #子供のノード退避用ダミーペアレントを用意
+    dummy = common.TemporaryReparent().main(mode='create')
+    for sel in selections:
+        if c_comp:
+            common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
         if mode == 'all':
             cmds.xform(sel, t=[0, 0, 0])
             cmds.xform(sel, ro=[0, 0, 0])
@@ -201,33 +206,43 @@ def reset_transform(mode=''):
         if mode == 'scale':
             cmds.xform(sel, s=[1, 1, 1])
         if mode == 'trans' or mode =='all':
-            for s in sel:
-                cmds.xform(s+'.scalePivot', t=[0, 0, 0], ws=True)
-                cmds.xform(s+'.rotatePivot', t=[0, 0, 0], ws=True)
-        sisidebar_sub.get_matrix()
+            cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+            cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+        if c_comp:
+            common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
+    common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#ダミー親削除
+    cmds.select(selections, r=True)
+    sisidebar_sub.get_matrix()
         
 #フリーズスケーリングをまとめて
-def freeze_transform(mode=''):
+def freeze_transform(mode='', c_comp=False):
     from . import sisidebar_sub
-    try:
-        if mode == 'all':
-            cmds.makeIdentity(n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
-        if mode == 'trans':
-            cmds.makeIdentity(n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
-        if mode == 'rot':
-            cmds.makeIdentity(n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
-        if mode == 'scale':
-            cmds.makeIdentity(n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
-        if mode == 'joint':
-            cmds.makeIdentity(n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
-        if mode == 'trans' or mode =='all':
-            sel = cmds.ls(sl=True, l=True)
-            for s in sel:
-                cmds.xform(s+'.scalePivot', t=[0, 0, 0], ws=True)
-                cmds.xform(s+'.rotatePivot', t=[0, 0, 0], ws=True)
-        sisidebar_sub.get_matrix()
-    except Exception as e:
-        print e.message
+    selections = cmds.ls(sl=True, l=True)
+    dummy = common.TemporaryReparent().main(mode='create')
+    for sel in selections:
+        try:
+            if c_comp:
+                common.TemporaryReparent().main(sel, dummyParent=dummy, mode='cut')
+            if mode == 'all':
+                cmds.makeIdentity(sel, n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
+            if mode == 'trans':
+                cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
+            if mode == 'rot':
+                cmds.makeIdentity(sel, n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
+            if mode == 'scale':
+                cmds.makeIdentity(sel, n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
+            if mode == 'joint':
+                cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
+            if mode == 'trans' or mode =='all':
+                cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+                cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+            if c_comp:
+                common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
+        except Exception as e:
+            print e.message
+    common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#ダミー親削除
+    cmds.select(selections, r=True)
+    sisidebar_sub.get_matrix()
         
 def match_transform(mode=''):
     from . import sisidebar_sub
