@@ -305,6 +305,7 @@ def set_maching(nodes=None, mode='', pre_sel=None):
 def trs_matching(node=None, sel_org=True):
     global matching_obj
     global matching_mode
+    print matching_mode, matching_obj
     mode = matching_mode
     if node is None:
         mached_obj = cmds.ls(sl=True, l=True, type='transform')
@@ -325,9 +326,9 @@ def trs_matching(node=None, sel_org=True):
             cmds.scale(1.0, 1.0, 1.0, obj, pcp=True)
             ws_scl = cmds.xform(obj, q=True, s=True, ws=True)
             cmds.scale(scl[0]/ws_scl[0], scl[1]/ws_scl[1], scl[2]/ws_scl[2], obj, pcp=True)
-        if mode == 'rot' or mode == 'all':
+        if mode == 'rotate' or mode == 'all':
             cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=True)
-        if mode == 'trans' or mode == 'all':
+        if mode == 'translate' or mode == 'all':
             cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=True)
     if sel_org:
         cmds.select(matching_pre_sel, r=True)
