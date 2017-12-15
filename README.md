@@ -89,8 +89,11 @@
     ・FreezeTransform
     ・ResetTransform
     ・MoveCenterToSelection
+    ・RoundTransform / SRTの小数点指定桁数以下の丸め機能
     ・絶対値に移動
     ・サイドバーの軸選択状態を優先するモード
+    ・ニュートラルノードの設定 / ニュートラルポーズ代替機能
+    ・SRTの表示桁数設定
 
     ・アニメーションキーボタンをついか（右クリックで3軸一括設定）
 
