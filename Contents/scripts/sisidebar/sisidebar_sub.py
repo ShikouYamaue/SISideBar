@@ -85,6 +85,7 @@ def change_selection():
     sb.window.setup_object_center()
     #UIの変更を反映する
     sb.check_option_parm()
+    
 def set_view_decimal(decimal):
     #print 'change decimal', decimal
     global view_decimal

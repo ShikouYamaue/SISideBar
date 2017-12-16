@@ -7,11 +7,21 @@ from maya import cmds
 from maya import mel
 import pymel.core as pm
 import itertools
+import os
 try:
     import numpy as np
     np_flag = True
 except:
     np_flag = False
+import imp
+try:
+    imp.find_module('PySide2')
+    from PySide2.QtWidgets import *
+    from PySide2.QtGui import *
+    from PySide2.QtCore import *
+except ImportError:
+    from PySide.QtGui import *
+    from PySide.QtCore import *
     
 def reset_pivot_pos(nodes):
     if not nodes:
@@ -269,13 +279,14 @@ def check_depth(node):
         count+=1
     return count
     
-def match_transform(mode=''):
+def match_transform(mode='', child_comp=False):
     from . import sisidebar_sub
     pre_sel = cmds.ls(sl=True, l=True)
     selection = cmds.ls(sl=True, l=True, type='transform')
     if not selection:
         return
-    set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel)
+    cmds.undoInfo(openChunk=True)
+    set_maching(nodes=selection, mode=mode ,pre_sel=pre_sel, child_comp=child_comp)
     
     msg = lang.Lang(en=u"<hl>Select Matching Object</hl>",
                             ja=u"<hl>一致対象オブジェクトを選択してください</hl>")
@@ -285,18 +296,38 @@ def match_transform(mode=''):
                         totalSelectionSets=3,
                         cumulativeLists=True,
                         expandSelectionList=True,
-                        tct="edit",
+                        toolCursorType="edit",
                         setNoSelectionPrompt='Select the object you want to matching transform.'
                         )
-    cmds.setToolTo(maching_tool)
+    #カスタムカーソルを設定
+    image_path = os.path.join(os.path.dirname(__file__), 'icon/')
+    my_cursor = QCursor(QPixmap(image_path+'picker.png'))
+    QApplication.setOverrideCursor(my_cursor)
+    #cmds.hudButton('HUDHelloButton', e=True, s=7, b=5, vis=1, l='Button', bw=80, bsh='roundRectangle', rc=match_cancel )
+    global hud_but
+    hud_but = cmds.hudButton('HUD_match_cancel', s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
     jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
+def finish_matching():
+    global hud_but
+    global matching_obj
+    cmds.select(cl=True)
+    cmds.select(matching_obj, r=True)
+    #print hud_but
+    #キャンセルボタン削除
+    cmds.headsUpDisplay(removeID=int(hud_but))
+    
+    QApplication.restoreOverrideCursor()
+    cmds.undoInfo(closeChunk=True)
+    cmds.headsUpDisplay(removeID=int(hud_but))
     
 #マッチトランスフォームオブジェクト情報を格納しておく
-def set_maching(nodes=None, mode='', pre_sel=None):
+def set_maching(nodes=None, mode='', pre_sel=None, child_comp=False):
     global matching_obj
     global matching_mode
     global matching_pre_sel
+    global child_comp_flag
+    child_comp_flag = child_comp
     matching_obj = nodes
     matching_mode = mode
     matching_pre_sel = pre_sel
@@ -305,7 +336,8 @@ def set_maching(nodes=None, mode='', pre_sel=None):
 def trs_matching(node=None, sel_org=True):
     global matching_obj
     global matching_mode
-    print matching_mode, matching_obj
+    global child_comp_flag
+    #print matching_mode, matching_obj
     mode = matching_mode
     if node is None:
         mached_obj = cmds.ls(sl=True, l=True, type='transform')
@@ -313,7 +345,8 @@ def trs_matching(node=None, sel_org=True):
         #print 'muched obj', node
         mached_obj = node
     if not mached_obj:
-        cmds.select(matching_obj, r=True)
+        if sel_org:
+            finish_matching()
         return
     else:
         if isinstance(mached_obj, list):
@@ -325,13 +358,13 @@ def trs_matching(node=None, sel_org=True):
         if mode == 'scale' or mode == 'all':
             cmds.scale(1.0, 1.0, 1.0, obj, pcp=True)
             ws_scl = cmds.xform(obj, q=True, s=True, ws=True)
-            cmds.scale(scl[0]/ws_scl[0], scl[1]/ws_scl[1], scl[2]/ws_scl[2], obj, pcp=True)
+            cmds.scale(scl[0]/ws_scl[0], scl[1]/ws_scl[1], scl[2]/ws_scl[2], obj, pcp=child_comp_flag)
         if mode == 'rotate' or mode == 'all':
-            cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=True)
+            cmds.rotate(rot[0], rot[1], rot[2], obj, ws=True, pcp=child_comp_flag)
         if mode == 'translate' or mode == 'all':
-            cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=True)
+            cmds.move(pos[0], pos[1], pos[2], obj, ws=True, pcp=child_comp_flag)
     if sel_org:
-        cmds.select(matching_pre_sel, r=True)
+        finish_matching()
     
 #アトリビュートの桁数を丸める
 def round_transform(mode='', digit=3):

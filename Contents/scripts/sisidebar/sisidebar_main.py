@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.3 -'
+version = ' - SI Side Bar / ver_2.2.4 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -336,6 +336,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.chane_context_space()
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
+        self.check_ui_button()#UIボタンの状態をチェックしておく
         
     #UI上にポインタが来たらUI設定更新
     def enterEvent(self, event):
@@ -894,8 +895,11 @@ class SiSideBarWeight(qt.DockWindow):
         #何も選択されていない場合は抜ける
         if not select_scale.isChecked() and not select_rot.isChecked() and not select_trans.isChecked():
             #mel.eval('dR_selectPress;')
-            #mel.eval('dR_selectRelease;')
-            cmds.setToolTo('selectSuperContext')
+            current_tool = cmds.currentCtx(q=True)
+            if current_tool != 'selectSuperContext':
+                #print current_tool
+                #mel.eval('dR_selectRelease;')
+                cmds.setToolTo('selectSuperContext')
             return
         #print 'load pre srt selection :', mode
         #print self.sel_sx, self.sel_sy, self.sel_sz, self.sel_s_all, self.scl_obj_space
@@ -1607,17 +1611,24 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.select_line_a, vn, 0, 1 ,11)
         vn+=1
         self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
+        self.select_all_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
         self.main_layout.addWidget(self.select_all_but, vn, 0, 1 ,2)
         self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Handle')
+        self.select_Marker_but.clicked.connect(lambda : self.select_filter_mode(mode=1))
         self.main_layout.addWidget(self.select_Marker_but, vn, 2, 1 ,2)
         self.select_joint_but = make_flat_btton(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Joint')
+        self.select_joint_but.clicked.connect(lambda : self.select_filter_mode(mode=2))
         self.main_layout.addWidget(self.select_joint_but, vn, 4, 1 ,2)
-        self.select_surface_but = make_flat_btton(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Geometry')
-        self.main_layout.addWidget(self.select_surface_but, vn, 6, 1 ,2)
         self.select_curve_but = make_flat_btton(icon=':/pickCurveObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Curve')
-        self.main_layout.addWidget(self.select_curve_but, vn, 8, 1 ,2)
+        self.select_curve_but.clicked.connect(lambda : self.select_filter_mode(mode=3))
+        self.main_layout.addWidget(self.select_curve_but, vn, 6, 1 ,2)
+        self.select_surface_but = make_flat_btton(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Geometry')
+        self.select_surface_but.clicked.connect(lambda : self.select_filter_mode(mode=4))
+        self.main_layout.addWidget(self.select_surface_but, vn, 8, 1 ,2)
         self.select_deform_but = make_flat_btton(icon=':/pickDeformerObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Deformer')
+        self.select_deform_but.clicked.connect(lambda : self.select_filter_mode(mode=5))
         self.main_layout.addWidget(self.select_deform_but, vn, 10, 1 ,1)
+        '''
         self.filter_group = QButtonGroup(self)#ボタンをまとめる変数を定義
         self.filter_group.addButton(self.select_all_but, 0)
         self.filter_group.addButton(self.select_Marker_but, 1)
@@ -1628,6 +1639,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.filter_group.button(0).setChecked(True)
         self.filter_group.buttonClicked.connect(lambda : self.select_filter_mode(mode=self.filter_group .checkedId()))
         self.select_filter_mode(mode=self.filter_group .checkedId())#フィルターを初期化しておく
+        '''
         vn+=1
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
@@ -3128,6 +3140,76 @@ class SiSideBarWeight(qt.DockWindow):
         
     #コンテキスト側からの変更をUIにまとめて反映する
     def check_ui_button(self):
+        #self.all_filter_but_list
+        #self.select_Marker_but.setChecked(True)
+        #self.select_joint_but.setChecked(True)
+        check_filter_mode = [False]*8
+        #マーカー
+        select_handle = cmds.selectType(q=True, sh=True)
+        ik_handle = cmds.selectType(q=True, ikh=True)
+        if any([select_handle, ik_handle]):
+            check_filter_mode[0] = True
+        #ジョイント
+        joint = cmds.selectType(q=True, j=True)
+        if joint:
+            check_filter_mode[1] = True
+        #カーブ
+        nurbs_curve = cmds.selectType(q=True, nc=True)
+        curve_on_surface = cmds.selectType(q=True, cos=True)
+        stroke = cmds.selectType(q=True, str=True)
+        if any([nurbs_curve, curve_on_surface, stroke]):
+            check_filter_mode[2] = True
+        #サーフェイス
+        nurbs_surface = cmds.selectType(q=True, ns=True)
+        polymesh = cmds.selectType(q=True, p=True)
+        plane = cmds.selectType(q=True, pl=True)
+        #gpu_cache = cmds.selectType(q=True, bn=('gpuCache', True))
+        if any([nurbs_surface, polymesh, plane]):
+            check_filter_mode[3] = True
+        #デフォメーション
+        lattice = cmds.selectType(q=True, la=True)
+        cluster = cmds.selectType(q=True, cl=True)
+        nonlinear = cmds.selectType(q=True, nl=True)
+        sculpt = cmds.selectType(q=True, sc=True)
+        if any([lattice, cluster, nonlinear, sculpt]):
+            check_filter_mode[4] = True
+        #ダイナミックオブジェクト
+        particle_shape = cmds.selectType(q=True, ps=True)
+        emitter = cmds.selectType(q=True, em=True)
+        field = cmds.selectType(q=True, fi=True)
+        spring = cmds.selectType(q=True, spr=True)
+        rigid_body = cmds.selectType(q=True, rigidBody=True)
+        rigid_constraint = cmds.selectType(q=True, rigidConstraint=True)
+        fluid = cmds.selectType(q=True, fluid=True)
+        hair_system = cmds.selectType(q=True, hairSystem=True)
+        follicle = cmds.selectType(q=True, follicle =True)
+        n_cloth = cmds.selectType(q=True, nCloth=True)
+        n_rigid = cmds.selectType(q=True, nRigid=True)
+        dynamic_constraint = cmds.selectType(q=True, dynamicConstraint=True)
+        if any ([particle_shape, emitter, field, spring, rigid_body, rigid_constraint, fluid, hair_system, follicle, n_cloth, n_rigid, dynamic_constraint]):
+            check_filter_mode[5] = True
+        #レンダリングオブジェクト
+        light = cmds.selectType(q=True, light=True)
+        camera = cmds.selectType(q=True, camera=True)
+        texture = cmds.selectType(q=True, texture=True)
+        if any([light, camera, texture]):
+            check_filter_mode[6] = True
+        #その他
+        ik_end_effector = cmds.selectType(q=True, ikEndEffector=True)
+        locator = cmds.selectType(q=True, locator=True)
+        dimension = cmds.selectType(q=True, dimension=True)
+        if any([ik_end_effector, locator, dimension]):
+            check_filter_mode[7] = True
+        if all(check_filter_mode):
+            for i, but in enumerate(self.all_filter_but_list):
+                if i == 0:
+                    but.setChecked(True)
+                else:
+                    but.setChecked(False)
+        else:
+            for flag, but in zip([False]+check_filter_mode, self.all_filter_but_list):
+                but.setChecked(flag)
+                    
         snap_mode = cmds.snapMode(q=True, grid=True)
         self.snap_glid_but.setChecked(snap_mode)
         snap_mode = cmds.snapMode(q=True, curve=True)
@@ -3171,6 +3253,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.get_init_space()
             if mode < 3:
                 mode+=4
+            #print mode
             self.load_pre_selection(mode=mode)
     
     def show_ref_menu(self):
@@ -3363,19 +3446,19 @@ class SiSideBarWeight(qt.DockWindow):
         mag = lang.Lang(en='Match All Transform',
                                 ja=u'すべての変換の一致')
         action6 = self.top_menus.addAction(mag.output())
-        action6.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='all')))
+        action6.triggered.connect(lambda : transform.match_transform(mode='all', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Scaling',
                                 ja=u'スケーリングの一致')
         action7 = self.top_menus.addAction(mag.output())
-        action7.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='scale')))
+        action7.triggered.connect(lambda : transform.match_transform(mode='scale', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Rotation',
                                 ja=u'回転の一致')
         action8 = self.top_menus.addAction(mag.output())
-        action8.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='rotate')))
+        action8.triggered.connect(lambda : transform.match_transform(mode='rotate', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Translation',
                                 ja=u'移動値の一致')
         action9 = self.top_menus.addAction(mag.output())
-        action9.triggered.connect(qt.Callback(lambda : transform.match_transform(mode='translate')))
+        action9.triggered.connect(lambda : transform.match_transform(mode='translate', child_comp=self.child_comp_but.isChecked()))
         self.top_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Move Center to Selection (All selection)',
@@ -3531,6 +3614,8 @@ class SiSideBarWeight(qt.DockWindow):
         joint_animation.reset_actor()
     #ダグノードの選択フィルタリングを変更する
     def select_filter_mode(self, mode=0):
+        #print mode
+        #self.all_filter_but_list
         filters = ['All', "Marker", "Joint", "Surface", "Curve", "Deformer", "Other"]
         filter_coms = ["Marker", "Joint", "Curve", "Surface", "Deformer", "Dynamic", "Rendering", "Other"]
         for f in filter_coms:
@@ -3541,6 +3626,12 @@ class SiSideBarWeight(qt.DockWindow):
                 mel.eval('setObjectPickMask '+f+' true;')
             else:
                 mel.eval('setObjectPickMask '+f+' false;')
+        
+        for i, but in enumerate(self.all_filter_but_list):
+            if mode == i:
+                but.setChecked(True)
+            else:
+                but.setChecked(False)
         
     #コンテキストが変更されたらui上のコンテキストも移動する
     def set_select_context(self):
