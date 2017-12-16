@@ -372,8 +372,8 @@ class SiSideBarWeight(qt.DockWindow):
         print ini_rot_mode
         print ini_trans_mode
         '''
-        scale_obj_list = [3, 1, 0, 1, 1, 1, 1, None, None, 5, 5]
-        scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 5, 5]
+        scale_obj_list =  [1, 3, 0, 3, 3, 3, 3, None, None, 5, 5]
+        scale_cmp_list = [1, 3, 0, 3, 3, 3, 4, None, None, 5, 5]
         rot_list = [1, 0, 3, 4, None, None, None, None, None, 5, 5]
         trans_list = [1, 3, 0, 2, 3, 3, 4, None, None, 5, 5]
         
@@ -388,9 +388,9 @@ class SiSideBarWeight(qt.DockWindow):
         if select_scale.isChecked():
             if cmds.selectMode(q=True, o=True):
                 if maya_ver >= 2018:
-                    context_id = [2, 1, 1, 0, 6, 10]
+                    context_id = [2, 0, 1, 1, 6, 10]
                 else:
-                    context_id = [2, 1, 1, 0, 6, 9]
+                    context_id = [2, 0, 1, 1, 6, 9]
             if cmds.selectMode(q=True, co=True):
                 if maya_ver >= 2018:
                     context_id = [2, 1, 1, 0, 6, 10]
@@ -4813,11 +4813,11 @@ def set_active_mute(mode=0):
         local_name = 'Parent'
         rotloc_name = 'Object'
         comp_name = 'Comp'
-    obj_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
+    obj_mode_list =[['World', 'Object', 'Uni/Vol', local_name, u'/Ref', comp_name],
                             ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
                             ['World', 'Object', 'Normal', local_name, u'/Ref', comp_name],
                             ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
-    cmp_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
+    cmp_mode_list =[['World', 'Object', 'Uni/Vol', local_name, u'/Ref', comp_name],
                             ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
                             ['World', 'Object', 'Normal', local_name, u'/Ref', comp_name],
                             ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
