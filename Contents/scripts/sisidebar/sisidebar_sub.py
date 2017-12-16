@@ -219,7 +219,11 @@ def get_srt(selection, mode='object'):
                 rot = cmds.xform(sel, q=True, ro=True, os=True)
                 if sid in local_sids:#ローカルスペースとビューの時の処理
                     if cmds.selectMode(q=True, o=True):
-                        trans = [cmds.getAttr(sel+'.translate'+a)for a in axis_attr_list]
+                        #print sid
+                        if sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                            trans = [cmds.getAttr(sel+'.translate'+a)for a in axis_attr_list]
+                        elif sid == 1:#オブジェクトスペース
+                            trans = cmds.xform(sel, q=True, t=True, os=True)
                     else:
                         trans = cmds.xform(sel, q=True, t=True, os=True)
                 else:

@@ -337,6 +337,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
         self.check_ui_button()#UIボタンの状態をチェックしておく
+        sisidebar_sub.get_matrix()
         
     #UI上にポインタが来たらUI設定更新
     def enterEvent(self, event):
@@ -374,7 +375,7 @@ class SiSideBarWeight(qt.DockWindow):
         scale_obj_list = [3, 1, 0, 1, 1, 1, 1, None, None, 5, 5]
         scale_cmp_list = [3, 1, 0, 1, 1, 1, 4, None, None, 5, 5]
         rot_list = [1, 0, 3, 4, None, None, None, None, None, 5, 5]
-        trans_list = [3, 1, 0, 2, 1, 1, 4, None, None, 5, 5]
+        trans_list = [1, 3, 0, 2, 3, 3, 4, None, None, 5, 5]
         
         self.scl_obj_space = scale_obj_list[ini_scale_mode]
         self.scl_cmp_space = scale_cmp_list[ini_scale_mode]
@@ -408,9 +409,9 @@ class SiSideBarWeight(qt.DockWindow):
         if select_trans.isChecked():
             #2018からコンポーネントモードが10番になったようなので差し替え
             if maya_ver >= 2018:
-                context_id = [2, 1, 3, 0, 6, 10]
+                context_id = [2, 0, 3, 1, 6, 10]
             else:
-                context_id = [2, 1, 3, 0, 6, 9]
+                context_id = [2, 0, 3, 1, 6, 9]
             id = context_id[space_group.checkedId()]
             cmds.manipMoveContext('Move', e=True, mode=id)
             
@@ -2455,7 +2456,7 @@ class SiSideBarWeight(qt.DockWindow):
         #print self.pre_lines_text
         
         self.create_job()
-        sisidebar_sub.get_matrix()
+        #sisidebar_sub.get_matrix()
         
         self.axis_list = ['_x', '_y', '_z', '_all']
         self.axis_attr_list = ['X', 'Y', 'Z']
@@ -4160,10 +4161,10 @@ class SiSideBarWeight(qt.DockWindow):
             for sel in selection:
                 if sid == 0 or sid == 4:#ワールドスペース
                     pos = cmds.xform(sel, q=True, t=True, ws=True)
-                elif sid == 1 or sid == 2 or sid == 5 or  sid == 3:#ローカルスペース
+                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
                     pos = cmds.xform(sel, q=True, t=True)
-                #elif sid == 3:#オブジェクトスペース
-                    #pos = cmds.xform(sel, q=True, t=True, os=True)
+                elif sid == 1:#オブジェクトスペース
+                    pos = cmds.xform(sel, q=True, t=True, os=True)
                     #exec('pos = cmds.xform(sel, q=True, t=True'+space+')')
                     #pos = [cmds.getAttr(sel+'.translate'+a)for a in self.axis_attr_list]
                 if sign:
@@ -4174,17 +4175,15 @@ class SiSideBarWeight(qt.DockWindow):
                 #移動実行
                 if sid == 0 or sid == 4:#ワールドスペース
                     exec('cmds.move(pos[0], pos[1], pos[2], sel, ws=True'+pcp+')')
-                elif sid == 1 or sid == 2 or sid == 5 or  sid == 3:#ローカルスペース
+                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
                     exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
-                '''
-                elif sid == 3:#オブジェクトスペース
-                    print 'os move', text
+                elif sid == 1:#オブジェクトスペース
+                    #print 'os move', text
                     if self.os_trans_flag:
                         self.os_trans_flag=False
                     else:
                         exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
                         self.os_trans_flag=True
-                '''
                 exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
         else:#コンポーネント選択の時の処理
             if text == self.focus_text:
@@ -4816,11 +4815,11 @@ def set_active_mute(mode=0):
         comp_name = 'Comp'
     obj_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
                             ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
-                            ['World', local_name, 'Normal', 'Object', u'/Ref', comp_name],
+                            ['World', 'Object', 'Normal', local_name, u'/Ref', comp_name],
                             ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
     cmp_mode_list =[['World', local_name, 'Uni/Vol', 'Object', u'/Ref', comp_name],
                             ['World', rotloc_name, 'View', 'Gimbal', u'/Ref', comp_name],
-                            ['World', local_name, 'Normal', 'Object', u'/Ref', comp_name],
+                            ['World', 'Object', 'Normal', local_name, u'/Ref', comp_name],
                             ['World', local_name, 'View', 'Object', u'/Ref', comp_name]]
     '''SI準拠の軸命名、紛らわしいので廃止
     obj_mode_list = [['Global', 'Local', 'Uni/Vol', 'Object', u'/Ref', comp_name],
