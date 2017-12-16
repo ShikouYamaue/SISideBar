@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.4 -'
+version = ' - SI Side Bar / ver_2.2.5 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -218,7 +218,7 @@ class FloatingWindow(qt.SubWindow):
             
     def closeEvent(self, e):
         global trs_window_flag 
-        #print 'window close', e
+        #print 'window closed', e
         trs_window_flag = False
             #print 're_init'
         del self
@@ -754,6 +754,7 @@ class SiSideBarWeight(qt.DockWindow):
         
     #スクリプトジョブ削除
     def remove_job(self):
+        #print 'remove job'
         global script_job
         global context_job
         global timeline_job

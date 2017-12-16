@@ -22,6 +22,7 @@ try:
 except ImportError:
     from PySide.QtGui import *
     from PySide.QtCore import *
+maya_ver = int(cmds.about(v=True)[:4])
     
 def reset_pivot_pos(nodes):
     if not nodes:
@@ -305,10 +306,13 @@ def match_transform(mode='', child_comp=False):
     QApplication.setOverrideCursor(my_cursor)
     #cmds.hudButton('HUDHelloButton', e=True, s=7, b=5, vis=1, l='Button', bw=80, bsh='roundRectangle', rc=match_cancel )
     global hud_but
-    try:
-        hud_but = cmds.hudButton('HUD_match_cancel', s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
-    except:
-        hud_but = cmds.hudButton('HUD_match_cancel',e=True, s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
+    if maya_ver != 2017:
+        try:
+            hud_but = cmds.hudButton('HUD_match_cancel', s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
+            #print 'create'
+        except:
+            #print 'change'
+            hud_but = cmds.hudButton('HUD_match_cancel',e=True, s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
     jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
 def finish_matching():
@@ -318,7 +322,8 @@ def finish_matching():
     cmds.select(matching_obj, r=True)
     #print hud_but
     #キャンセルボタン削除
-    cmds.headsUpDisplay(removeID=int(hud_but))
+    if maya_ver != 2017:
+        cmds.headsUpDisplay(removeID=int(hud_but))
     
     QApplication.restoreOverrideCursor()
     cmds.undoInfo(closeChunk=True)
