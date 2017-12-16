@@ -305,7 +305,10 @@ def match_transform(mode='', child_comp=False):
     QApplication.setOverrideCursor(my_cursor)
     #cmds.hudButton('HUDHelloButton', e=True, s=7, b=5, vis=1, l='Button', bw=80, bsh='roundRectangle', rc=match_cancel )
     global hud_but
-    hud_but = cmds.hudButton('HUD_match_cancel', s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
+    try:
+        hud_but = cmds.hudButton('HUD_match_cancel', s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
+    except:
+        hud_but = cmds.hudButton('HUD_match_cancel',e=True, s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
     jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
 def finish_matching():
