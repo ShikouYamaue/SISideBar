@@ -4127,6 +4127,7 @@ class SiSideBarWeight(qt.DockWindow):
             create_focus_job()
             
     #移動をオブジェクトに反映
+    os_trans_flag = False
     def translation(self, text='', axis=0, focus=True):
         global world_str_mode
         global world_str_axis
@@ -4157,22 +4158,33 @@ class SiSideBarWeight(qt.DockWindow):
         selection = cmds.ls(sl=True, l=True)
         if cmds.selectMode(q=True, o=True):
             for sel in selection:
-                if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
+                if sid == 0 or sid == 4:#ワールドスペース
+                    pos = cmds.xform(sel, q=True, t=True, ws=True)
+                elif sid == 1 or sid == 2 or sid == 5 or  sid == 3:#ローカルスペース
                     pos = cmds.xform(sel, q=True, t=True)
+                #elif sid == 3:#オブジェクトスペース
+                    #pos = cmds.xform(sel, q=True, t=True, os=True)
                     #exec('pos = cmds.xform(sel, q=True, t=True'+space+')')
                     #pos = [cmds.getAttr(sel+'.translate'+a)for a in self.axis_attr_list]
-                else:#グローバル処理
-                    pos = cmds.xform(sel, q=True, t=True, ws=True)
                 if sign:
                     exec('pos[axis] '+sign+'= value')
                     #print pos
                 else:
                     pos[axis]=value
                 #移動実行
-                if sid in local_sids:#ローカルスペースとビューの時の処理
-                    exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
-                else:#グローバル処理
+                if sid == 0 or sid == 4:#ワールドスペース
                     exec('cmds.move(pos[0], pos[1], pos[2], sel, ws=True'+pcp+')')
+                elif sid == 1 or sid == 2 or sid == 5 or  sid == 3:#ローカルスペース
+                    exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
+                '''
+                elif sid == 3:#オブジェクトスペース
+                    print 'os move', text
+                    if self.os_trans_flag:
+                        self.os_trans_flag=False
+                    else:
+                        exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
+                        self.os_trans_flag=True
+                '''
                 exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
         else:#コンポーネント選択の時の処理
             if text == self.focus_text:
