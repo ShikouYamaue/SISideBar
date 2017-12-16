@@ -4128,7 +4128,7 @@ class SiSideBarWeight(qt.DockWindow):
             create_focus_job()
             
     #移動をオブジェクトに反映
-    os_trans_flag = False
+    #os_trans_flag = False
     def translation(self, text='', axis=0, focus=True):
         global world_str_mode
         global world_str_axis
@@ -4179,11 +4179,7 @@ class SiSideBarWeight(qt.DockWindow):
                     exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
                 elif sid == 1:#オブジェクトスペース
                     #print 'os move', text
-                    if self.os_trans_flag:
-                        self.os_trans_flag=False
-                    else:
-                        exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
-                        self.os_trans_flag=True
+                    exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
                 exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
         else:#コンポーネント選択の時の処理
             if text == self.focus_text:
