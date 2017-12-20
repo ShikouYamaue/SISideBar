@@ -51,23 +51,12 @@ def change_selection():
     cmds.undoInfo(swf=False)
     get_matrix()
     cmds.undoInfo(swf=True)
-
+    
+    #コンテキストを切り替えてリアルタイム検出を有効にする。
+    restore_context_and_axis()
     #コンテキストのpodモードを選択タイプによって切り替える
     sb.chenge_manip_type()
     sb.change_selection_display()
-    #コンテキストを切り替えてリアルタイム検出を有効にする。
-    target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
-    global current_mode
-    global pre_mode
-    current_mode = cmds.selectMode(q=True, o=True)
-    current_tool = cmds.currentCtx()
-    #選択オブジェクトが切り替わったときだけ切り替え実行
-    if 'pre_sel_obj' in globals():
-        if pre_sel_obj != cmds.ls(sl=True, o=True):
-            if current_tool in target_tool_list:
-                cmds.setToolTo('selectSuperContext')
-                cmds.setToolTo(current_tool)
-    pre_mode = current_mode
     #オブジェクト変更があった場合はセンターをベイクして再度センターモードに入りなおす
     #print 'check center mode in culc :', center_mode
     if cmds.selectMode(q=True, o=True):
@@ -79,12 +68,53 @@ def change_selection():
             sb.transform_center()
             #cmds.undoInfo(cn='cng_center', cck=True)
             return
-    global pre_sel_obj
-    pre_sel_obj = cmds.ls(sl=True, o=True)
     #COGモードチェックしておく
     sb.window.setup_object_center()
     #UIの変更を反映する
     sb.check_option_parm()
+    
+#コンテキストを切り替えてリアルタイム検出を有効にする。軸選択状態をサイドバーに復元する。
+def restore_context_and_axis():
+    global current_mode
+    global pre_mode
+    current_mode = cmds.selectMode(q=True, o=True)
+    current_tool = cmds.currentCtx()
+    target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
+    #選択オブジェクトが切り替わったときだけ切り替え実行
+    if cmds.selectMode(q=True, co=True):
+        if 'pre_sel_comp' in globals():
+            current_selection = cmds.ls(sl=True, fl=True)
+            if pre_sel_comp != current_selection:
+                if current_tool in target_tool_list:
+                    if not cmds.ls(sl=True):
+                        if pre_sel_comp:
+                            #print 'newsel'
+                            cmds.select(pre_sel_comp[0])
+                    if cmds.ls(sl=True):
+                        sb.window.select_xyz_from_manip()#事前に選択したハンドル方向をなるべくキープする
+                        if current_selection != cmds.ls(sl=True):
+                            cmds.select(current_selection, r=True)
+        global pre_sel_comp
+        pre_sel_comp = cmds.ls(sl=True, fl=True)
+    if cmds.selectMode(q=True, o=True):
+        if 'pre_sel_obj' in globals():
+            current_selection = cmds.ls(sl=True, o=True)
+            if pre_sel_obj != current_selection:
+                if current_tool in target_tool_list:
+                    #print 'ajust context'
+                    if not cmds.ls(sl=True):
+                        if pre_sel_obj:
+                            #print 'newsel'
+                            cmds.select(pre_sel_obj[0])
+                    if cmds.ls(sl=True):
+                        sb.window.select_xyz_from_manip()#事前に選択したハンドル方向をなるべくキープする
+                        if current_selection != cmds.ls(sl=True):
+                            cmds.select(current_selection, r=True)
+                    cmds.setToolTo('selectSuperContext')
+                    cmds.setToolTo(current_tool)
+        global pre_sel_obj
+        pre_sel_obj = cmds.ls(sl=True, o=True)
+    pre_mode = current_mode
     
 def set_view_decimal(decimal):
     #print 'change decimal', decimal

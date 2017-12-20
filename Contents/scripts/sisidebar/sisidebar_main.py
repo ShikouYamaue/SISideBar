@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.6 -'
+version = ' - SI Side Bar / ver_2.2.7 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -181,50 +181,54 @@ def read_save_file(init_pos=False):
         save_data = def_data
     return save_data
 
-global trs_window_flag
-trs_window_flag = False
 #フローティングメニュー作成
+trs_window_flag = False
 class FloatingWindow(qt.SubWindow):
-    def __init__(self, parent = None, menus=[], offset=None):
-        global trs_window_flag 
-        trs_window_flag = True
+    def __init__(self, parent = None, menus=[], offset=None, menu_name='transform_top'):
         super(FloatingWindow, self).__init__(parent)
         self.wrapper = QWidget()
         self.setCentralWidget(self.wrapper)
         #self.mainLayout = QHBoxLayout()
         self.menus = menus
+        self.menu_name = menu_name
         self.f_layout = QVBoxLayout()
         self.wrapper.setLayout(self.f_layout)
         self.f_layout.addWidget(self.menus)
+        #self.setCentralWidget(self.menus)
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         self.show()#Showしてから移動しないとほしい位置が取れない
         move_to_best_pos(object=self, offset=offset)
+        
+    def mouseReleaseEvent(self, e):
+        reset_menu_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_init_window(mode = self.menu_name)), protected=True)
+        #print 'click2'
         
     def re_init_window(self, mode='transform_top'):
         #桁数の変更があったらUIを丸ごと描画しなおす
         #UIのテキスト再描画のみができなかったので苦肉の策
         if not trs_window_flag:
-            #print 'reinit flag false'
             return
+        self.f_layout.removeWidget(self.menus)
+        self.wrapper = QWidget()
+        self.setCentralWidget(self.wrapper)
+        self.f_layout = QVBoxLayout()
+        self.wrapper.setLayout(self.f_layout)
         if mode == 'transform_top':
-            self.f_layout.removeWidget(self.menus)
-            self.wrapper = QWidget()
-            self.setCentralWidget(self.wrapper)
-            self.f_layout = QVBoxLayout()
-            self.wrapper.setLayout(self.f_layout)
             self.menus = window.create_trans_menu(add_float=False)
-            self.f_layout.addWidget(self.menus)
-            self.show()
+        if mode == 'select_top':
+            self.menus = window.create_select_menu(add_float=False)
+        self.f_layout.addWidget(self.menus)
+        self.show()
             
     def closeEvent(self, e):
-        global trs_window_flag 
-        #print 'window closed', e
-        trs_window_flag = False
-            #print 're_init'
+        if self.menu_name == 'transform_top':
+            global trs_window_flag
+            trs_window_flag = False
+            
         del self
         
 #フローティングで出した窓をベストな位置に移動する
-def move_to_best_pos(object=None, offset=None):
+def move_to_best_pos(object=None, offset=None, move_obj=True):
         w_size = object.size()
         dy = offset[0]
         fy = offset[1]
@@ -259,10 +263,16 @@ def move_to_best_pos(object=None, offset=None):
         sub_x = win_x - def_x
         if sub_x > 0:
             move_x = def_x+sub_x-px
+            if not move_obj:
+                move_x-=170
         else:
             move_x = def_x+sub_x-mx
+            if not move_obj:
+                move_x+=170
         #print move_x, cur_y
-        object.move(move_x, cur_y)
+        if move_obj:
+            object.move(move_x, cur_y)
+        return (move_x, cur_y)
 
 #2016以下は通常起動
 class Option():
@@ -343,7 +353,7 @@ class SiSideBarWeight(qt.DockWindow):
     def enterEvent(self, event):
         #print 'enter event'
         check_option_parm()
-        self.select_from_current_context()
+        self.select_from_current_context(select_handle=False)
         check_key_anim()
         
     def dropEvent(self, event):
@@ -416,7 +426,7 @@ class SiSideBarWeight(qt.DockWindow):
             cmds.manipMoveContext('Move', e=True, mode=id)
             
     #起動時にMayaの選択コンテキストからUIのSRT選択状態を設定する
-    def select_from_current_context(self):
+    def select_from_current_context(self, select_handle=True):
         current_tool = cmds.currentCtx()
         tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
         try:
@@ -439,7 +449,11 @@ class SiSideBarWeight(qt.DockWindow):
         select_but.setChecked(False)
             
         #ホットキーからのマニプ変更時にハンドル選択を反映する
-        self.select_manip_handle(mode=mode)
+        if select_handle:
+            self.select_manip_handle(mode=mode)
+        else:
+            if cmds.ls(sl=True):
+                self.select_xyz_from_manip()
         
     #オンオフアイコンを切り替える
     def toggle_xyz_icon(self, but=None, axis=0):
@@ -451,46 +465,50 @@ class SiSideBarWeight(qt.DockWindow):
             
     #マニピュレータの選択状態が変更されたらサイドバーへも反映する
     def select_xyz_from_manip(self, handle_id=0, keep=True):
-        current_tool = cmds.currentCtx()
-        tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext']
         try:
-            mode = tools_list.index(current_tool)
-        except:
-            return
-        #print 'change manip handle from maya', mode
-        scl_move_active_list = [[True, False, False],
-                                    [False, True, False],
-                                    [False, False, True],
-                                    [True, True, True],
-                                    [True, True, False],
-                                    [False, True, True],
-                                    [True, False, True]]
-        rot_active_list = [[True, False, False],
-                                    [False, True, False],
-                                    [False, False, True],
-                                    [True, True, True],
-                                    [True, True, True]]
-        if mode == 0:
-            if maya_ver >= 2015:
-                handle_id = cmds.manipScaleContext('Scale', q=True, cah=True)
-            active_list = scl_move_active_list
-        if mode == 1:
-            if maya_ver >= 2015:
-                handle_id = cmds.manipRotateContext('Rotate', q=True, cah=True)
-            active_list = rot_active_list
-        if mode == 2:
-            if maya_ver >= 2015:
-                handle_id = cmds.manipMoveContext('Move', q=True, cah=True)
-            active_list = scl_move_active_list
-        #print 'handle id :', handle_id
-        for i, but in enumerate(self.all_axis_but_list[mode][0:3]):
-            if ommit_manip_link:
-                continue
-            #print i, mode, handle_id
-            #print 'check xyz but active :', active_list[handle_id][i]
-            but.setChecked(active_list[handle_id][i])
-        if keep:
-            self.keep_srt_select(mode=mode)
+            current_tool = cmds.currentCtx()
+            tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext']
+            try:
+                mode = tools_list.index(current_tool)
+            except:
+                return
+            #print 'change manip handle from maya', mode
+            scl_move_active_list = [[True, False, False],
+                                        [False, True, False],
+                                        [False, False, True],
+                                        [True, True, True],
+                                        [True, True, False],
+                                        [False, True, True],
+                                        [True, False, True]]
+            rot_active_list = [[True, False, False],
+                                        [False, True, False],
+                                        [False, False, True],
+                                        [True, True, True],
+                                        [True, True, True]]
+            if mode == 0:
+                if maya_ver >= 2015:
+                    handle_id = cmds.manipScaleContext('Scale', q=True, cah=True)
+                active_list = scl_move_active_list
+            if mode == 1:
+                if maya_ver >= 2015:
+                    handle_id = cmds.manipRotateContext('Rotate', q=True, cah=True)
+                active_list = rot_active_list
+            if mode == 2:
+                if maya_ver >= 2015:
+                    handle_id = cmds.manipMoveContext('Move', q=True, cah=True)
+                active_list = scl_move_active_list
+            #print 'handle id :', handle_id
+            for i, but in enumerate(self.all_axis_but_list[mode][0:3]):
+                if ommit_manip_link:
+                    continue
+                #print i, mode, handle_id
+                #print 'check xyz but active :', active_list[handle_id][i]
+                but.setChecked(active_list[handle_id][i])
+            if keep:
+                self.keep_srt_select(mode=mode)
+        except Exception as e:
+            #print e.message
+            pass
             
     #マニピュレータコンテキストを初期化
     def set_up_manip(self):
@@ -705,7 +723,7 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cog_but.isChecked():
             self.cog_but.setChecked(False)
             self.setup_object_center()
-        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window']
+        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 'select_manu_window']
         for op_window in option_window_list:
             try:
                 exec(op_window+'.close()')
@@ -1178,7 +1196,7 @@ class SiSideBarWeight(qt.DockWindow):
         if mode == 0:
             #print 'set manip scale handle', handle_id
             if maya_ver >= 2015:
-                cmds.manipScaleContext('Scale', e=True, cah=handle_id, ah=handle_id)
+                cmds.manipScaleContext('Scale', e=True, cah=handle_id, ah=3)
             else:
                 cmds.manipScaleContext('Scale', e=True, ah=handle_id)
         if mode == 1:
@@ -1186,13 +1204,13 @@ class SiSideBarWeight(qt.DockWindow):
             if handle_id == 3:
                 handle_id = 4
             if maya_ver >= 2015:
-                cmds.manipRotateContext('Rotate', e=True, cah=handle_id, ah=handle_id)
+                cmds.manipRotateContext('Rotate', e=True, cah=handle_id, ah=3)
             else:
                 cmds.manipRotateContext('Rotate', e=True, ah=handle_id)
         if mode == 2:
             #print 'set manip scale handle', handle_id
             if maya_ver >= 2015:
-                cmds.manipMoveContext('Move', e=True, cah=handle_id, ah=handle_id)
+                cmds.manipMoveContext('Move', e=True, cah=handle_id, ah=3)
             else:
                 cmds.manipMoveContext('Move', e=True, ah=handle_id)
         
@@ -1566,7 +1584,10 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(make_h_line(text=line_col, bg=line_col), vn, 0, 1 ,11)
         #--------------------------------------------------------------------------------
         vn+=1
-        self.select_top = make_flat_btton(name='Select', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.select_top = make_flat_btton(name=u'▽ Select  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.select_top.clicked.connect(lambda : self.pop_top_menus(but=self.select_top, menu_func=self.create_select_menu))
+        #select_menus = self.create_select_menu()
+        #self.select_top.setMenu(select_menus)
         self.main_layout.addWidget(self.select_top, vn, 0, 1 ,11)
         vn+=1
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
@@ -1764,12 +1785,11 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         #トランスフォームエリア
         #action.triggered.connect()
-        self.transfrom_top = make_flat_btton(name='Transform', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
-        top_menus = self.create_trans_menu()
-        self.transfrom_top.setMenu(top_menus)
-        #qt.change_button_color(self.transfrom_top, textColor=text_col, bgColor=mid_color)
+        self.transform_top = make_flat_btton(name=u'▽ Transform  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.transform_top.clicked.connect(lambda : self.pop_top_menus(but=self.transform_top, menu_func=self.create_trans_menu))
+        #qt.change_button_color(self.transform_top, textColor=text_col, bgColor=mid_color)
         #検索、セレクション表示窓--------------------------------------------------------------------------------
-        self.main_layout.addWidget(self.transfrom_top, vn, 0, 1 ,11)
+        self.main_layout.addWidget(self.transform_top, vn, 0, 1 ,11)
         vn+=1
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
@@ -1797,11 +1817,15 @@ class SiSideBarWeight(qt.DockWindow):
         axis_b = 2#軸ボタンの幅
         sel_b = 1#選択ボタンの幅
         
+        key_but_tip = lang.Lang(en=u'Set / release animation key\nLeft Click >> Single axis setting\nRight Click >> All axis setting',
+                                        ja=u'アニメーションキーを設定/解除\n左クリック→単独軸設定\n右クリック→全軸一括設定')
+        lock_but_tip = lang.Lang(en=u'Lock / Unlock Attribute\nLeft Click >> Lock / Unlock All Axis\nRight Click >> Show Axis Lock Menu',
+                                        ja=u'アトリビュートをロック/解除\n左クリック→全軸一括ロック/ロック解除\n右クリック→各軸ロックメニュー表示')
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
         key_scale_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                    text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_x.clicked.connect(lambda : set_key_frame(mode=0, axis=0))
         key_scale_x.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
         self.main_layout.addWidget(key_scale_x, vn, tw, 1, anim_b)
@@ -1829,7 +1853,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_scale_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_y.clicked.connect(lambda : set_key_frame(mode=0, axis=1))
         key_scale_y.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
         self.main_layout.addWidget(key_scale_y, vn, tw, 1, anim_b)
@@ -1847,7 +1871,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw += axis_b
         #ロック状態切り替え
         self.lock_attribute_scale = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
-                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_scale.clicked.connect(lambda : self.attribute_lock_state(mode=0))
         self.lock_attribute_scale.rightClicked.connect(lambda : RockAttrMenu(name='Scale', mode=0))
         self.main_layout.addWidget(self.lock_attribute_scale, vn, tw, 1 ,sel_b)
@@ -1856,7 +1880,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_scale_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_z.clicked.connect(lambda : set_key_frame(mode=0, axis=2))
         key_scale_z.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
         self.main_layout.addWidget(key_scale_z, vn, tw, 1, anim_b)
@@ -1893,7 +1917,7 @@ class SiSideBarWeight(qt.DockWindow):
         global select_rot
         
         key_rot_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_x.clicked.connect(lambda : set_key_frame(mode=1, axis=0))
         key_rot_x.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
         self.main_layout.addWidget(key_rot_x, vn, tw, 1, anim_b)
@@ -1921,7 +1945,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_rot_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_y.clicked.connect(lambda : set_key_frame(mode=1, axis=1))
         key_rot_y.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
         self.main_layout.addWidget(key_rot_y, vn, tw, 1, anim_b)
@@ -1939,7 +1963,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw += axis_b
         #ロック状態切り替え
         self.lock_attribute_rot = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
-                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_rot.clicked.connect(lambda : self.attribute_lock_state(mode=1))
         self.lock_attribute_rot.rightClicked.connect(lambda : RockAttrMenu(name='Rot', mode=1))
         self.main_layout.addWidget(self.lock_attribute_rot, vn, tw, 1 ,sel_b)
@@ -1948,7 +1972,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_rot_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_z.clicked.connect(lambda : set_key_frame(mode=1, axis=2))
         key_rot_z.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
         self.main_layout.addWidget(key_rot_z, vn, tw, 1, anim_b)
@@ -1985,7 +2009,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         key_trans_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_x.clicked.connect(lambda : set_key_frame(mode=2, axis=0))
         key_trans_x.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
         self.main_layout.addWidget(key_trans_x, vn, tw, 1, anim_b)
@@ -2013,7 +2037,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_trans_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_y.clicked.connect(lambda : set_key_frame(mode=2, axis=1))
         key_trans_y.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
         self.main_layout.addWidget(key_trans_y, vn, tw, 1, anim_b)
@@ -2030,7 +2054,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw += axis_b
         #ロック状態切り替え
         self.lock_attribute_trans = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
-                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+                                                            name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_trans.clicked.connect(lambda : self.attribute_lock_state(mode=2))
         self.lock_attribute_trans.rightClicked.connect(lambda : RockAttrMenu(name='Trans', mode=2))
         self.main_layout.addWidget(self.lock_attribute_trans, vn, tw, 1 ,sel_b)
@@ -2039,7 +2063,7 @@ class SiSideBarWeight(qt.DockWindow):
         tw = 0#配置場所
         
         key_trans_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
-                                                                text=text_col, bg=hilite, checkable=False, w_max=24)
+                                                                text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_z.clicked.connect(lambda : set_key_frame(mode=2, axis=2))
         key_trans_z.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
         self.main_layout.addWidget(key_trans_z, vn, tw, 1, anim_b)
@@ -2167,7 +2191,7 @@ class SiSideBarWeight(qt.DockWindow):
                                             self.key_buts+space_but_list+self.trs_option_but+self.trs_lines
         #開閉コネクト
         self.trs_section_height = [but.height() for but in self.trs_section_widgets]
-        self.transfrom_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.trs_section_widgets,  heights=self.trs_section_height))
+        self.transform_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.trs_section_widgets,  heights=self.trs_section_height))
         
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
@@ -3327,6 +3351,86 @@ class SiSideBarWeight(qt.DockWindow):
             self.destroy_mode()
         #self.close()
         #Option()
+        
+    #コンテキストメニューとフローティングメニューを再帰的に作成する
+    def create_f_sel_menu(self):
+        top_f_menus = self.create_select_menu(add_float=False)
+        global select_manu_window
+        try:
+            select_manu_window.close()
+        except:
+            pass
+        select_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset, menu_name='select_top')
+        
+    #セレクトメニューをポップアップする
+    def pop_top_menus(self, but=None, menu_func=None):
+        pos =  but.pos()
+        pos = self.mapToGlobal(pos)
+        select_menus = menu_func()
+        select_menus.exec_(pos)
+        
+    def create_select_menu(self, add_float=True):
+        self.select_menus = QMenu(self.select_top)
+        qt.change_button_color(self.select_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        if add_float:#切り離しウィンドウメニュー
+            sel_action = self.select_menus.addAction(u'-----------------------------------------------------✂----')
+            sel_action.triggered.connect(self.create_f_sel_menu)
+            
+        #self.select_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
+        self.check_sel_highlight()
+        mag = lang.Lang(en='Selection Child  Highlighting : Always highlight',
+                                ja=u'選択項目の子 : 常にハイライト')
+        self.sel_action00 = QAction(mag.output(), self.select_menus, icon=QIcon(self.sel_highlight[0]))
+        self.sel_action00.triggered.connect(lambda : self.set_sel_highlight(mode=0))
+        self.select_menus.addAction(self.sel_action00)
+        mag = lang.Lang(en='Selection Child  Highlighting : Never highlight',
+                                ja=u'選択項目の子 : ハイライトしない')
+        self.sel_action01 = QAction(mag.output(), self.select_menus, icon=QIcon(self.sel_highlight[1]))
+        self.sel_action01.triggered.connect(lambda : self.set_sel_highlight(mode=1))
+        self.select_menus.addAction(self.sel_action01)
+        mag = lang.Lang(en='Selection Child  Highlighting : Use object Setting',
+                                ja=u'選択項目の子 : オブジェクト設定を使用')
+        self.sel_action02 = QAction(mag.output(), self.select_menus, icon=QIcon(self.sel_highlight[2]))
+        self.sel_action02.triggered.connect(lambda : self.set_sel_highlight(mode=2))
+        self.select_menus.addAction(self.sel_action02)
+        self.sch_buts = [self.sel_action00, self.sel_action01, self.sel_action02]
+        self.select_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        cld_icon = self.check_click_drag_highlight()
+        mag = lang.Lang(en='Click drag select',
+                                ja=u'クリック＆ドラッグで選択')
+        self.sel_action03 = QAction(mag.output(), self.select_menus, icon=QIcon(cld_icon))
+        self.sel_action03.triggered.connect(self.set_click_drag)
+        self.select_menus.addAction(self.sel_action03)
+        
+        return self.select_menus
+        
+    def check_click_drag_highlight(self):
+        if cmds.selectPref(q=True, cld=True):
+            return image_path+self.check_icon
+        else:
+            return None
+    #子のハイライト設定を変更
+    def set_click_drag(self):
+        if cmds.selectPref(q=True, cld=True):
+            self.sel_action03.setIcon(QIcon(None))
+            cmds.selectPref(cld=False)
+        else:
+            self.sel_action03.setIcon(QIcon(image_path+self.check_icon))
+            cmds.selectPref(cld=True)
+    #子のハイライト設定を取得
+    def check_sel_highlight(self):
+        self.sel_highlight = [None]*3
+        icon_path = image_path+self.check_icon
+        sch = cmds.selectPref(q=True, sch=True)
+        self.sel_highlight[sch] = icon_path
+    #子のハイライト設定を変更
+    def set_sel_highlight(self, mode=0):
+        cmds.selectPref(sch=mode)
+        self.check_sel_highlight()
+        for i, but in enumerate(self.sch_buts):
+            but.setIcon(QIcon(self.sel_highlight[i]))
+        
     #コンテキストメニューとフローティングメニューを再帰的に作成する
     def create_f_trans_menu(self):#ウィンドウ切り離しの場合はインスタンスを別にして再作成
         top_f_menus = self.create_trans_menu(add_float=False)
@@ -3335,143 +3439,145 @@ class SiSideBarWeight(qt.DockWindow):
             transform_manu_window.close()
         except:
             pass
-        transform_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset)
+        transform_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset, menu_name='transform_top')
+        global trs_window_flag
+        trs_window_flag = True
         
     def create_trans_menu(self, add_float=True):
-        self.top_menus = QMenu(self.transfrom_top)
-        qt.change_button_color(self.top_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        self.trans_menus = QMenu(self.transform_top)
+        qt.change_button_color(self.trans_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         if add_float:#切り離しウィンドウメニュー
-            action10 = self.top_menus.addAction(u'-----------------------------------------------------✂----')
+            action10 = self.trans_menus.addAction(u'-----------------------------------------------------✂----')
             action10.triggered.connect(self.create_f_trans_menu)
+        #self.trans_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Transform Preference...',
                                 ja=u'変換設定')
-        action25 = QAction(mag.output(), self.top_menus, icon=QIcon(image_path+'setting'))
-        action25.setToolTip('test')
-        self.top_menus.addAction(action25)
+        action25 = QAction(mag.output(), self.trans_menus, icon=QIcon(image_path+'setting'))
+        self.trans_menus.addAction(action25)
         action25.triggered.connect(lambda : self.pop_option_window(mode='transform'))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Reset Actor to Bind Pose',
                                 ja=u'リセットアクター/バインドポーズに戻す')
-        action12 = self.top_menus.addAction(mag.output())
+        action12 = self.trans_menus.addAction(mag.output())
         action12.triggered.connect(transform.reset_actor)
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Transfer Rotate to Joint Orient',
                                 ja=u'回転をジョイントの方向に変換')
-        action17 = self.top_menus.addAction(mag.output())
+        action17 = self.trans_menus.addAction(mag.output())
         action17.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=True)))
         mag = lang.Lang(en='Transfer Joint Orient to Rotate',
                                 ja=u'ジョイントの方向を回転に変換')
-        action18 = self.top_menus.addAction(mag.output())
+        action18 = self.trans_menus.addAction(mag.output())
         action18.triggered.connect(qt.Callback(lambda : transform.set_joint_orient(reset=False)))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Set Neutral Pose Node (UnLock Attr)',
                                 ja=u'ニュートラルポーズノードを設定 (ロックなし)')
-        action26 = self.top_menus.addAction(mag.output())
+        action26 = self.trans_menus.addAction(mag.output())
         action26.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True, lock=False)))
         mag = lang.Lang(en='Set Neutral Pose Node (Lock Attr)',
                                 ja=u'ニュートラルポーズノードを設定 (ロック)')
-        action28 = self.top_menus.addAction(mag.output())
+        action28 = self.trans_menus.addAction(mag.output())
         action28.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=True, ntpose=True, lock=True)))
         mag = lang.Lang(en='Remove Neutral Pose Node',
                                 ja=u'ニュートラルポーズノードを解除')
-        action27 = self.top_menus.addAction(mag.output())
+        action27 = self.trans_menus.addAction(mag.output())
         action27.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=False, ntpose=True)))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Reset All Transforms',
                                 ja=u'すべての変換をリセット')
-        action13 = self.top_menus.addAction(mag.output())
+        action13 = self.trans_menus.addAction(mag.output())
         action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Scaling',
                                 ja=u'スケーリングのリセット')
-        action14 = self.top_menus.addAction(mag.output())
+        action14 = self.trans_menus.addAction(mag.output())
         action14.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='scale', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Rotation',
                                 ja=u'回転のリセット')
-        action15 = self.top_menus.addAction(mag.output())
+        action15 = self.trans_menus.addAction(mag.output())
         action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Reset Translation',
                                 ja=u'移動のリセット')
-        action16 = self.top_menus.addAction(mag.output())
+        action16 = self.trans_menus.addAction(mag.output())
         action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans', c_comp=self.child_comp_but.isChecked())))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Freeze All Transforms',
                                 ja=u'すべての変換をフリーズ')
-        action0 = self.top_menus.addAction(mag.output())
+        action0 = self.trans_menus.addAction(mag.output())
         action0.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='all', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Scaling',
                                 ja=u'スケーリングのフリーズ')
-        action1 = self.top_menus.addAction(mag.output())
+        action1 = self.trans_menus.addAction(mag.output())
         action1.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='scale', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Rotation',
                                 ja=u'回転のフリーズ')
-        action2 = self.top_menus.addAction(mag.output())
+        action2 = self.trans_menus.addAction(mag.output())
         action2.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='rot', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Translation',
                                 ja=u'移動のフリーズ')
-        action3 = self.top_menus.addAction(mag.output())
+        action3 = self.trans_menus.addAction(mag.output())
         action3.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='trans', c_comp=self.child_comp_but.isChecked())))
         mag = lang.Lang(en='Freeze Joint Orientation',
                                 ja=u'ジョイントの方向のフリーズ')
-        action4 = self.top_menus.addAction(mag.output())
+        action4 = self.trans_menus.addAction(mag.output())
         action4.triggered.connect(qt.Callback(lambda : transform.freeze_transform(mode='joint', c_comp=self.child_comp_but.isChecked())))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Round All Transform / Decimal'+str(round_decimal_value),
                                 ja=u'すべての変換を丸める / 桁数'+str(round_decimal_value))
-        self.action20 = self.top_menus.addAction(mag.output())
+        self.action20 = self.trans_menus.addAction(mag.output())
         self.action20.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='all', digit=round_decimal_value)))
         mag = lang.Lang(en='Round Scaling / Decimal'+str(round_decimal_value),
                                 ja=u'スケーリングを丸める / 桁数'+str(round_decimal_value))
-        self.action21 = self.top_menus.addAction(mag.output())
+        self.action21 = self.trans_menus.addAction(mag.output())
         self.action21.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='scale', digit=round_decimal_value)))
         mag = lang.Lang(en='Round Rotation / Decimal'+str(round_decimal_value),
                                 ja=u'回転を丸める / 桁数'+str(round_decimal_value))
-        self.action22 = self.top_menus.addAction(mag.output())
+        self.action22 = self.trans_menus.addAction(mag.output())
         self.action22.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='rotate', digit=round_decimal_value)))
         mag = lang.Lang(en='Round Translation / Decimal'+str(round_decimal_value),
                                 ja=u'移動値を丸める / 桁数'+str(round_decimal_value))
-        self.action23 = self.top_menus.addAction(mag.output())
+        self.action23 = self.trans_menus.addAction(mag.output())
         self.action23.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='translate', digit=round_decimal_value)))
         mag = lang.Lang(en='Round Joint Orient / Decimal'+str(round_decimal_value),
                                 ja=u'ジョイントの方向を丸める / 桁数'+str(round_decimal_value))
-        self.action24 = self.top_menus.addAction(mag.output())
+        self.action24 = self.trans_menus.addAction(mag.output())
         self.action24.triggered.connect(qt.Callback(lambda : transform.round_transform(mode='jointOrient', digit=round_decimal_value)))
         self.round_action_list = [self.action20, self.action21, self.action22, self.action23, self.action24]
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Match All Transform',
                                 ja=u'すべての変換の一致')
-        action6 = self.top_menus.addAction(mag.output())
+        action6 = self.trans_menus.addAction(mag.output())
         action6.triggered.connect(lambda : transform.match_transform(mode='all', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Scaling',
                                 ja=u'スケーリングの一致')
-        action7 = self.top_menus.addAction(mag.output())
+        action7 = self.trans_menus.addAction(mag.output())
         action7.triggered.connect(lambda : transform.match_transform(mode='scale', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Rotation',
                                 ja=u'回転の一致')
-        action8 = self.top_menus.addAction(mag.output())
+        action8 = self.trans_menus.addAction(mag.output())
         action8.triggered.connect(lambda : transform.match_transform(mode='rotate', child_comp=self.child_comp_but.isChecked()))
         mag = lang.Lang(en='Match Translation',
                                 ja=u'移動値の一致')
-        action9 = self.top_menus.addAction(mag.output())
+        action9 = self.trans_menus.addAction(mag.output())
         action9.triggered.connect(lambda : transform.match_transform(mode='translate', child_comp=self.child_comp_but.isChecked()))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Move Center to Selection (All selection)',
                                 ja=u'センターを選択に移動（すべての選択）')
-        action5 = self.top_menus.addAction(mag.output())
+        action5 = self.trans_menus.addAction(mag.output())
         action5.triggered.connect(qt.Callback(transform.move_center2selection))
         mag = lang.Lang(en='Move Center to Selection (Each object)',
                                 ja=u'センターを選択に移動（オブジェクトごと）')
-        action11 = self.top_menus.addAction(mag.output())
+        action11 = self.trans_menus.addAction(mag.output())
         action11.triggered.connect(qt.Callback(transform.move_center_each_object))
-        self.top_menus.addSeparator()#分割線追加
+        self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         self.trs_setting_path = self.dir_path+'\\sisidebar_trs_data_'+str(maya_ver)+'.json'
         #print self.trs_setting_path
@@ -3479,14 +3585,14 @@ class SiSideBarWeight(qt.DockWindow):
         self.cp_mag = lang.Lang(en=u'Collapse Point For Snapping/Absolute Translation',
                                 ja=u'スナップ移動/絶対移動でポイントを集約')
         if add_float:
-            self.action19 = self.top_menus.addAction(self.cp_mag.output())
+            self.action19 = self.trans_menus.addAction(self.cp_mag.output())
             if cp_abs_flag:
                 self.action19.setIcon(QIcon(image_path+self.check_icon))
             else:
                 self.action19.setIcon(QIcon(None))
             self.action19.triggered.connect(self.toggle_cp_absolute)
         else:
-            self.f_action19 = self.top_menus.addAction(self.cp_mag.output())
+            self.f_action19 = self.trans_menus.addAction(self.cp_mag.output())
             if cp_abs_flag:
                 self.f_action19.setIcon(QIcon(image_path+self.check_icon))
             else:
@@ -3496,21 +3602,21 @@ class SiSideBarWeight(qt.DockWindow):
         self.hl_mag = lang.Lang(en=u'Force Side Bar axis selection status',
                                 ja=u'サイドバーの軸選択状態を優先する')
         if add_float:
-            self.action20 = self.top_menus.addAction(self.hl_mag.output())
+            self.action20 = self.trans_menus.addAction(self.hl_mag.output())
             if ommit_manip_link:
                 self.action20.setIcon(QIcon(image_path+self.check_icon))
             else:
                 self.action20.setIcon(QIcon(None))
             self.action20.triggered.connect(self.toggle_manip_priority)
         else:
-            self.f_action20 = self.top_menus.addAction(self.hl_mag.output())
+            self.f_action20 = self.trans_menus.addAction(self.hl_mag.output())
             if ommit_manip_link:
                 self.f_action20.setIcon(QIcon(image_path+self.check_icon))
             else:
                 self.f_action20.setIcon(QIcon(None))
             self.f_action20.triggered.connect(self.toggle_manip_priority)
-        #self.top_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
-        return self.top_menus
+        #self.trans_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
+        return self.trans_menus
         
     #マニプ優先設定を切り替える
     def toggle_manip_priority(self):
@@ -3529,8 +3635,8 @@ class SiSideBarWeight(qt.DockWindow):
             self.f_action20.setIcon(set_icon)
         except Exception as e:
             pass
-        top_menus = self.create_trans_menu()
-        self.transfrom_top.setMenu(top_menus)
+        #top_menus = self.create_trans_menu()
+        #self.transform_top.setMenu(top_menus)
         
         
     #絶対値に移動を切り替える
@@ -3550,8 +3656,8 @@ class SiSideBarWeight(qt.DockWindow):
             self.f_action19.setIcon(set_icon)
         except Exception as e:
             pass
-        top_menus = self.create_trans_menu()
-        self.transfrom_top.setMenu(top_menus)
+        #top_menus = self.create_trans_menu()
+        #self.transform_top.setMenu(top_menus)
         
     #絶対値に移動を切り替える
     def toggle_action_check(self, item_id, flags, flag_str):
@@ -3578,7 +3684,7 @@ class SiSideBarWeight(qt.DockWindow):
                 print e.message
                 pass
             top_menus = self.create_trans_menu()
-            self.transfrom_top.setMenu(top_menus)
+            self.transform_top.setMenu(top_menus)
         else:
             try:
                 f_item.setIcon(QIcon(None))
@@ -3586,7 +3692,7 @@ class SiSideBarWeight(qt.DockWindow):
                 print e.message
                 pass
             top_menus = self.create_trans_menu()
-            self.transfrom_top.setMenu(top_menus)
+            self.transform_top.setMenu(top_menus)
         #print 'cp_abs_flag', cp_abs_flag
     
     def load_transform_setting(self):
@@ -3637,6 +3743,7 @@ class SiSideBarWeight(qt.DockWindow):
         
     #コンテキストが変更されたらui上のコンテキストも移動する
     def set_select_context(self):
+        #print 'set ui context'
         if select_but.isChecked():
             self.pre_context = cmds.currentCtx() 
             select_but.setIcon(QIcon(image_path+self.sel_on_icon))
@@ -5435,8 +5542,8 @@ class TransformSettingOption(qt.MainWindow):
         sisidebar_sub.set_round_decimal(decimal=value)
         round_decimal_value = value
         sisidebar_sub.get_matrix()
-        top_menus = window.create_trans_menu()
-        window.transfrom_top.setMenu(top_menus)
+        #top_menus = window.create_trans_menu()
+        #window.transform_top.setMenu(top_menus)
         if 'transform_manu_window' in globals():
             transform_manu_window.re_init_window()
         
