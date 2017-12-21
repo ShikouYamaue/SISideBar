@@ -89,7 +89,10 @@ def restore_context_and_axis():
                     if not cmds.ls(sl=True):
                         if pre_sel_comp:
                             #print 'newsel'
-                            cmds.select(pre_sel_comp[0])
+                            try:
+                                cmds.select(pre_sel_comp[0])
+                            except:
+                                pass
                     if cmds.ls(sl=True):
                         sb.window.select_xyz_from_manip()#事前に選択したハンドル方向をなるべくキープする
                         if current_selection != cmds.ls(sl=True):
@@ -105,7 +108,10 @@ def restore_context_and_axis():
                     if not cmds.ls(sl=True):
                         if pre_sel_obj:
                             #print 'newsel'
-                            cmds.select(pre_sel_obj[0])
+                            try:
+                                cmds.select(pre_sel_obj[0])
+                            except:
+                                pass
                     if cmds.ls(sl=True):
                         sb.window.select_xyz_from_manip()#事前に選択したハンドル方向をなるべくキープする
                         if current_selection != cmds.ls(sl=True):
