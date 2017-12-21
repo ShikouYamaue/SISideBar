@@ -82,6 +82,8 @@ def restore_context_and_axis():
     target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
     #選択オブジェクトが切り替わったときだけ切り替え実行
     if cmds.selectMode(q=True, co=True):
+        if cmds.ls(sl=True, type='transform'):#複合選択モードの時は逃げる
+            return
         if 'pre_sel_comp' in globals():
             current_selection = cmds.ls(sl=True, fl=True)
             if pre_sel_comp != current_selection:
@@ -106,6 +108,8 @@ def restore_context_and_axis():
                 if current_tool in target_tool_list:
                     #print 'ajust context'
                     if not cmds.ls(sl=True):
+                        if cmds.ls(hl=True):#ラティスポイントとかの時は逃げる
+                            return
                         if pre_sel_obj:
                             #print 'newsel'
                             try:
@@ -121,7 +125,7 @@ def restore_context_and_axis():
         global pre_sel_obj
         pre_sel_obj = cmds.ls(sl=True, o=True)
     pre_mode = current_mode
-    
+            
 def set_view_decimal(decimal):
     #print 'change decimal', decimal
     global view_decimal
