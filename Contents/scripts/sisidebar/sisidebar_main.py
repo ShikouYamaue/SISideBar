@@ -2286,8 +2286,12 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #parent
-        self.parent_but = make_flat_btton(name = 'Parent', text=text_col, bg=hilite, checkable=False)
+        tip = general.LanguageMessage(
+        en='Parent the selected node to the last selected node\nLeft click >> Do not hold local transform\nRight click >> Maintain local transform',
+        ja=u'選択ノードを最後に選択したノードに親子付け\n左クリック→ローカル変換保持しない\n右クリック→ローカル変換を保持')
+        self.parent_but = make_flat_btton(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip.output)
         self.parent_but.clicked.connect(self.parent_node)
+        self.parent_but.rightClicked.connect(lambda : self.parent_node(r=True))
         self.main_layout.addWidget(self.parent_but, vn, 0, 1 ,6)
         #cut
         self.cut_but = make_flat_btton(name = 'Cut', text=text_col, bg=hilite, checkable=False)
@@ -3820,9 +3824,12 @@ class SiSideBarWeight(qt.DockWindow):
                     break
         pm.select(selection, r=True)
         
-    def parent_node(self):
+    def parent_node(self, r=False):
         try:
-            cmds.parent()
+            if r:
+                cmds.parent(r=True)
+            else:
+                cmds.parent()
         except Exception as e:
             print e.message
             pass
