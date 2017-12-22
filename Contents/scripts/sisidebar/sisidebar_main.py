@@ -2286,7 +2286,7 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #parent
-        tip = lang.Lnag(
+        tip = lang.Lang(
         en='Parent the selected node to the last selected node\nLeft click >> Do not hold local transform\nRight click >> Maintain local transform',
         ja=u'選択ノードを最後に選択したノードに親子付け\n左クリック→ローカル変換保持しない\n右クリック→ローカル変換を保持')
         self.parent_but = make_flat_btton(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip.output())
