@@ -84,6 +84,8 @@ def restore_context_and_axis():
     if cmds.selectMode(q=True, co=True):
         if cmds.ls(sl=True, type='transform'):#複合選択モードの時は逃げる
             return
+        if cmds.ls(sl=True, set=True):#複合選択モードの時は逃げる
+            return
         if 'pre_sel_comp' in globals():
             current_selection = cmds.ls(sl=True, fl=True)
             if pre_sel_comp != current_selection:
