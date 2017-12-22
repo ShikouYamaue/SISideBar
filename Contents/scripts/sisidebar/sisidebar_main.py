@@ -503,7 +503,10 @@ class SiSideBarWeight(qt.DockWindow):
                     continue
                 #print i, mode, handle_id
                 #print 'check xyz but active :', active_list[handle_id][i]
-                but.setChecked(active_list[handle_id][i])
+                try:
+                    but.setChecked(active_list[handle_id][i])
+                except:
+                    return
             if keep:
                 self.keep_srt_select(mode=mode)
         except Exception as e:
