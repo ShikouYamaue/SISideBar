@@ -195,7 +195,7 @@ def set_joint_orient(reset=True):
             cmds.joint(j, e=True, orientation=rot)
     sisidebar_sub.get_matrix()
             
-def reset_transform(mode='', c_comp=False):
+def reset_transform(mode='', c_comp=False, reset_pivot=True):
     #print 'comp mode :', c_comp
     from . import sisidebar_sub
     if cmds.selectMode(q=True, co=True):
@@ -217,8 +217,9 @@ def reset_transform(mode='', c_comp=False):
         if mode == 'scale':
             cmds.xform(sel, s=[1, 1, 1])
         if mode == 'trans' or mode =='all':
-            cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
-            cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+            if reset_pivot:
+                cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+                cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
         if c_comp:
             common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
     common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#ダミー親削除

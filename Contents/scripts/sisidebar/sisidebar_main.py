@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.8 -'
+version = ' - SI Side Bar / ver_2.2.9 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -3495,10 +3495,15 @@ class SiSideBarWeight(qt.DockWindow):
         action27.triggered.connect(qt.Callback(lambda : toggle_center_mode(mode=False, ntpose=True)))
         self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
-        mag = lang.Lang(en='Reset All Transforms',
-                                ja=u'すべての変換をリセット')
+        mag = lang.Lang(en='Reset All Transforms(with Pivot)',
+                                ja=u'すべての変換をリセット(ピボットもリセット)')
         action13 = self.trans_menus.addAction(mag.output())
         action13.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all', c_comp=self.child_comp_but.isChecked())))
+        mag = lang.Lang(en='Reset All Transforms(without Pivot)',
+                                ja=u'すべての変換をリセット(ピボットはリセットしない)')
+        action29 = self.trans_menus.addAction(mag.output())
+        action29.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='all', c_comp=self.child_comp_but.isChecked(), 
+                                                                                                                            reset_pivot=False)))
         mag = lang.Lang(en='Reset Scaling',
                                 ja=u'スケーリングのリセット')
         action14 = self.trans_menus.addAction(mag.output())
@@ -3507,10 +3512,15 @@ class SiSideBarWeight(qt.DockWindow):
                                 ja=u'回転のリセット')
         action15 = self.trans_menus.addAction(mag.output())
         action15.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='rot', c_comp=self.child_comp_but.isChecked())))
-        mag = lang.Lang(en='Reset Translation',
-                                ja=u'移動のリセット')
+        mag = lang.Lang(en='Reset Translation(with Pivot)',
+                                ja=u'移動のリセット(ピボットもリセット)')
         action16 = self.trans_menus.addAction(mag.output())
         action16.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans', c_comp=self.child_comp_but.isChecked())))
+        mag = lang.Lang(en='Reset Translation(without Pivot)',
+                                ja=u'移動のリセット(ピボットはリセットしない)')
+        action30 = self.trans_menus.addAction(mag.output())
+        action30.triggered.connect(qt.Callback(lambda : transform.reset_transform(mode='trans', c_comp=self.child_comp_but.isChecked(), 
+                                                                                                                            reset_pivot=False)))
         self.trans_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Freeze All Transforms',
