@@ -243,34 +243,55 @@ def freeze_transform(mode='', c_comp=False):
             matching_obj=srt_dummy
             trs_matching(node=sel, sel_org=False)
         common.TemporaryReparent().main(sel,dummyParent=dummy, srtDummyParent=srt_dummy, mode='custom_cut', preSelection=selections)
-                
-        if mode == 'all':
-            cmds.makeIdentity(sel, n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
-            cmds.xform(srt_dummy, t=[0, 0, 0])
-            cmds.xform(srt_dummy, ro=[0, 0, 0])
-            cmds.xform(srt_dummy, s=[1, 1, 1])
-        if mode == 'trans':
-            cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
-            cmds.xform(srt_dummy, t=[0, 0, 0])
-        if mode == 'rot':
-            cmds.makeIdentity(sel, n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
-            cmds.xform(srt_dummy, ro=[0, 0, 0])
-        if mode == 'scale':
-            cmds.makeIdentity(sel, n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
-            cmds.xform(srt_dummy, s=[1, 1, 1])
-        if mode == 'joint':
-            if cmds.nodeType(sel) == 'joint':
-                cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
+        attr_lock_flag_list = check_attr_locked(sel)
+        try:
+            if mode == 'all':
+                cmds.makeIdentity(sel, n=0, s=1, r=1, jointOrient=1, t=1, apply=True, pn=1)
+                cmds.xform(srt_dummy, t=[0, 0, 0])
                 cmds.xform(srt_dummy, ro=[0, 0, 0])
-        if mode == 'trans' or mode =='all':
-            cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
-            cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+                cmds.xform(srt_dummy, s=[1, 1, 1])
+            if mode == 'trans':
+                cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=0, t=1, apply=True, pn=1)
+                cmds.xform(srt_dummy, t=[0, 0, 0])
+            if mode == 'rot':
+                cmds.makeIdentity(sel, n=0, s=0, r=1, jointOrient=0, t=0, apply=True, pn=1)
+                cmds.xform(srt_dummy, ro=[0, 0, 0])
+            if mode == 'scale':
+                cmds.makeIdentity(sel, n=0, s=1, r=0, jointOrient=0, t=0, apply=True, pn=1)
+                cmds.xform(srt_dummy, s=[1, 1, 1])
+            if mode == 'joint':
+                if cmds.nodeType(sel) == 'joint':
+                    cmds.makeIdentity(sel, n=0, s=0, r=0, jointOrient=1, t=0, apply=True, pn=1)
+                    cmds.xform(srt_dummy, ro=[0, 0, 0])
+            if mode == 'trans' or mode =='all':
+                cmds.xform(sel+'.scalePivot', t=[0, 0, 0], os=True)
+                cmds.xform(sel+'.rotatePivot', t=[0, 0, 0], os=True)
+        except Exception as e:
+            print e.message
+            cmds.inViewMessage( amg=e.message, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
+        set_attr_locked(sel, attr_lock_flag_list)
         common.TemporaryReparent().main(sel, dummyParent=dummy, mode='parent')
         common.TemporaryReparent().main(sel, dummyParent=srt_dummy, mode='parent')
         common.TemporaryReparent().main(dummyParent=dummy, mode='delete')#
         common.TemporaryReparent().main(dummyParent=srt_dummy, mode='delete')#ダミー親削除
     cmds.select(selections, r=True)
     sisidebar_sub.get_matrix()
+
+global all_attr_list
+all_attr_list = [['.sx', '.sy', '.sz'], ['.rx', '.ry', '.rz'], ['.tx', '.ty', '.tz']]
+def check_attr_locked(node):
+    attr_lock_flag_list = [[None, None, None], [None, None, None], [None, None, None]]
+    for i,attrs in enumerate(all_attr_list):
+        for j, attr in enumerate(attrs):
+            attr_lock_flag_list[i][j] = cmds.getAttr(node+attr, lock=True)
+            cmds.setAttr(node+attr, lock=False)
+    return attr_lock_flag_list 
+def set_attr_locked(node, attr_lock_flag_list):
+    for i,attrs in enumerate(all_attr_list):
+        for j, attr in enumerate(attrs):
+            cmds.setAttr(node+attr, lock=attr_lock_flag_list[i][j])
+    
+    
 def check_depth(node):
     count = 0
     while True:
