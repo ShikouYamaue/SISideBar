@@ -89,7 +89,7 @@ def register_sishelf_runtime_command():
         'annotation':      "Open SiSideBar",
         'category':        "SiSideBar",
         'commandLanguage': "python",
-        'command':         r'''"import sisidebar.sisidebar_main as ssbm\r\ssbm.SiSideBarWeight() "''',
+        'command':         r'''"import sisidebar.sisidebar_main as ssbm\r\ssbm.main()"''',
         'cmd_name':        "OpenSiSideBar"
     }
     register_runtime_command(opts)
