@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.2.9 -'
+version = ' - SI Side Bar / ver_2.3.0 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -133,11 +133,22 @@ def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=N
 #右クリックボタンクラスの作成
 class RightClickButton(QPushButton):
     rightClicked = Signal()
+    def __init__(self, *args, **kwargs):
+        super(RightClickButton, self).__init__(*args, **kwargs)
+        self.clicked.connect(check_key_modifiers)
     def mouseReleaseEvent(self, e):
         if e.button() == Qt.RightButton:
             self.rightClicked.emit()
         else:
             super(RightClickButton, self).mouseReleaseEvent(e)
+#Shift押されてるかどうかを判定する関数            
+def check_key_modifiers():
+    global shift_mod
+    mods = QApplication.keyboardModifiers()
+    isShiftPressed =  mods & Qt.ShiftModifier
+    #print "Shift pressed?", bool(isShiftPressed)
+    shift_mod = bool(isShiftPressed)
+    
 class RightClickToolButton(QToolButton):
     rightClicked = Signal()
     def mouseReleaseEvent(self, e):
@@ -1636,24 +1647,45 @@ class SiSideBarWeight(qt.DockWindow):
         self.select_line_a = make_h_line()
         self.main_layout.addWidget(self.select_line_a, vn, 0, 1 ,11)
         vn+=1
-        self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
-        self.select_all_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
-        self.main_layout.addWidget(self.select_all_but, vn, 0, 1 ,2)
-        self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Handle')
-        self.select_Marker_but.clicked.connect(lambda : self.select_filter_mode(mode=1))
-        self.main_layout.addWidget(self.select_Marker_but, vn, 2, 1 ,2)
-        self.select_joint_but = make_flat_btton(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Joint')
-        self.select_joint_but.clicked.connect(lambda : self.select_filter_mode(mode=2))
-        self.main_layout.addWidget(self.select_joint_but, vn, 4, 1 ,2)
-        self.select_curve_but = make_flat_btton(icon=':/pickCurveObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Curve')
-        self.select_curve_but.clicked.connect(lambda : self.select_filter_mode(mode=3))
-        self.main_layout.addWidget(self.select_curve_but, vn, 6, 1 ,2)
-        self.select_surface_but = make_flat_btton(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Geometry')
-        self.select_surface_but.clicked.connect(lambda : self.select_filter_mode(mode=4))
-        self.main_layout.addWidget(self.select_surface_but, vn, 8, 1 ,2)
-        self.select_deform_but = make_flat_btton(icon=':/pickDeformerObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='Deformer')
-        self.select_deform_but.clicked.connect(lambda : self.select_filter_mode(mode=5))
-        self.main_layout.addWidget(self.select_deform_but, vn, 10, 1 ,1)
+        #self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
+        #self.select_all_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
+        #self.main_layout.addWidget(self.select_all_but, vn, 0, 1 ,2)
+        tip = lang.Lang(en=u'Selection filter / Handle object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / ハンドル オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_Marker_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
+        self.select_Marker_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_Marker_but, vn, 0, 1 ,2)
+        tip = lang.Lang(en=u'Selection filter / Joint object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / ジョイント オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_joint_but = make_flat_btton(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_joint_but.clicked.connect(lambda : self.select_filter_mode(mode=1))
+        self.select_joint_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_joint_but, vn, 2, 1 ,2)
+        tip = lang.Lang(en=u'Selection filter / Curve object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / カーブ オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_curve_but = make_flat_btton(icon=':/pickCurveObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_curve_but.clicked.connect(lambda : self.select_filter_mode(mode=2))
+        self.select_curve_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_curve_but, vn, 4, 1 ,2)
+        tip = lang.Lang(en=u'Selection filter / Geometry object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / ジオメトリ オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_surface_but = make_flat_btton(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_surface_but.clicked.connect(lambda : self.select_filter_mode(mode=3))
+        self.select_surface_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_surface_but, vn, 6, 1 ,2)
+        tip = lang.Lang(en=u'Deformer filter / Deformation object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / デフォメーション オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_deform_but = make_flat_btton(icon=':/pickDeformerObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_deform_but.clicked.connect(lambda : self.select_filter_mode(mode=4))
+        self.select_deform_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_deform_but, vn, 8, 1 ,2)
+        tip = lang.Lang(en=u'Deformer filter / Other object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
+                                ja=u'選択フィルター / その他のオブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
+        self.select_other_but = make_flat_btton(icon=':/pickOtherObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_other_but.clicked.connect(lambda : self.select_filter_mode(mode=5))
+        self.select_other_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
+        self.main_layout.addWidget(self.select_other_but, vn, 10, 1 ,1)
         '''
         self.filter_group = QButtonGroup(self)#ボタンをまとめる変数を定義
         self.filter_group.addButton(self.select_all_but, 0)
@@ -1765,8 +1797,9 @@ class SiSideBarWeight(qt.DockWindow):
         #vn+=1
         #一括操作ようにリストにしておく
         self.all_select_but_list = [select_but, select_group_but, center_mode_but]
-        self.all_filter_but_list = [self.select_all_but, self.select_Marker_but, self.select_joint_but, 
-                                            self.select_curve_but, self.select_surface_but, self.select_deform_but]
+        self.all_filter_but_list = [self.select_Marker_but, self.select_joint_but, 
+                                            self.select_curve_but, self.select_surface_but, 
+                                            self.select_deform_but, self.select_other_but]
         self.all_search_widgets = [self.selection_line, self.index_line, self.pick_down, self.pick_left, self.pick_up, self.pick_right] 
 
         self.filter_but_list = [self.all_filter, self.transform_filter, 
@@ -3235,12 +3268,9 @@ class SiSideBarWeight(qt.DockWindow):
             check_filter_mode[7] = True
         if all(check_filter_mode):
             for i, but in enumerate(self.all_filter_but_list):
-                if i == 0:
-                    but.setChecked(True)
-                else:
-                    but.setChecked(False)
+                but.setChecked(True)
         else:
-            for flag, but in zip([False]+check_filter_mode, self.all_filter_but_list):
+            for flag, but in zip(check_filter_mode[:5]+check_filter_mode[-1:], self.all_filter_but_list):
                 but.setChecked(flag)
                     
         snap_mode = cmds.snapMode(q=True, grid=True)
@@ -3739,13 +3769,23 @@ class SiSideBarWeight(qt.DockWindow):
         joint_animation.reset_actor()
     #ダグノードの選択フィルタリングを変更する
     def select_filter_mode(self, mode=0):
-        #print mode
+        #shiftかどうかを判定
+        #print shift_mod
         #self.all_filter_but_list
-        filters = ['All', "Marker", "Joint", "Surface", "Curve", "Deformer", "Other"]
+        filters = ["Marker", "Joint", "Curve", "Surface", "Deformer", "Other"]
         filter_coms = ["Marker", "Joint", "Curve", "Surface", "Deformer", "Dynamic", "Rendering", "Other"]
         for f in filter_coms:
-            if filters[mode] == 'All':
+            if mode == -1:
                 mel.eval('setObjectPickMask '+f+' true;')
+                continue
+            if shift_mod:
+                if f == filters[mode]:
+                    if self.all_filter_but_list[mode].isChecked():
+                        print 'True', f
+                        mel.eval('setObjectPickMask '+f+' true;')
+                    else:
+                        print 'false', f
+                        mel.eval('setObjectPickMask '+f+' false;')
                 continue
             if f == filters[mode]:
                 mel.eval('setObjectPickMask '+f+' true;')
@@ -3753,10 +3793,16 @@ class SiSideBarWeight(qt.DockWindow):
                 mel.eval('setObjectPickMask '+f+' false;')
         
         for i, but in enumerate(self.all_filter_but_list):
-            if mode == i:
+            if mode == -1:
                 but.setChecked(True)
+                continue
+            if shift_mod:
+                continue
             else:
-                but.setChecked(False)
+                if mode == i:
+                    but.setChecked(True)
+                else:
+                    but.setChecked(False)
         
     #コンテキストが変更されたらui上のコンテキストも移動する
     def set_select_context(self):
