@@ -51,7 +51,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.0 -'
+version = ' - SI Side Bar / ver_2.3.1 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -2556,6 +2556,8 @@ class SiSideBarWeight(qt.DockWindow):
             self.view_ds_line()
             self.destroy_mode(init_ui=False)
             #self.destroy_mode(init_ui=False)
+        self.load_mouse_setting()#マウスジェスチャー設定をロード
+        
     #デストロイモード用のラインを隠した状態で作っておく
     ds_line_list=[]
     def make_ds_line(self):
@@ -2987,6 +2989,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.pre_vec = [0, 1]
             self.count = 0
             self.mouse_flag = True
+            self.button = event.button()
             #マウスジェスチャー入力のアンドゥを開く
             cmds.undoInfo(openChunk=True)
         if event.type() == QEvent.MouseButtonRelease:
@@ -2996,6 +2999,18 @@ class SiSideBarWeight(qt.DockWindow):
             cmds.undoInfo(closeChunk=True)
         if self.mouse_flag:
             if event.type() == QEvent.MouseMove:
+                if self.button == Qt.RightButton:
+                    global right_click_gesture
+                    if not right_click_gesture:
+                        return
+                if self.button == Qt.MiddleButton:
+                    global center_click_gesture
+                    if not center_click_gesture:
+                        return
+                if self.button == Qt.LeftButton:
+                    global left_click_gesture
+                    if not left_click_gesture:
+                        return
                 mod = event.modifiers()
                 #print 'ev mod', mod
                 if mod == Qt.ControlModifier:
@@ -3439,9 +3454,112 @@ class SiSideBarWeight(qt.DockWindow):
         self.sel_action03 = QAction(mag.output(), self.select_menus, icon=QIcon(cld_icon))
         self.sel_action03.triggered.connect(self.set_click_drag)
         self.select_menus.addAction(self.sel_action03)
-        
+        #----------------------------------------------------------------------------------------------------
+        self.select_menus.addSeparator()#分割線追加
+        self.load_mouse_setting()
+        mag = lang.Lang(en='Left Click Enable mouse gesture input',
+                                ja=u'左クリック マウスジェスチャー入力有効')
+        self.action31 =  self.select_menus.addAction(mag.output())
+        self.action31.triggered.connect(self.change_l_gesture)
+        mag = lang.Lang(en='Center Click Enable mouse gesture input',
+                                ja=u'中クリック マウスジェスチャー入力有効')
+        self.action32 =  self.select_menus.addAction(mag.output())
+        self.action32.triggered.connect(self.change_c_gesture)
+        mag = lang.Lang(en='Right Click Enable mouse gesture input',
+                                ja=u'右クリック マウスジェスチャー入力有効')
+        self.action33 =  self.select_menus.addAction(mag.output())
+        self.action33.triggered.connect(self.change_r_gesture)
+        self.set_mouse_gesture()
         return self.select_menus
+    def set_mouse_gesture(self):
+        self.set_r_gesture()
+        self.set_c_gesture()
+        self.set_l_gesture()
         
+    def change_l_gesture(self):
+        global left_click_gesture
+        if left_click_gesture:
+            left_click_gesture = False
+        else:
+            left_click_gesture = True
+        self.set_l_gesture()
+        self.save_mouse_setting()
+    def change_c_gesture(self):
+        global center_click_gesture
+        if center_click_gesture:
+            center_click_gesture = False
+        else:
+            center_click_gesture = True
+        self.set_c_gesture()
+        self.save_mouse_setting()
+    def change_r_gesture(self):
+        global right_click_gesture
+        if right_click_gesture:
+            right_click_gesture = False
+        else:
+            right_click_gesture = True
+        self.set_r_gesture()
+        self.save_mouse_setting()
+        
+    #マウスジェスチャーの有効無効を切り替え
+    def set_l_gesture(self):
+        global left_click_gesture
+        if left_click_gesture:
+            self.action31.setIcon(QIcon(image_path+self.check_icon))
+        else:
+            self.action31.setIcon(QIcon(None))
+        
+    def set_c_gesture(self):
+        global center_click_gesture
+        if center_click_gesture:
+            self.action32.setIcon(QIcon(image_path+self.check_icon))
+        else:
+            self.action32.setIcon(QIcon(None))
+        
+    def set_r_gesture(self):
+        global right_click_gesture
+        if right_click_gesture:
+            self.action33.setIcon(QIcon(image_path+self.check_icon))
+        else:
+            self.action33.setIcon(QIcon(None))
+        #print 'set_r_setting', right_click_gesture
+        
+    def save_mouse_setting(self):
+        self.mouse_setting_path = self.dir_path+'\\sisidebar_mouse_data_'+str(maya_ver)+'.json'
+        global right_click_gesture
+        global center_click_gesture
+        global left_click_gesture
+        if not os.path.exists(self.dir_path):
+            os.makedirs(self.dir_path)
+        save_data = {}
+        save_data['r_mouse'] = right_click_gesture
+        save_data['c_mouse'] = center_click_gesture
+        save_data['l_mouse'] = left_click_gesture
+        with open(self.mouse_setting_path, 'w') as f:
+            json.dump(save_data, f)
+        
+    def load_mouse_setting(self):
+        self.mouse_setting_path = self.dir_path+'\\sisidebar_mouse_data_'+str(maya_ver)+'.json'
+        global right_click_gesture
+        global center_click_gesture
+        global left_click_gesture
+        if os.path.isfile(self.mouse_setting_path):#保存ファイルが存在したら
+            with open(self.mouse_setting_path, 'r') as f:
+                save_data = json.load(f)
+            try:
+                right_click_gesture = save_data['r_mouse']
+                center_click_gesture = save_data['c_mouse']
+                left_click_gesture = save_data['l_mouse']
+            except:
+                right_click_gesture = True
+                center_click_gesture = True
+                left_click_gesture = True
+        else:
+            right_click_gesture = True
+            center_click_gesture = True
+            left_click_gesture = True
+        #print 'load mouse'
+    
     def check_click_drag_highlight(self):
         if cmds.selectPref(q=True, cld=True):
             return image_path+self.check_icon
@@ -5582,6 +5700,7 @@ class TransformSettingOption(qt.MainWindow):
         self.mouse_gesture.valueChanged[int].connect(self.mouse_gesture_sld.setValue)
         self.mouse_gesture_sld.valueChanged[int].connect(change_mouse_gesture)
         self.mouse_gesture_sld.valueChanged[int].connect(self.save_setting)
+        
         
         self.show()
         move_to_best_pos(object=self, offset=transform_offset)
