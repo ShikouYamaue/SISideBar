@@ -113,7 +113,7 @@
     
     ・Editにオブジェクト編集機能拡張中
     UVを保持してエッジを押し出す機能
-    ![2](https://user-images.githubusercontent.com/28256498/35185509-112718ba-fe49-11e7-8c75-ab29eb50143a.gif)
+![2](https://user-images.githubusercontent.com/28256498/35185509-112718ba-fe49-11e7-8c75-ab29eb50143a.gif)
     
 
     ・とりあえず使用説明動画とってみました
