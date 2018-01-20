@@ -285,3 +285,69 @@ class LineEdit(QLineEdit):
             return
         super(LineEdit, self).keyPressEvent(event)
         
+#右クリックボタンクラスの作成
+class RightClickButton(QPushButton):
+    rightClicked = Signal()
+    def __init__(self, *args, **kwargs):
+        super(RightClickButton, self).__init__(*args, **kwargs)
+        self.clicked.connect(check_key_modifiers)
+    def mouseReleaseEvent(self, e):
+        if e.button() == Qt.RightButton:
+            self.rightClicked.emit()
+        else:
+            super(RightClickButton, self).mouseReleaseEvent(e)
+class RightClickToolButton(QToolButton):
+    rightClicked = Signal()
+    def mouseReleaseEvent(self, e):
+        if e.button() == Qt.RightButton:
+            self.rightClicked.emit()
+        else:
+            super(RightClickToolButton, self).mouseReleaseEvent(e)
+#Shift押されてるかどうかを判定する関数            
+def check_key_modifiers():
+    global shift_mod
+    mods = QApplication.keyboardModifiers()
+    isShiftPressed =  mods & Qt.ShiftModifier
+    #print "Shift pressed?", bool(isShiftPressed)
+    shift_mod = bool(isShiftPressed)
+            
+#フラットボタンを作って返す
+def make_flat_button(icon=None, name='', text=200, bg=[54, 51, 51], ui_color=68, border_col=[180, 140, 30], 
+                                    checkable=True, w_max=None, w_min=None, push_col=120, 
+                                    h_max=None, h_min=None, policy=None, icon_size=None, tip=None, flat=True, hover=True, 
+                                    destroy_flag=False, context=None, costom_push=None):
+    button = RightClickButton()
+    button.setText(name)
+    if checkable:
+        button.setCheckable(True)#チェックボタンに
+    if icon:
+        button.setIcon(QIcon(icon))
+    if flat:
+        button.setFlat(True)#ボタンをフラットに
+        change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+        button.toggled.connect(lambda : change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', toggle=True, hover=hover, destroy=destroy_flag, dsColor=border_col))
+    else:
+        button.setFlat(False)
+        button.setFlat(False)
+        if costom_push is None:
+            change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+        else:
+            change_button_color(button, textColor=text, bgColor=bg, hiColor=costom_push, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+    if w_max:
+        button.setMaximumWidth(w_max)
+    if w_min:
+        button.setMinimumWidth(w_min)
+    if h_max:
+        button.setMaximumHeight(h_max)
+    if h_min:
+        button.setMinimumHeight(h_min)
+    if icon_size:
+        button.setIconSize(QSize(*icon_size))
+    if policy:#拡大縮小するようにポリシー設定
+        button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
+    if tip:
+        button.setToolTip(tip)
+    if context:#コンテキストメニュー設定
+        button.setContextMenuPolicy(Qt.CustomContextMenu)
+        button.customContextMenuRequested.connect(context)
+    return button

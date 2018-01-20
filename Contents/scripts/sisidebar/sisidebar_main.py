@@ -15,6 +15,8 @@ from . import transform
 from . import freeze
 from . import sets
 from . import setup
+from . import vector
+from . import extrude_edge
 import math
 import datetime as dt
 import random
@@ -51,7 +53,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.1 -'
+version = ' - SI Side Bar / ver_2.3.2 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -73,6 +75,7 @@ else:
     prop_offset = [-55, -55, 315, -180]
     sym_offset = [-55, -55, 320, -180]
 filter_offset = [-100, -100, 215, -180]
+edge_extrude_offset = [-162, -162, 215, -180]
 global uni_vol_dict
 #Uni/Volボタン仕様変更のため
 uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
@@ -88,41 +91,14 @@ global all_flat_buttons
 all_flat_buttons = []
 global all_flat_button_palams
 all_flat_button_palams = []
-def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=None, w_min=None, costom_push=None,
-                                h_max=22, h_min=20, policy=None, icon_size=None, tip=None, flat=True, hover=True):
+def make_flat_button(icon=None, name='', text=95, bg=200, checkable=True, w_max=None, w_min=None, costom_push=None,
+                                h_max=22, h_min=20, policy=None, icon_size=None, tip=None, flat=True, hover=True, context=None):
     global all_flat_buttons
     global all_flat_button_palams
-    button = RightClickButton()
-    button.setText(name)
-    if checkable:
-        button.setCheckable(True)#チェックボタンに
-    if icon:
-        button.setIcon(QIcon(icon))
-    if flat:
-        button.setFlat(True)#ボタンをフラットに
-        qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
-        button.toggled.connect(lambda : qt.change_button_color(button, textColor=text, bgColor=ui_color, hiColor=bg, mode='button', toggle=True, hover=hover, destroy=destroy_flag, dsColor=border_col))
-    else:
-        button.setFlat(False)
-        if costom_push is None:
-            qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
-        else:
-            qt.change_button_color(button, textColor=text, bgColor=bg, hiColor=costom_push, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
-            
-    if w_max:
-        button.setMaximumWidth(w_max)
-    if w_min:
-        button.setMinimumWidth(w_min)
-    if h_max:
-        button.setMaximumHeight(h_max)
-    if h_min:
-        button.setMinimumHeight(h_min)
-    if icon_size:
-        button.setIconSize(QSize(*icon_size))
-    if policy:#拡大縮小するようにポリシー設定
-        button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
-    if tip:
-        button.setToolTip(tip)
+    button = qt.make_flat_button(icon=icon, name=name, text=text, bg=bg, ui_color=ui_color, border_col=border_col,
+                                                checkable=checkable, w_max=w_max, w_min=w_min, costom_push=costom_push,
+                                                h_max=h_max, h_min=h_min, policy=policy, icon_size=icon_size, tip=tip, flat=flat, hover=hover,
+                                                destroy_flag=destroy_flag, context=context)
     all_flat_buttons.append(button)
     if flat:
         all_flat_button_palams.append([text, ui_color, bg, 'button', hover, destroy_flag, border_col])
@@ -130,33 +106,7 @@ def make_flat_btton(icon=None, name='', text=95, bg=200, checkable=True, w_max=N
         all_flat_button_palams.append([text, bg, push_col, 'button', hover, destroy_flag, border_col])
     return button
     
-#右クリックボタンクラスの作成
-class RightClickButton(QPushButton):
-    rightClicked = Signal()
-    def __init__(self, *args, **kwargs):
-        super(RightClickButton, self).__init__(*args, **kwargs)
-        self.clicked.connect(check_key_modifiers)
-    def mouseReleaseEvent(self, e):
-        if e.button() == Qt.RightButton:
-            self.rightClicked.emit()
-        else:
-            super(RightClickButton, self).mouseReleaseEvent(e)
-#Shift押されてるかどうかを判定する関数            
-def check_key_modifiers():
-    global shift_mod
-    mods = QApplication.keyboardModifiers()
-    isShiftPressed =  mods & Qt.ShiftModifier
-    #print "Shift pressed?", bool(isShiftPressed)
-    shift_mod = bool(isShiftPressed)
     
-class RightClickToolButton(QToolButton):
-    rightClicked = Signal()
-    def mouseReleaseEvent(self, e):
-        if e.button() == Qt.RightButton:
-            self.rightClicked.emit()
-        else:
-            super(RightClickToolButton, self).mouseReleaseEvent(e)
-            
 #セーブファイルを読み込んで返す　   
 def read_save_file(init_pos=False):
     #セーブデータが無いかエラーした場合はデフォファイルを作成
@@ -209,6 +159,9 @@ class FloatingWindow(qt.SubWindow):
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
         self.show()#Showしてから移動しないとほしい位置が取れない
         move_to_best_pos(object=self, offset=offset)
+        #print self.sizeHint()
+        size = self.sizeHint()
+        self.resize(size.width(), size.height())
         
     def mouseReleaseEvent(self, e):
         reset_menu_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_init_window(mode = self.menu_name)), protected=True)
@@ -737,7 +690,7 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cog_but.isChecked():
             self.cog_but.setChecked(False)
             self.setup_object_center()
-        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 'select_manu_window']
+        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 'select_manu_window', 'extrude_edge_uv']
         for op_window in option_window_list:
             try:
                 exec(op_window+'.close()')
@@ -1581,13 +1534,13 @@ class SiSideBarWeight(qt.DockWindow):
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         self.main_layout.addWidget(label, vn, 0, 1 ,11)
         #オプションボタン--------------------------------------------------------------------------------
-        #self.bar_option = make_flat_btton(name = 'Option', text=text_col, bg=hilite, h_max=10, w_min=si_w, w_max=si_w)
+        #self.bar_option = make_flat_button(name = 'Option', text=text_col, bg=hilite, h_max=10, w_min=si_w, w_max=si_w)
         #self.main_layout.addWidget(self.bar_option, vn, 6, 1 ,5)
         vn+=1
         #カラー変更ボタン--------------------------------------------------------------------------------
-        self.ui_si = make_flat_btton(icon=image_path+'SI_Icon.png',name = ' S_Color ', text=text_col, bg=hilite, h_max=22, w_min=si_w, w_max=si_w)
+        self.ui_si = make_flat_button(icon=image_path+'SI_Icon.png',name = ' S_Color ', text=text_col, bg=hilite, h_max=22, w_min=si_w, w_max=si_w)
         self.main_layout.addWidget(self.ui_si, vn, 0, 1 ,6)
-        self.ui_maya = make_flat_btton(icon=image_path+'Maya_Icon.png', name = 'M_Color ', text=text_col, bg=hilite, h_max=22, w_min=maya_w, w_max=maya_w)
+        self.ui_maya = make_flat_button(icon=image_path+'Maya_Icon.png', name = 'M_Color ', text=text_col, bg=hilite, h_max=22, w_min=maya_w, w_max=maya_w)
         self.main_layout.addWidget(self.ui_maya, vn, 6, 1 ,5)
         self.ui_group = QButtonGroup(self)#ボタンをまとめる変数を定義
         self.ui_group.addButton(self.ui_si, 0)
@@ -1598,7 +1551,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(make_h_line(text=line_col, bg=line_col), vn, 0, 1 ,11)
         #--------------------------------------------------------------------------------
         vn+=1
-        self.select_top = make_flat_btton(name=u'▽ Select  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.select_top = make_flat_button(name=u'▽ Select  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         self.select_top.clicked.connect(lambda : self.pop_top_menus(but=self.select_top, menu_func=self.create_select_menu))
         #select_menus = self.create_select_menu()
         #self.select_top.setMenu(select_menus)
@@ -1610,7 +1563,7 @@ class SiSideBarWeight(qt.DockWindow):
         #選択モードボタン--------------------------------------------------------------------------------
         #select_but = QPushButton(QIcon(image_path+'Select_On.png'), '', self)
         global select_but
-        select_but = make_flat_btton(name = '', text=text_col, bg=ui_color, icon_size=(44, 44), policy=True, h_max=None, hover=False)
+        select_but = make_flat_button(name = '', text=text_col, bg=ui_color, icon_size=(44, 44), policy=True, h_max=None, hover=False)
         self.pre_context = cmds.currentCtx() 
         if self.pre_context == 'selectSuperContext':
             select_but.setIcon(QIcon(image_path+self.sel_on_icon))
@@ -1627,7 +1580,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.setRowStretch(vn+1,0)
         
         global select_group_but
-        select_group_but = make_flat_btton(name='Group', text=text_col, bg=hilite)
+        select_group_but = make_flat_button(name='Group', text=text_col, bg=hilite)
         global pre_sel_group_but
         select_group_but.setChecked(pre_sel_group_but)
         select_group_but.toggled.connect(lambda : sisidebar_sub.change_group_mode(select_group_but.isChecked()))
@@ -1636,7 +1589,7 @@ class SiSideBarWeight(qt.DockWindow):
         #self.select_group_but.setDisabled(True)
         self.main_layout.addWidget(select_group_but, vn, 6, 1 ,5)
         global center_mode_but
-        center_mode_but = make_flat_btton(name='Center', text=text_col, bg=hilite)
+        center_mode_but = make_flat_button(name='Center', text=text_col, bg=hilite)
         center_mode_but.toggled.connect(lambda : toggle_center_mode(init='init', mode=center_mode_but.isChecked()))
         #center_mode_but.setDisabled(True)
         self.main_layout.addWidget(center_mode_but, vn+1, 6, 1 ,5)
@@ -1647,42 +1600,42 @@ class SiSideBarWeight(qt.DockWindow):
         self.select_line_a = make_h_line()
         self.main_layout.addWidget(self.select_line_a, vn, 0, 1 ,11)
         vn+=1
-        #self.select_all_but = make_flat_btton(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
+        #self.select_all_but = make_flat_button(icon=':/iconSuper.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip='All Filters')
         #self.select_all_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
         #self.main_layout.addWidget(self.select_all_but, vn, 0, 1 ,2)
         tip = lang.Lang(en=u'Selection filter / Handle object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / ハンドル オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_Marker_but = make_flat_btton(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_Marker_but = make_flat_button(icon=':/pickHandlesObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_Marker_but.clicked.connect(lambda : self.select_filter_mode(mode=0))
         self.select_Marker_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_Marker_but, vn, 0, 1 ,2)
         tip = lang.Lang(en=u'Selection filter / Joint object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / ジョイント オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_joint_but = make_flat_btton(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_joint_but = make_flat_button(icon=':/pickJointObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_joint_but.clicked.connect(lambda : self.select_filter_mode(mode=1))
         self.select_joint_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_joint_but, vn, 2, 1 ,2)
         tip = lang.Lang(en=u'Selection filter / Curve object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / カーブ オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_curve_but = make_flat_btton(icon=':/pickCurveObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_curve_but = make_flat_button(icon=':/pickCurveObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_curve_but.clicked.connect(lambda : self.select_filter_mode(mode=2))
         self.select_curve_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_curve_but, vn, 4, 1 ,2)
         tip = lang.Lang(en=u'Selection filter / Geometry object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / ジオメトリ オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_surface_but = make_flat_btton(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_surface_but = make_flat_button(icon=':/pickGeometryObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_surface_but.clicked.connect(lambda : self.select_filter_mode(mode=3))
         self.select_surface_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_surface_but, vn, 6, 1 ,2)
         tip = lang.Lang(en=u'Deformer filter / Deformation object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / デフォメーション オブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_deform_but = make_flat_btton(icon=':/pickDeformerObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_deform_but = make_flat_button(icon=':/pickDeformerObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_deform_but.clicked.connect(lambda : self.select_filter_mode(mode=4))
         self.select_deform_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_deform_but, vn, 8, 1 ,2)
         tip = lang.Lang(en=u'Deformer filter / Other object\nLeft click >> Single selection\nShift + Left click >> Multiple selection / release\nRight click >> Select all',
                                 ja=u'選択フィルター / その他のオブジェクト\n左クリック→単独選択\nシフト+左クリック→複数選択/解除\n右クリック→全選択').output()
-        self.select_other_but = make_flat_btton(icon=':/pickOtherObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
+        self.select_other_but = make_flat_button(icon=':/pickOtherObj.png', name='', text=text_col, bg=hilite, w_max=filter_w, h_max=filter_h, tip=tip)
         self.select_other_but.clicked.connect(lambda : self.select_filter_mode(mode=5))
         self.select_other_but.rightClicked.connect(lambda : self.select_filter_mode(mode=-1))
         self.main_layout.addWidget(self.select_other_but, vn, 10, 1 ,1)
@@ -1721,16 +1674,16 @@ class SiSideBarWeight(qt.DockWindow):
         self.index_line = self.make_line_edit(text=string_col, bg=bg_col)
         self.index_line.editingFinished.connect(self.search_component)
         self.main_layout.addWidget(self.index_line, vn, 0, 2, 8)
-        self.pick_up = make_flat_btton(icon=':/arrowUp', name='', text=text_col, bg=ui_color, checkable=False, w_max=ud_w, h_max=ud_h ,h_min=None)
+        self.pick_up = make_flat_button(icon=':/arrowUp', name='', text=text_col, bg=ui_color, checkable=False, w_max=ud_w, h_max=ud_h ,h_min=None)
         self.pick_up.clicked.connect(lambda : self.pick_walk(mode='up'))
         self.main_layout.addWidget(self.pick_up, vn, 8, 1, 3)
-        self.pick_down = make_flat_btton(icon=':/arrowDown', name='', text=text_col, bg=ui_color, checkable=False, w_max=ud_w, h_max=ud_h ,h_min=None)
+        self.pick_down = make_flat_button(icon=':/arrowDown', name='', text=text_col, bg=ui_color, checkable=False, w_max=ud_w, h_max=ud_h ,h_min=None)
         self.pick_down.clicked.connect(lambda : self.pick_walk(mode='down'))
         self.main_layout.addWidget(self.pick_down, vn+1, 8, 1, 3)
-        self.pick_left = make_flat_btton(icon=':/arrowLeft', name='', text=text_col, bg=ui_color, checkable=False, w_max=lr_w, h_max=lr_h ,h_min=lr_min)
+        self.pick_left = make_flat_button(icon=':/arrowLeft', name='', text=text_col, bg=ui_color, checkable=False, w_max=lr_w, h_max=lr_h ,h_min=lr_min)
         self.pick_left.clicked.connect(lambda : self.pick_walk(mode='left'))
         self.main_layout.addWidget(self.pick_left, vn, 8, 2, 1)
-        self.pick_right = make_flat_btton(icon=':/arrowRight', name='', text=text_col, bg=ui_color, checkable=False, w_max=lr_w, h_max=lr_h ,h_min=lr_min)
+        self.pick_right = make_flat_button(icon=':/arrowRight', name='', text=text_col, bg=ui_color, checkable=False, w_max=lr_w, h_max=lr_h ,h_min=lr_min)
         self.pick_right.clicked.connect(lambda : self.pick_walk(mode='right'))
         self.main_layout.addWidget(self.pick_right, vn, 10, 2, 1)
         vn+=2
@@ -1741,53 +1694,53 @@ class SiSideBarWeight(qt.DockWindow):
         hw = 2
         fw = 23
         fh =18
-        self.all_filter = make_flat_btton(name='All', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from all node types')
+        self.all_filter = make_flat_button(name='All', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from all node types')
         self.all_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.all_filter.text()))
         self.all_filter.setChecked(True)
         self.main_layout.addWidget(self.all_filter, vn, vh, 1, hw)
         vh += hw
-        self.transform_filter = make_flat_btton(name='Trs', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Transform node')
+        self.transform_filter = make_flat_button(name='Trs', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Transform node')
         self.transform_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.transform_filter.text()))
         self.main_layout.addWidget(self.transform_filter, vn, vh, 1, hw)
         vh += hw
-        self.joint_filter = make_flat_btton(name='Jot', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Joint')
+        self.joint_filter = make_flat_button(name='Jot', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Joint')
         self.joint_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.joint_filter.text()))
         self.main_layout.addWidget(self.joint_filter, vn, vh, 1, hw)
         vh += hw
-        self.shape_filter = make_flat_btton(name='Sap', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Shape node')
+        self.shape_filter = make_flat_button(name='Sap', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Shape node')
         self.shape_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.shape_filter.text()))
         self.main_layout.addWidget(self.shape_filter, vn, vh, 1, hw)
         vh += hw
-        self.dummy_but_a = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_a = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_a , vn, vh, 1, hw)
         vh += hw
-        self.dummy_but_b = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_b = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_b , vn, vh, 1, hw)
         vh += hw
         vn+=1
         vh = 0#ボタンの開始地点
-        self.parent_cons_filter = make_flat_btton(name='Pac', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Parent Constraint')
+        self.parent_cons_filter = make_flat_button(name='Pac', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Parent Constraint')
         self.parent_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.parent_cons_filter.text()))
         self.main_layout.addWidget(self.parent_cons_filter, vn, vh, 1, hw)
         vh += hw
-        self.point_cons_filter = make_flat_btton(name='Poc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Point Constraint')
+        self.point_cons_filter = make_flat_button(name='Poc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Point Constraint')
         self.point_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.point_cons_filter.text()))
         self.main_layout.addWidget(self.point_cons_filter, vn, vh, 1, hw)
         vh += hw
-        self.orient_cons_filter = make_flat_btton(name='Orc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Orient Constraint')
+        self.orient_cons_filter = make_flat_button(name='Orc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Orient Constraint')
         self.orient_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.orient_cons_filter.text()))
         self.main_layout.addWidget(self.orient_cons_filter, vn, vh, 1, hw)
         vh += hw
-        self.scale_cons_filter = make_flat_btton(name='Slc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Scale Constraint')
+        self.scale_cons_filter = make_flat_button(name='Slc', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Scale Constraint')
         self.scale_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.scale_cons_filter.text()))
         self.main_layout.addWidget(self.scale_cons_filter, vn, vh, 1, hw)
         vh += hw
-        self.aim_cons_filter = make_flat_btton(name='Aic', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Aim Constraint')
+        self.aim_cons_filter = make_flat_button(name='Aic', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Aim Constraint')
         self.aim_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.aim_cons_filter.text()))
         self.main_layout.addWidget(self.aim_cons_filter, vn, vh, 1, hw)
         vh += hw
         self.select_line_c = make_h_line()
-        self.dummy_but_c = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_c = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_c , vn, vh, 1, 1)
         vh += hw
         vn+=1
@@ -1821,7 +1774,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         #トランスフォームエリア
         #action.triggered.connect()
-        self.transform_top = make_flat_btton(name=u'▽ Transform  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.transform_top = make_flat_button(name=u'▽ Transform  ', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         self.transform_top.clicked.connect(lambda : self.pop_top_menus(but=self.transform_top, menu_func=self.create_trans_menu))
         #qt.change_button_color(self.transform_top, textColor=text_col, bgColor=mid_color)
         #検索、セレクション表示窓--------------------------------------------------------------------------------
@@ -1860,7 +1813,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_scale_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_scale_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                     text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_x.clicked.connect(lambda : set_key_frame(mode=0, axis=0))
         key_scale_x.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
@@ -1875,12 +1828,12 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(scale_x, vn, tw, 1, text_b)
         tw += text_b
         
-        self.but_scale_x = make_flat_btton(icon=image_path+self.x_off, icon_size=axis_size, 
+        self.but_scale_x = make_flat_button(icon=image_path+self.x_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_scale_x, vn, tw, 1 ,axis_b)
         tw += axis_b
         #切り替え
-        select_scale = make_flat_btton(icon=image_path+self.s, icon_size=(20, 20), 
+        select_scale = make_flat_button(icon=image_path+self.s, icon_size=(20, 20), 
                                                             name = '', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         select_scale.clicked.connect(lambda : self.toggle_select_mode(mode=0))
         self.main_layout.addWidget(select_scale, vn, tw, 1 ,sel_b)
@@ -1888,7 +1841,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_scale_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_scale_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_y.clicked.connect(lambda : set_key_frame(mode=0, axis=1))
         key_scale_y.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
@@ -1901,12 +1854,12 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(scale_y, vn, tw, 1 ,text_b)
         tw += text_b
         
-        self.but_scale_y = make_flat_btton(icon=image_path+self.y_off, icon_size=axis_size, 
+        self.but_scale_y = make_flat_button(icon=image_path+self.y_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_scale_y, vn, tw, 1 ,axis_b)
         tw += axis_b
         #ロック状態切り替え
-        self.lock_attribute_scale = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+        self.lock_attribute_scale = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_scale.clicked.connect(lambda : self.attribute_lock_state(mode=0))
         self.lock_attribute_scale.rightClicked.connect(lambda : RockAttrMenu(name='Scale', mode=0))
@@ -1915,7 +1868,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_scale_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_scale_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_z.clicked.connect(lambda : set_key_frame(mode=0, axis=2))
         key_scale_z.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
@@ -1928,13 +1881,13 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(scale_z, vn, tw, 1 ,text_b)
         tw += text_b
         
-        self.but_scale_z = make_flat_btton(icon=image_path+self.z_off, icon_size=axis_size, 
+        self.but_scale_z = make_flat_button(icon=image_path+self.z_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_scale_z, vn, tw, 1 ,axis_b)
         tw += axis_b
         
         #XYZ全部ボタン
-        self.but_scale_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_scale_all = make_flat_button(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_scale_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -1952,7 +1905,7 @@ class SiSideBarWeight(qt.DockWindow):
         global key_rot_z 
         global select_rot
         
-        key_rot_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_rot_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_x.clicked.connect(lambda : set_key_frame(mode=1, axis=0))
         key_rot_x.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
@@ -1965,14 +1918,14 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(rot_x, vn, tw, 1 ,text_b)
         tw += text_b
         
-        self.but_rot_x = make_flat_btton(icon=image_path+self.x_off, icon_size=axis_size, 
+        self.but_rot_x = make_flat_button(icon=image_path+self.x_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         #qt.change_button_color(self.but_rot_x, textColor=text_col, bgColor=red)
         self.main_layout.addWidget(self.but_rot_x, vn, tw, 1 ,axis_b)
         tw += axis_b
         
         #切り替え
-        select_rot = make_flat_btton(icon=image_path+self.r, icon_size=(20, 20), 
+        select_rot = make_flat_button(icon=image_path+self.r, icon_size=(20, 20), 
                                                             name = '', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         select_rot.clicked.connect(lambda : self.toggle_select_mode(mode=1))
         self.main_layout.addWidget(select_rot, vn, tw, 1 ,sel_b)
@@ -1980,7 +1933,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_rot_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_rot_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_y.clicked.connect(lambda : set_key_frame(mode=1, axis=1))
         key_rot_y.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
@@ -1993,12 +1946,12 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(rot_y, vn, tw, 1 ,text_b)
         tw += text_b
         
-        self.but_rot_y = make_flat_btton(icon=image_path+self.y_off, icon_size=axis_size, 
+        self.but_rot_y = make_flat_button(icon=image_path+self.y_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_rot_y, vn, tw, 1 ,axis_b)
         tw += axis_b
         #ロック状態切り替え
-        self.lock_attribute_rot = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+        self.lock_attribute_rot = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_rot.clicked.connect(lambda : self.attribute_lock_state(mode=1))
         self.lock_attribute_rot.rightClicked.connect(lambda : RockAttrMenu(name='Rot', mode=1))
@@ -2007,7 +1960,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_rot_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_rot_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_z.clicked.connect(lambda : set_key_frame(mode=1, axis=2))
         key_rot_z.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
@@ -2016,7 +1969,7 @@ class SiSideBarWeight(qt.DockWindow):
         rot_z = self.make_line_edit(text=string_col, bg=bg_col)
         self.main_layout.addWidget(rot_z, vn, tw, 1 ,text_b)
         tw += text_b
-        self.but_rot_z = make_flat_btton(icon=image_path+self.z_off, icon_size=axis_size, 
+        self.but_rot_z = make_flat_button(icon=image_path+self.z_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         
         rot_z.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=rot_z.text(), current=(1, 2))))
@@ -2025,7 +1978,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.but_rot_z, vn, tw, 1 ,axis_b)
         tw += axis_b
         #XYZ全部ボタン
-        self.but_rot_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_rot_all = make_flat_button(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_rot_all, vn, tw, 1 ,sel_b)
         vn+=1
         #--------------------------------------------------------------------------------
@@ -2044,7 +1997,7 @@ class SiSideBarWeight(qt.DockWindow):
         
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
-        key_trans_x = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_trans_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_x.clicked.connect(lambda : set_key_frame(mode=2, axis=0))
         key_trans_x.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
@@ -2058,13 +2011,13 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(trans_x, vn, tw, 1 ,text_b)
         tw += text_b
         
-        self.but_trans_x = make_flat_btton(icon=image_path+self.x_off, icon_size=axis_size, 
+        self.but_trans_x = make_flat_button(icon=image_path+self.x_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         #qt.change_button_color(self.but_trans_x, textColor=text_col, bgColor=red)
         self.main_layout.addWidget(self.but_trans_x, vn, tw, 1 ,axis_b)
         tw += axis_b
         #切り替え
-        select_trans = make_flat_btton(icon=image_path+self.t, icon_size=(20, 20), 
+        select_trans = make_flat_button(icon=image_path+self.t, icon_size=(20, 20), 
                                                             name = '', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         select_trans.clicked.connect(lambda : self.toggle_select_mode(mode=2))
         self.main_layout.addWidget(select_trans, vn, tw, 1 ,sel_b)
@@ -2072,7 +2025,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_trans_y = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_trans_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_y.clicked.connect(lambda : set_key_frame(mode=2, axis=1))
         key_trans_y.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
@@ -2084,12 +2037,12 @@ class SiSideBarWeight(qt.DockWindow):
         trans_y.editingFinished.connect(qt.Callback(lambda : self.translation(text=trans_y.text(), axis=1)))
         self.main_layout.addWidget(trans_y, vn, tw, 1 ,text_b)
         tw += text_b
-        self.but_trans_y = make_flat_btton(icon=image_path+self.y_off, icon_size=axis_size, 
+        self.but_trans_y = make_flat_button(icon=image_path+self.y_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_trans_y, vn, tw, 1 ,axis_b)
         tw += axis_b
         #ロック状態切り替え
-        self.lock_attribute_trans = make_flat_btton(icon=image_path+self.l, icon_size=(20, 20), 
+        self.lock_attribute_trans = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
         self.lock_attribute_trans.clicked.connect(lambda : self.attribute_lock_state(mode=2))
         self.lock_attribute_trans.rightClicked.connect(lambda : RockAttrMenu(name='Trans', mode=2))
@@ -2098,7 +2051,7 @@ class SiSideBarWeight(qt.DockWindow):
         #--------------------------------------------------------------------------------
         tw = 0#配置場所
         
-        key_trans_z = make_flat_btton(icon=image_path+'Key_N.png', name = '', 
+        key_trans_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_z.clicked.connect(lambda : set_key_frame(mode=2, axis=2))
         key_trans_z.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
@@ -2110,12 +2063,12 @@ class SiSideBarWeight(qt.DockWindow):
         trans_z.editingFinished.connect(qt.Callback(lambda : self.translation(text=trans_z.text(), axis=2)))
         self.main_layout.addWidget(trans_z, vn, tw, 1 , text_b)
         tw += text_b
-        self.but_trans_z = make_flat_btton(icon=image_path+self.z_off, icon_size=axis_size, 
+        self.but_trans_z = make_flat_button(icon=image_path+self.z_off, icon_size=axis_size, 
                                                             name = '', text=text_col, bg=hilite, w_max=axis_w, h_max=axis_h)
         self.main_layout.addWidget(self.but_trans_z, vn, tw, 1 , axis_b)
         tw += axis_b
         #XYZ全部ボタン
-        self.but_trans_all = make_flat_btton(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
+        self.but_trans_all = make_flat_button(icon=image_path+self.all_axis_icon, name='', text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h)
         self.main_layout.addWidget(self.but_trans_all, vn, tw, 1 ,sel_b)
         vn+=1
         #アイコン変更をまとめてコネクト, オンオフアイコンを切り替える
@@ -2142,21 +2095,21 @@ class SiSideBarWeight(qt.DockWindow):
         global plane_but
         global space_but_list
         #UniとVolを作成
-        global_but = make_flat_btton(name = 'Global', text=text_col, bg=hilite)
+        global_but = make_flat_button(name = 'Global', text=text_col, bg=hilite)
         self.main_layout.addWidget(global_but, vn, 0, 1 ,4)
-        local_but = make_flat_btton(name = 'Local ', text=text_col, bg=hilite)
+        local_but = make_flat_button(name = 'Local ', text=text_col, bg=hilite)
         self.main_layout.addWidget(local_but, vn, 4, 1 ,4)
-        view_but = make_flat_btton(name = ' View ', text=text_col, bg=hilite)
+        view_but = make_flat_button(name = ' View ', text=text_col, bg=hilite)
         self.main_layout.addWidget(view_but, vn, 8, 1 ,3)
         vn+=1
-        add_but = make_flat_btton(name = 'Add', text=text_col, bg=hilite)
+        add_but = make_flat_button(name = 'Add', text=text_col, bg=hilite)
         self.main_layout.addWidget(add_but, vn, 0, 1 ,4)
-        ref_but = make_flat_btton(name = 'Ref', text=text_col, bg=hilite)
+        ref_but = make_flat_button(name = 'Ref', text=text_col, bg=hilite)
         ref_but.rightClicked.connect(self.show_ref_menu)#右クリックの挙動
         #ref_but.setDisabled(True)#今のところ無効
         self.main_layout.addWidget(ref_but, vn, 4, 1 ,4)
-        plane_but = make_flat_btton(name = '*Plane*', text=text_col, bg=hilite)
-        #vol_but = make_flat_btton(name = 'Vol', text=text_col, bg=hilite)
+        plane_but = make_flat_button(name = '*Plane*', text=text_col, bg=hilite)
+        #vol_but = make_flat_button(name = 'Vol', text=text_col, bg=hilite)
         #plane_but.setDisabled(True)#今のところ無効
         self.main_layout.addWidget(plane_but, vn, 8, 1 ,3)
         space_but_list = [global_but, local_but, view_but,
@@ -2180,11 +2133,11 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #編集モード
-        self.cog_but = make_flat_btton(name = 'COG', text=text_col, bg=hilite)
+        self.cog_but = make_flat_button(name = 'COG', text=text_col, bg=hilite)
         self.cog_but.clicked.connect(qt.Callback(self.setup_object_center))
         self.main_layout.addWidget(self.cog_but, vn, 0, 1 ,4)
         prop = cmds.softSelect(q=True, softSelectEnabled=True)
-        self.prop_but = make_flat_btton(name = '/Prop', text=text_col, bg=hilite)
+        self.prop_but = make_flat_button(name = '/Prop', text=text_col, bg=hilite)
         self.prop_but.setChecked(prop)
         self.prop_but.clicked.connect(self.toggle_prop)
         self.prop_but.rightClicked.connect(lambda : self.pop_option_window(mode='prop'))
@@ -2199,7 +2152,7 @@ class SiSideBarWeight(qt.DockWindow):
             sym = False
         else:
             sym = True
-        self.sym_but = make_flat_btton(name = '/Sym', text=text_col, bg=hilite)
+        self.sym_but = make_flat_button(name = '/Sym', text=text_col, bg=hilite)
         self.sym_but.setChecked(sym)
         self.sym_but.clicked.connect(self.toggle_sym)
         self.sym_but.rightClicked.connect(lambda : self.pop_option_window(mode='sym'))
@@ -2233,7 +2186,7 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #スナップエリア
-        self.snap_top = make_flat_btton(name='Snap', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.snap_top = make_flat_button(name='Snap', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.snap_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.snap_top, vn, 0, 1 ,11)
         vn+=1
@@ -2247,7 +2200,7 @@ class SiSideBarWeight(qt.DockWindow):
         tip = lang.Lang(
         en='Snap to grids\n\nMoves the selected item to the nearest grid intersection point.\n',
         ja=u'グリッドスナップ\n\n選択した項目を最も近いグリッド交点に移動します。\n')
-        self.snap_glid_but = make_flat_btton(icon=':/snapGrid.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_glid_but = make_flat_button(icon=':/snapGrid.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_glid_but.setChecked(snap_mode)
         self.snap_glid_but.clicked.connect(lambda : cmds.snapMode(grid=self.snap_glid_but.isChecked()))
         self.main_layout.addWidget(self.snap_glid_but, vn, 0, 1 ,2)
@@ -2256,7 +2209,7 @@ class SiSideBarWeight(qt.DockWindow):
         en='Snap to curves\n\nMoves the selected item to the nearest curve.\n',
         ja=u'カーブスナップ\n\n選択した項目を最も近いカーブに移動します。\n')
         snap_mode = cmds.snapMode(q=True, curve=True)
-        self.snap_segment_but = make_flat_btton(icon=':/snapCurve.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_segment_but = make_flat_button(icon=':/snapCurve.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_segment_but.setChecked(snap_mode)
         self.snap_segment_but.clicked.connect(lambda : cmds.snapMode(curve=self.snap_segment_but.isChecked()))
         self.main_layout.addWidget(self.snap_segment_but, vn, 2, 1 ,2)
@@ -2265,7 +2218,7 @@ class SiSideBarWeight(qt.DockWindow):
         en='Snap to points\n\nMoves the selected item to the nearest control vertex or pivot.\n',
         ja=u'ポイントスナップ\n\n選択した項目を最も近いコントロール頂点(CV)または\nピボットポイントに移動します。\n')
         snap_mode = cmds.snapMode(q=True, point=True)
-        self.snap_point_but = make_flat_btton(icon=':/snapPoint.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_point_but = make_flat_button(icon=':/snapPoint.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_point_but.setChecked(snap_mode)
         self.snap_point_but.clicked.connect(lambda : cmds.snapMode(point=self.snap_point_but.isChecked()))
         self.main_layout.addWidget(self.snap_point_but, vn, 4, 1 ,2)
@@ -2274,7 +2227,7 @@ class SiSideBarWeight(qt.DockWindow):
         en='Snap to Projected Center\n\nMoves to the center of the selected object.\n',
         ja=u'投影された中心にスナップ\n\n選択したオブジェクトの中心にスナップします。\n')
         snap_mode = cmds.snapMode(q=True, meshCenter=True)
-        self.snap_pcenter_but = make_flat_btton(icon=':/snapMeshCenter.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_pcenter_but = make_flat_button(icon=':/snapMeshCenter.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_pcenter_but.setChecked(snap_mode)
         self.snap_pcenter_but.clicked.connect(lambda : cmds.snapMode(meshCenter=self.snap_pcenter_but.isChecked()))
         self.main_layout.addWidget(self.snap_pcenter_but, vn, 6, 1 ,2)
@@ -2283,7 +2236,7 @@ class SiSideBarWeight(qt.DockWindow):
         en='Snap to view planes\n\nMoves the selected item to the nearest view plane.\n',
         ja=u'ビュープレーンスナップ\n\n選択した項目を最も近いビュープレーンに移動します。\n')
         snap_mode = cmds.snapMode(q=True, viewPlane=True)
-        self.snap_plane_but = make_flat_btton(icon=':/snapPlane.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_plane_but = make_flat_button(icon=':/snapPlane.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_plane_but.setChecked(snap_mode)
         self.snap_plane_but.clicked.connect(lambda : cmds.snapMode(viewPlane=self.snap_plane_but.isChecked()))
         self.main_layout.addWidget(self.snap_plane_but, vn, 8, 1 ,2)
@@ -2291,7 +2244,7 @@ class SiSideBarWeight(qt.DockWindow):
         tip = lang.Lang(
         en='Make the selected object live\n\nConverts the selected surface to a live surface (RMB to select\nfrom previous live surface).\n',
         ja=u'選択したオブジェクトをライブにします\n\n選択したサーフェイスをライブサーフェイスに変換します\n')
-        self.snap_live_but = make_flat_btton(icon=':/makeLiveIcon.png', name='', text=text_col, bg=hilite, checkable=False, w_max=snap_w, h_max=snap_h, tip=tip.output())
+        self.snap_live_but = make_flat_button(icon=':/makeLiveIcon.png', name='', text=text_col, bg=hilite, checkable=False, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_live_but.clicked.connect(self.make_live_snap)
         #self.snap_on_but.clicked.connect(self.parent_node)
         self.main_layout.addWidget(self.snap_live_but, vn, 10, 1 ,1)
@@ -2311,7 +2264,7 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #コンストレインエリア
-        self.constrain_top = make_flat_btton(name='Constrain', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.constrain_top = make_flat_button(name='Constrain', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         #qt.change_button_color(self.constrain_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.constrain_top, vn, 0, 1 ,11)
         vn+=1
@@ -2322,23 +2275,23 @@ class SiSideBarWeight(qt.DockWindow):
         tip = lang.Lang(
         en='Parent the selected node to the last selected node\nLeft click >> Do not hold local transform\nRight click >> Maintain local transform',
         ja=u'選択ノードを最後に選択したノードに親子付け\n左クリック→ローカル変換保持しない\n右クリック→ローカル変換を保持')
-        self.parent_but = make_flat_btton(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip.output())
+        self.parent_but = make_flat_button(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip.output())
         self.parent_but.clicked.connect(self.parent_node)
         self.parent_but.rightClicked.connect(lambda : self.parent_node(r=True))
         self.main_layout.addWidget(self.parent_but, vn, 0, 1 ,6)
         #cut
-        self.cut_but = make_flat_btton(name = 'Cut', text=text_col, bg=hilite, checkable=False)
+        self.cut_but = make_flat_button(name = 'Cut', text=text_col, bg=hilite, checkable=False)
         self.main_layout.addWidget(self.cut_but, vn, 6, 1 ,5)
         self.cut_but.clicked.connect(self.cut_node)
         vn+=1
         #conscomp
-        #self.cns_comp_but = make_flat_btton(name = 'CnsComp', text=mute_text, bg=immed)
+        #self.cns_comp_but = make_flat_button(name = 'CnsComp', text=mute_text, bg=immed)
         #self.main_layout.addWidget(self.cns_comp_but, vn, 0, 1 ,6)
         #self.cns_comp_but.setDisabled(True)#今のところ無効
         
         #--------------------------------------------------------------------------------
         #デストロイモードボタンを挿入
-        self.destroy_but = make_flat_btton(name=destroy_name, text=text_col, bg=hilite)
+        self.destroy_but = make_flat_button(name=destroy_name, text=text_col, bg=hilite)
         self.main_layout.addWidget(self.destroy_but, vn, 0, 1 ,6)
         self.destroy_but.clicked.connect(self.destroy_mode)
         #vn+=1
@@ -2346,7 +2299,7 @@ class SiSideBarWeight(qt.DockWindow):
         #childcomp
         #設定はシーンのこのトランスフォームの維持を引き継ぐ
         child_comp = cmds.manipMoveContext('Move', q=True, pcp=True)
-        self.child_comp_but = make_flat_btton(name = 'ChldComp', text=text_col, bg=hilite)
+        self.child_comp_but = make_flat_button(name = 'ChldComp', text=text_col, bg=hilite)
         self.child_comp_but.setChecked(child_comp)
         self.child_comp_but.clicked.connect(self.toggle_child_comp)
         self.main_layout.addWidget(self.child_comp_but, vn, 6, 1 ,5)
@@ -2363,7 +2316,8 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #エディットエリア
-        self.edit_top = make_flat_btton(name='Edit', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.edit_top = make_flat_button(name=u'▽ Edit', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
+        self.edit_top.clicked.connect(lambda : self.pop_top_menus(but=self.edit_top, menu_func=self.create_edit_menu))
         #qt.change_button_color(self.edit_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.edit_top, vn, 0, 1 ,11)
         vn+=1
@@ -2371,22 +2325,22 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #Freeze
-        self.freeze_but = make_flat_btton(name = 'Freeze', text=text_col, bg=hilite, checkable=False)
+        self.freeze_but = make_flat_button(name = 'Freeze', text=text_col, bg=hilite, checkable=False)
         self.freeze_but.clicked.connect(qt.Callback(self.freeze))
         self.main_layout.addWidget(self.freeze_but, vn, 0, 2 ,5)
         #Set作成
-        self.group_but = make_flat_btton(name = 'Group', text=text_col, bg=hilite, checkable=False)
+        self.group_but = make_flat_button(name = 'Group', text=text_col, bg=hilite, checkable=False)
         self.group_but.clicked.connect(self.create_set)
         self.main_layout.addWidget(self.group_but, vn, 5, 2 ,5)
-        self.plus_but = make_flat_btton(name = '+', text=text_col, bg=hilite, checkable=False, h_max=13, w_max=15, h_min=None)
+        self.plus_but = make_flat_button(name = '+', text=text_col, bg=hilite, checkable=False, h_max=13, w_max=15, h_min=None)
         self.plus_but.clicked.connect(self.add_to_set)
         self.main_layout.addWidget(self.plus_but, vn, 10, 1 ,2)
-        self.minus_but = make_flat_btton(name = '-', text=text_col, bg=hilite, checkable=False, h_max=13, w_max=15, h_min=None)
+        self.minus_but = make_flat_button(name = '-', text=text_col, bg=hilite, checkable=False, h_max=13, w_max=15, h_min=None)
         self.minus_but.clicked.connect(self.remove_from_set)
         self.main_layout.addWidget(self.minus_but, vn+1, 10, 1 ,2)
         vn+=2
         #freeze
-        self.freeze_m_but = make_flat_btton(name = 'FreezeM', text=text_col, bg=hilite, checkable=False)
+        self.freeze_m_but = make_flat_button(name = 'FreezeM', text=text_col, bg=hilite, checkable=False)
         self.freeze_m_but.clicked.connect(qt.Callback(self.freeze_m))
         self.main_layout.addWidget(self.freeze_m_but, vn, 0, 1 ,5)
         #イミディエイトモード
@@ -2396,7 +2350,7 @@ class SiSideBarWeight(qt.DockWindow):
             immed_mode = False
         else:
             immed_mode = True
-        self.immed_but = make_flat_btton(name = 'Immed', text=text_col, bg=immed)
+        self.immed_but = make_flat_button(name = 'Immed', text=text_col, bg=immed)
         self.immed_but.setChecked(immed_mode)
         self.immed_but.clicked.connect(self.toggle_immed)
         self.main_layout.addWidget(self.immed_but, vn, 5, 1 ,5)
@@ -2426,9 +2380,9 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
         vn+=1
         #--------------------------------------------------------------------------------
-        self.numpy = make_flat_btton(name='Numpy', text=text_col, bg=hilite, h_max=12, w_min=si_w, w_max=si_w)
+        self.numpy = make_flat_button(name='Numpy', text=text_col, bg=hilite, h_max=12, w_min=si_w, w_max=si_w)
         self.main_layout.addWidget(self.numpy, vn, 0, 1 ,6)
-        self.standard = make_flat_btton(name = 'Standard', text=text_col, bg=hilite, h_max=12, w_min=maya_w, w_max=maya_w)
+        self.standard = make_flat_button(name = 'Standard', text=text_col, bg=hilite, h_max=12, w_min=maya_w, w_max=maya_w)
         self.main_layout.addWidget(self.standard, vn, 6, 1 ,5)
         self.np_group = QButtonGroup(self)
         self.np_group.addButton(self.numpy, 0)
@@ -3404,6 +3358,61 @@ class SiSideBarWeight(qt.DockWindow):
         #self.close()
         #Option()
         
+    #セレクトメニューをポップアップする
+    def pop_top_menus(self, but=None, menu_func=None):
+        pos =  but.pos()
+        pos = self.mapToGlobal(pos)
+        select_menus = menu_func()
+        select_menus.exec_(pos)
+        
+    #コンテキストメニューとフローティングメニューを再帰的に作成する
+    def create_f_edit_menu(self):
+        top_f_menus = self.create_edit_menu(add_float=False)
+        global edit_manu_window
+        try:
+            edit_manu_window.close()
+        except:
+            pass
+        edit_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset, menu_name='edit_top')
+        
+    def create_edit_menu(self, add_float=True):
+        self.edit_menus = QMenu(self.edit_top)
+        qt.change_button_color(self.edit_menus, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
+        if add_float:#切り離しウィンドウメニュー
+            sel_action = self.edit_menus.addAction(u'-----------------------------------------------------✂----')
+            sel_action.triggered.connect(self.create_f_edit_menu)
+            
+        #self.select_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
+        self.check_sel_highlight()
+        mag = lang.Lang(en='Extrude edge (keep UV)',
+                                ja=u'エッジの押し出し(UVを保持)')
+        action00 = QAction(mag.output(), self.edit_menus)
+        action00.triggered.connect(qt.Callback(self.extrude_edge))
+        self.edit_menus.addAction(action00)
+        mag = lang.Lang(en='Open edge extrusion UI',
+                                ja=u'エッジの押し出しUIを開く')
+        action01 = QAction(mag.output(), self.edit_menus)
+        action01.triggered.connect(self.extrude_edge_ui)
+        self.edit_menus.addAction(action01)
+        return self.edit_menus
+        
+    def extrude_edge(self):
+        extrude_edge_uv = extrude_edge.ExtrudeEdgeUV()
+        extrude_edge_uv.extrude_edge_uv()
+        extrude_edge_uv.saw_uvs()
+        
+    def extrude_edge_ui(self):
+        global extrude_edge_uv
+        try:
+            extrude_edge_uv.close()
+        except:
+            pass
+        extrude_edge_uv = extrude_edge.ExtrudeEdgeUV(menu_text=menu_text, string_col=string_col, 
+                                                                                    mid_color=mid_color, bg_col=bg_col,  
+                                                                                    ui_color=ui_color, text_col=text_col, hilite=hilite)
+        extrude_edge_uv._init_ui()
+        move_to_best_pos(object=extrude_edge_uv, offset=edge_extrude_offset)
+        
     #コンテキストメニューとフローティングメニューを再帰的に作成する
     def create_f_sel_menu(self):
         top_f_menus = self.create_select_menu(add_float=False)
@@ -3413,13 +3422,6 @@ class SiSideBarWeight(qt.DockWindow):
         except:
             pass
         select_manu_window = FloatingWindow(menus=top_f_menus, offset=transform_offset, menu_name='select_top')
-        
-    #セレクトメニューをポップアップする
-    def pop_top_menus(self, but=None, menu_func=None):
-        pos =  but.pos()
-        pos = self.mapToGlobal(pos)
-        select_menus = menu_func()
-        select_menus.exec_(pos)
         
     def create_select_menu(self, add_float=True):
         self.select_menus = QMenu(self.select_top)
@@ -3471,6 +3473,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.action33.triggered.connect(self.change_r_gesture)
         self.set_mouse_gesture()
         return self.select_menus
+        
     def set_mouse_gesture(self):
         self.set_r_gesture()
         self.set_c_gesture()
@@ -5316,7 +5319,7 @@ class PropOption(qt.MainWindow):
         self.curve_group = QButtonGroup(self)#ボタンをまとめる変数を定義
         self.but_list = []
         for i, ci in enumerate(curve_icons):
-            button = make_flat_btton(icon=ci, name='', text=text_col, bg=hilite, checkable=True, w_max=24)
+            button = make_flat_button(icon=ci, name='', text=text_col, bg=hilite, checkable=True, w_max=24)
             p_layout.addWidget(button, vn, i, 1, 1)
             self.curve_group.addButton(button, i)
         self.curve_group.buttonClicked[int].connect(self.set_curve_type)
@@ -5801,45 +5804,45 @@ class FilterOption(qt.MainWindow):
         
         fw=None
         fh=None
-        filter_label = make_flat_btton(name='- Selection Filter Option -', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=20, tip='- Selection Filter Option -')
+        filter_label = make_flat_button(name='- Selection Filter Option -', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=20, tip='- Selection Filter Option -')
         self.main_layout.addWidget(filter_label)
         filter_label.setDisabled(True)
         self.main_layout.addWidget(window.make_h_line())
         
-        self.all_filter = make_flat_btton(name='All Node Types', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from all node types')
+        self.all_filter = make_flat_button(name='All Node Types', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from all node types')
         self.all_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.all_filter.text()))
         self.main_layout.addWidget(self.all_filter)
-        self.transform_filter = make_flat_btton(name='Transform node', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Transform node')
+        self.transform_filter = make_flat_button(name='Transform node', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Transform node')
         self.transform_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.transform_filter.text()))
         self.main_layout.addWidget(self.transform_filter)
-        self.joint_filter = make_flat_btton(name='Joint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Joint')
+        self.joint_filter = make_flat_button(name='Joint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Joint')
         self.joint_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.joint_filter.text()))
         self.main_layout.addWidget(self.joint_filter)
-        self.shape_filter = make_flat_btton(name='Shape node', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Shape node')
+        self.shape_filter = make_flat_button(name='Shape node', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Shape node')
         self.shape_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.shape_filter.text()))
         self.main_layout.addWidget(self.shape_filter)
-        self.dummy_but_a = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_a = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_a)
         self.dummy_but_a.setVisible(False)
-        self.dummy_but_b = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_b = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_b)
         self.dummy_but_b.setVisible(False)
-        self.parent_cons_filter = make_flat_btton(name='Parent Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Parent Constraint')
+        self.parent_cons_filter = make_flat_button(name='Parent Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Parent Constraint')
         self.parent_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.parent_cons_filter.text()))
         self.main_layout.addWidget(self.parent_cons_filter)
-        self.point_cons_filter = make_flat_btton(name='Point Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Point Constraint')
+        self.point_cons_filter = make_flat_button(name='Point Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Point Constraint')
         self.point_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.point_cons_filter.text()))
         self.main_layout.addWidget(self.point_cons_filter)
-        self.orient_cons_filter = make_flat_btton(name='Orient Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Orient Constraint')
+        self.orient_cons_filter = make_flat_button(name='Orient Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Orient Constraint')
         self.orient_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.orient_cons_filter.text()))
         self.main_layout.addWidget(self.orient_cons_filter)
-        self.scale_cons_filter = make_flat_btton(name='Scale Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Scale Constraint')
+        self.scale_cons_filter = make_flat_button(name='Scale Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Scale Constraint')
         self.scale_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.scale_cons_filter.text()))
         self.main_layout.addWidget(self.scale_cons_filter)
-        self.aim_cons_filter = make_flat_btton(name='Aim Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Aim Constraint')
+        self.aim_cons_filter = make_flat_button(name='Aim Constraint', text=text_col, bg=hilite, checkable=True, w_max=fw, h_max=fh, tip='Search from Aim Constraint')
         self.aim_cons_filter.clicked.connect(lambda : self.set_filter_but(filter_type=self.aim_cons_filter.text()))
         self.main_layout.addWidget(self.aim_cons_filter)
-        self.dummy_but_c = make_flat_btton(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
+        self.dummy_but_c = make_flat_button(name='Nan', text=mute_text, bg=hilite, checkable=False, w_max=fw, h_max=fh, tip='Future filters will be added')
         self.main_layout.addWidget(self.dummy_but_c)
         self.dummy_but_c.setVisible(False)
         
@@ -5918,21 +5921,21 @@ class RockAttrMenu(qt.SubWindow):
         #action0.triggered.connect()
         p_layout.addWidget(rock_menu)
         '''
-        button = make_flat_btton(name='All Axis', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button = make_flat_button(name='All Axis', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode))
         p_layout.addWidget(button)
-        button = make_flat_btton(name=name+' X', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button = make_flat_button(name=name+' X', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=0))
         p_layout.addWidget(button)
-        button = make_flat_btton(name=name+' Y', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button = make_flat_button(name=name+' Y', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=1))
         p_layout.addWidget(button)
-        button = make_flat_btton(name=name+' Z', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
+        button = make_flat_button(name=name+' Z', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
         p_layout.addWidget(button)
         
         
-        #button = make_flat_btton(name='Close', text=menu_text, bg=menu_bg, flat=False, checkable=False)
+        #button = make_flat_button(name='Close', text=menu_text, bg=menu_bg, flat=False, checkable=False)
         #button.clicked.connect(self.close)
         #qt.change_button_color(button, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='button')
         #p_layout.addWidget(button)

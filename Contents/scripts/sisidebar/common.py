@@ -115,3 +115,19 @@ class TemporaryReparent():
         for child in dummyChildren:
             if cmds.nodeType(child) in self.node_list:
                 cmds.parent(child, self.node)
+                
+#指定タイプへのコンポーネント変換をまとめて
+def conv_comp(obj, mode=''):
+    if mode == 'edge':
+        comp = cmds.polyListComponentConversion(obj, te=True)
+        comp = cmds.filterExpand(comp, sm=32)
+    if mode == 'face':
+        comp = cmds.polyListComponentConversion(obj, tf=True)
+        comp = cmds.filterExpand(comp, sm=34)
+    if mode == 'vtx':
+        comp = cmds.polyListComponentConversion(obj, tv=True)
+        comp = cmds.filterExpand(comp, sm=31)
+    if mode == 'uv':
+        comp = cmds.polyListComponentConversion(obj, tuv=True)
+        comp = cmds.filterExpand(comp, sm=35)
+    return comp
