@@ -91,10 +91,10 @@ class ExtrudeEdgeUV(qt.MainWindow):
         button = qt.make_flat_button(name = msg, text=text_col, bg=hilite, ui_color=ui_color, checkable=False, h_max=24, h_min=24)
         button.clicked.connect(qt.Callback(self.extrude_edge_uv))
         self.main_layout.addWidget(button)
-        msg = lang.Lang(en='Saw UV', ja=u'UVを縫合').output()
+        msg = lang.Lang(en='Sew UV', ja=u'UVを縫合').output()
         self.main_layout.addWidget(qt.make_h_line())
         button = qt.make_flat_button(name = msg, text=text_col, bg=hilite, ui_color=ui_color, checkable=False, h_max=24, h_min=24)
-        button.clicked.connect(qt.Callback(self.saw_uvs))
+        button.clicked.connect(qt.Callback(self.marge_uvs))
         self.main_layout.addWidget(button)
         
     def _init_ui(self):
@@ -139,7 +139,8 @@ class ExtrudeEdgeUV(qt.MainWindow):
         sel = cmds.ls(sl=True)
         self.s_edges = common.conv_comp(sel, mode='edge')
         s_vtx = common.conv_comp(sel, mode='vtx')
-        self.saw_uvs(mode='pre')#事前に押し出し対象のUVを縫い合わせておく
+        #self.saw_uvs(mode='pre')#事前に押し出し対象のUVを縫い合わせておく
+        self.marge_uvs(mode='pre')
         if not self.s_edges:
             return
         ev_dict ,vec_dict, ev_uv_dict = self.make_edge_vtx_dict(self.s_edges)
@@ -247,7 +248,21 @@ class ExtrudeEdgeUV(qt.MainWindow):
             push_vec = [push_vec[0]+uv_vec[0], push_vec[1]+uv_vec[1]]
         push_vec = vector.normalize(push_vec)#正規化
         return push_vec
-    #縫い合わせる
+        
+    #縫合よりもマージの方が簡単に済んだorz
+    def marge_uvs(self, mode='after'):
+        if mode == 'after':
+            saw_edges = self.saw_edges+self.s_edges
+            self.n_uvs = []
+        else:
+            saw_edges = self.s_edges
+        if not saw_edges:
+            return
+        cmds.polyMergeUV(saw_edges, ch=1, d=0.01)
+        if mode == 'after':
+            cmds.select(self.ex_edges, r=True)
+            
+    #縫い合わせる,頑張って計算したけどマージの方が簡単に済んだので使用中止
     def saw_uvs(self, mode='after'):
         if mode == 'after':
             saw_edges = self.saw_edges

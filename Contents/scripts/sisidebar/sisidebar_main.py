@@ -53,7 +53,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.3 -'
+version = ' - SI Side Bar / ver_2.3.4 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -164,23 +164,25 @@ class FloatingWindow(qt.SubWindow):
         self.resize(size.width(), size.height())
         
     def mouseReleaseEvent(self, e):
+        #print self.menu_name
         reset_menu_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_init_window(mode = self.menu_name)), protected=True)
         #print 'click2'
         
     def re_init_window(self, mode='transform_top'):
         #桁数の変更があったらUIを丸ごと描画しなおす
         #UIのテキスト再描画のみができなかったので苦肉の策
-        if not trs_window_flag:
-            return
         self.f_layout.removeWidget(self.menus)
         self.wrapper = QWidget()
         self.setCentralWidget(self.wrapper)
         self.f_layout = QVBoxLayout()
         self.wrapper.setLayout(self.f_layout)
+        #print mode
         if mode == 'transform_top':
             self.menus = window.create_trans_menu(add_float=False)
         if mode == 'select_top':
             self.menus = window.create_select_menu(add_float=False)
+        if mode == 'edit_top':
+            self.menus = window.create_edit_menu(add_float=False)
         self.f_layout.addWidget(self.menus)
         self.show()
             
@@ -3400,7 +3402,7 @@ class SiSideBarWeight(qt.DockWindow):
     def extrude_edge(self):
         extrude_edge_uv = extrude_edge.ExtrudeEdgeUV()
         extrude_edge_uv.extrude_edge_uv()
-        extrude_edge_uv.saw_uvs()
+        extrude_edge_uv.marge_uvs(mode='after')
         
     def extrude_edge_ui(self):
         global extrude_edge_uv
