@@ -135,9 +135,11 @@ class ExtrudeEdgeUV(qt.MainWindow):
             json.dump(save_data, f)
     
     def extrude_edge_uv(self):
+        self.ex_edges = []
         sel = cmds.ls(sl=True)
         self.s_edges = common.conv_comp(sel, mode='edge')
         s_vtx = common.conv_comp(sel, mode='vtx')
+        self.saw_uvs(mode='pre')#事前に押し出し対象のUVを縫い合わせておく
         if not self.s_edges:
             return
         ev_dict ,vec_dict, ev_uv_dict = self.make_edge_vtx_dict(self.s_edges)
@@ -246,20 +248,31 @@ class ExtrudeEdgeUV(qt.MainWindow):
         push_vec = vector.normalize(push_vec)#正規化
         return push_vec
     #縫い合わせる
-    def saw_uvs(self):
-        self.n_uvs = []
-        if not self.saw_edges:
+    def saw_uvs(self, mode='after'):
+        if mode == 'after':
+            saw_edges = self.saw_edges
+            self.n_uvs = []
+        else:
+            saw_edges = common.conv_comp(self.s_edges, mode='vtx')
+            saw_edges = common.conv_comp(saw_edges, mode='edge')
+            for edge in self.s_edges:
+                saw_edges.remove(edge)
+        if not saw_edges:
             return
-        for edge in self.saw_edges:
+        checked_edges = []
+        for edge in saw_edges:
             uvs = common.conv_comp(edge, mode='uv')
-            uv_pos = [str(cmds.polyEditUV(uv, q=True)) for uv in uvs]
+            uv_pos = [str(map(lambda x:round(x, 5), cmds.polyEditUV(uv, q=True))) for uv in uvs]
             #print len(uv_pos)
             uv_pos = list(set(uv_pos))
-            #print len(uv_pos)
+            #if mode=='pre':
+                #print edge, len(uv_pos)
             if len(uv_pos) > 2:
                 continue
-            cmds.polyMapSew(edge, ch=True)
-        cmds.polyMapSew(self.s_edges, ch=True)
+            checked_edges.append(edge)
+        if checked_edges:
+            cmds.polyMapSew(checked_edges, ch=True)
+        cmds.polyMapSew(self.s_edges, ch=True)#付け根のUVを縫合する
         self.saw_edges = []
         cmds.select(self.ex_edges, r=True)
 #ExtrudeEdgeUV()._init_ui()

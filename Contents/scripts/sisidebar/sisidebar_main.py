@@ -53,7 +53,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.2 -'
+version = ' - SI Side Bar / ver_2.3.3 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -690,7 +690,8 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cog_but.isChecked():
             self.cog_but.setChecked(False)
             self.setup_object_center()
-        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 'select_manu_window', 'extrude_edge_uv']
+        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 
+                                            'select_manu_window', 'extrude_edge_uv', 'edit_manu_window']
         for op_window in option_window_list:
             try:
                 exec(op_window+'.close()')
