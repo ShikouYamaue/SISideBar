@@ -85,6 +85,13 @@ evolution_flag = False
 cp_abs_flag = False
 ommit_manip_link = False
 #-------------------------------------------------------------
+#Shift押されてるかどうかを判定する関数            
+def check_key_modifiers():
+    global shift_mod
+    mods = QApplication.keyboardModifiers()
+    isShiftPressed =  mods & Qt.ShiftModifier
+    #print "Shift pressed?", bool(isShiftPressed)
+    shift_mod = bool(isShiftPressed)
 
 #フラットボタンを作って返す
 global all_flat_buttons
@@ -99,6 +106,7 @@ def make_flat_button(icon=None, name='', text=95, bg=200, checkable=True, w_max=
                                                 checkable=checkable, w_max=w_max, w_min=w_min, costom_push=costom_push,
                                                 h_max=h_max, h_min=h_min, policy=policy, icon_size=icon_size, tip=tip, flat=flat, hover=hover,
                                                 destroy_flag=destroy_flag, context=context)
+    button.clicked.connect(check_key_modifiers)
     all_flat_buttons.append(button)
     if flat:
         all_flat_button_palams.append([text, ui_color, bg, 'button', hover, destroy_flag, border_col])
