@@ -5,9 +5,9 @@ Clone or download > Download ZIP からZIPファイルをダウンロードし�
 
 解凍したSiSideBarフォルダを C:\Program Files\Autodesk\ApplicationPlugins へコピーしてください。
 
-MayaをCドライブ以外にインストールしている場合でもSiShelfフォルダは
-C:\Program Files\Autodesk\ApplicationPlugins
-に置く必要があるようです。
+MayaをCドライブ以外にインストールしている場合でもSiSideBarフォルダは  
+C:\Program Files\Autodesk\ApplicationPlugins  
+に置く必要があるようです。  
 
 ApplicationPluginsフォルダが存在しない場合は作成してください。
 
