@@ -17,6 +17,7 @@ from . import sets
 from . import setup
 from . import vector
 from . import extrude_edge
+from . import append_polygon
 import math
 import datetime as dt
 import random
@@ -53,7 +54,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.4 -'
+version = ' - SI Side Bar / ver_2.3.5 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -701,7 +702,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.cog_but.setChecked(False)
             self.setup_object_center()
         option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 
-                                            'select_manu_window', 'extrude_edge_uv', 'edit_manu_window']
+                                            'select_manu_window', 'extrude_edge_uv', 'append_polygon_ui', 'edit_manu_window']
         for op_window in option_window_list:
             try:
                 exec(op_window+'.close()')
@@ -3405,7 +3406,26 @@ class SiSideBarWeight(qt.DockWindow):
         action01 = QAction(mag.output(), self.edit_menus)
         action01.triggered.connect(self.extrude_edge_ui)
         self.edit_menus.addAction(action01)
+        self.edit_menus.addSeparator()#分割線追加
+        #----------------------------------------------------------------------------------------------------
+        mag = lang.Lang(en='Append polygon (keep UV)',
+                                ja=u'ポリゴン追加(UVを保持)')
+        action02 = QAction(mag.output(), self.edit_menus)
+        action02.triggered.connect(self.append_polygon_ui)
+        self.edit_menus.addAction(action02)
         return self.edit_menus
+        
+    def append_polygon_ui(self):
+        global append_polygon_ui
+        try:
+            append_polygon_ui.close()
+        except:
+            pass
+        append_polygon_ui = append_polygon.AppendPolygon(menu_text=menu_text, string_col=string_col, 
+                                                                                        mid_color=mid_color, bg_col=bg_col,  
+                                                                                        ui_color=ui_color, text_col=text_col, hilite=hilite,
+                                                                                        radio_base_col=radio_base_col)
+        move_to_best_pos(object=append_polygon_ui, offset=edge_extrude_offset)
         
     def extrude_edge(self):
         extrude_edge_uv = extrude_edge.ExtrudeEdgeUV()

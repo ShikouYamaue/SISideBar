@@ -9,7 +9,13 @@ import os
 import locale
 import datetime as dt
 import json
+import inspect
 
+#現在の行番号を調べる
+def location(depth=0):
+    frame = inspect.currentframe().f_back
+    return os.path.basename(frame.f_code.co_filename), frame.f_code.co_name, frame.f_lineno
+    
 def search_polygon_mesh(object, serchChildeNode=False, fullPath=False, mesh=True, nurbs=False):
     '''
     選択したものの中からポリゴンメッシュを返す関数
