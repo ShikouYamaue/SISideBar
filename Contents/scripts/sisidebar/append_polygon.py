@@ -292,12 +292,18 @@ class AppendPolygon(qt.MainWindow):
         uvs = common.conv_comp(face, mode='uv')#作成したフェースのUV
         edge_uvs = common.conv_comp(self.uv_edge, mode='uv')#選択エッジのUV
         for uv in uvs:
-            vtx = common.conv_comp(uv, mode='vtx')#UVが属する頂点
-            vtx_uv = common.conv_comp(vtx, mode='uv')#頂点の共有UVたち
-            target_uv = list((set(vtx_uv) & set(edge_uvs)) - set(uvs))
-            #print 'get_target uv', target_uv, uv
-            pos = cmds.polyEditUV(target_uv[0], query=True)
-            cmds.polyEditUV(uv, u=pos[0], v=pos[1], r=False)
+            try:
+                vtx = common.conv_comp(uv, mode='vtx')#UVが属する頂点
+                vtx_uv = common.conv_comp(vtx, mode='uv')#頂点の共有UVたち
+                target_uv = list((set(vtx_uv) & set(edge_uvs)) - set(uvs))
+                #print 'get_target uv', target_uv, uv
+                pos = cmds.polyEditUV(target_uv[0], query=True)
+                cmds.polyEditUV(uv, u=pos[0], v=pos[1], r=False)
+            except:
+                return
+        #UVつないでおく
+        face_edges = common.conv_comp(face, mode='edge')
+        cmds.polyMergeUV(face_edges, ch=1, d=0.01)
         
     #最後に張られたエッジの位置から適正な始点を返す
     def check_last_edge(self):
