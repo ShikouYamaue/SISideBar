@@ -51,6 +51,31 @@ class AppendPolygon(qt.MainWindow):
         wrapper.setLayout(self.main_layout)
         qt.change_widget_color(self, textColor=menu_text, bgColor=ui_color)
         
+        #ソフトエッジ角度の設定
+        msg = lang.Lang(
+        en='- Smoothing Angle -',
+        ja=u'- スムース角の設定 -').output()
+        label = QLabel(msg,self)
+        qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
+        self.main_layout.addWidget(label)
+        self.slider_layout = QHBoxLayout()
+        self.main_layout.addLayout(self.slider_layout)
+        self.soft_angle = QDoubleSpinBox(self)#スピンボックス
+        self.soft_angle.setRange(0, 180)
+        self.soft_angle.setValue(self.soft_angle_val)#値を設定
+        self.slider_layout.addWidget(self.soft_angle)
+        qt.change_widget_color(self.soft_angle, textColor=string_col, bgColor=mid_color, baseColor=bg_col)
+        #スライダバーを設定
+        self.soft_angle_sld = QSlider(Qt.Horizontal,self)
+        self.soft_angle_sld.setRange(0, 18000)
+        self.soft_angle_sld.setValue(self.soft_angle.value()*100)
+        self.slider_layout.addWidget(self.soft_angle_sld)
+        #スライダーとボックスの値をコネクト。連動するように設定。
+        self.soft_angle_sld.valueChanged.connect(lambda : self.soft_angle.setValue(self.soft_angle_sld.value()/100.0))
+        self.soft_angle.editingFinished.connect(lambda : self.soft_angle_sld.setValue(self.soft_angle.value()*100))
+        
+        self.main_layout.addWidget(qt.make_h_line())
+        
         msg = lang.Lang(en='- Component acquisition setting -', ja=u'- コンポーネント取得設定 -').output()
         label = QLabel(msg,self)#スピンボックス
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
@@ -122,17 +147,21 @@ class AppendPolygon(qt.MainWindow):
                     save_data = json.load(f)
                     self.input_mode_val = save_data['input']
                     self.fix_mode_val = save_data['fix']
+                    self.soft_angle_val= save_data['soft_angle']
                 except Exception as e:
                     self.input_mode_val = 1
                     self.fix_mode_val = 1
+                    self.soft_angle_val = 120
                     print e.message   
         else:
             self.input_mode_val = 1
             self.fix_mode_val = 1
+            self.soft_angle_val= 120
             
     def save_data(self):
         save_data = {'input':self.input_mode.checkedId(),
-                    'fix':self.fix_mode.checkedId()}
+                    'fix':self.fix_mode.checkedId(),
+                    'soft_angle':self.soft_angle.value()}
         with open(self.save_file, 'w') as f:
             json.dump(save_data, f)
     
@@ -179,6 +208,7 @@ class AppendPolygon(qt.MainWindow):
     def closeEvent(self, e):
         self.remove_job()
         self.remove_undo_job()
+        self.save_data()
         
     def undo_control(self):
         #print '*-*-*-*-*-*undo control*-*-*-*-*-**-*'
@@ -285,6 +315,8 @@ class AppendPolygon(qt.MainWindow):
         cmds.selectMode(co=True)
         cmds.select(pre_sel)
         self.check_normal_flag = False
+        
+        cmds.polySoftEdge(last_face, a=self.soft_angle.value())
         
     #UV座標の移動
     def move_uv(self, face):

@@ -41,7 +41,7 @@ class ExtrudeEdgeUV(qt.MainWindow):
         qt.change_widget_color(self, textColor=menu_text, bgColor=ui_color)
         msg = lang.Lang(
         en='- UV extrusion distance -',
-        ja=u'- UVの押し出し距離 -:').output()
+        ja=u'- UVの押し出し距離 -').output()
         label = QLabel(msg,self)
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         self.main_layout.addWidget(label)
@@ -67,7 +67,7 @@ class ExtrudeEdgeUV(qt.MainWindow):
         self.main_layout.addWidget(qt.make_h_line())
         msg = lang.Lang(
         en='- Smoothing Angle -',
-        ja=u'- スムース角の設定 -:').output()
+        ja=u'- スムース角の設定 -').output()
         label = QLabel(msg,self)
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         self.main_layout.addWidget(label)
@@ -122,11 +122,11 @@ class ExtrudeEdgeUV(qt.MainWindow):
                     self.soft_angle_val= save_data['soft_angle']
                 except Exception as e:
                     self.d_ratio_val = 1.0
-                    self.soft_angle_val= 120
+                    self.soft_angle_val = 120
                     print e.message   
         else:
             self.d_ratio_val = 1.0
-            self.soft_angle_val= 120
+            self.soft_angle_val = 120
             
     def save_data(self):
         save_data = {'d_ratio':self.d_ratio.value(),
