@@ -25,7 +25,7 @@ save_path = os.path.join(
         
 maya_ver = int(cmds.about(v=True)[:4])
 
-class AppendPolygon(qt.MainWindow):
+class AppendPolygon(qt.SubWindow):
     num_list = None
     pre_mesh = None
     sub_edges = None

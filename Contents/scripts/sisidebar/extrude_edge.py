@@ -25,7 +25,7 @@ save_path = os.path.join(
         
 maya_ver = int(cmds.about(v=True)[:4])
 
-class ExtrudeEdgeUV(qt.MainWindow):
+class ExtrudeEdgeUV(qt.SubWindow):
     n_uvs = []
     saw_edges = []
     ex_edges = []
@@ -251,7 +251,8 @@ class ExtrudeEdgeUV(qt.MainWindow):
         
     #縫合よりもマージの方が簡単に済んだorz
     def marge_uvs(self, mode='after'):
-        if mode == 'after':
+        #print self.s_edges
+        if mode == 'after' and self.s_edges is not None:
             saw_edges = self.saw_edges+self.s_edges
             self.n_uvs = []
         else:
