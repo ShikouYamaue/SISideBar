@@ -283,7 +283,7 @@ class LineEdit(QLineEdit):
         key = event.key()
         if key == Qt.Key.Key_Control or key == Qt.Key.Key_Shift:
             return
-        super(LineEdit, self).keyPressEvent(event)
+        super(self.__class__, self).keyPressEvent(event)
         
 #右クリックボタンクラスの作成
 class RightClickButton(QPushButton):
@@ -295,14 +295,14 @@ class RightClickButton(QPushButton):
         if e.button() == Qt.RightButton:
             self.rightClicked.emit()
         else:
-            super(RightClickButton, self).mouseReleaseEvent(e)
+            super(self.__class__, self).mouseReleaseEvent(e)
 class RightClickToolButton(QToolButton):
     rightClicked = Signal()
     def mouseReleaseEvent(self, e):
         if e.button() == Qt.RightButton:
             self.rightClicked.emit()
         else:
-            super(RightClickToolButton, self).mouseReleaseEvent(e)
+            super(self.__class__, self).mouseReleaseEvent(e)
 #Shift押されてるかどうかを判定する関数            
 def check_key_modifiers():
     global shift_mod
