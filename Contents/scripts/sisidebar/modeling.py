@@ -10,6 +10,70 @@ from . import qt
 import maya.api.OpenMaya as om
 import re
 
+    
+def setSoftEdge(mesh, angle=120):
+    # 法線のロック解除
+    cmds.polyNormalPerVertex(mesh + '.vtx[*]', unFreezeNormal=True)
+    # アングルを設定
+    cmds.polySoftEdge(mesh+'.e[*]', a=angle)
+    
+
+# Separate_Face,Duplicate_Faceから呼び出してくるモジュール
+def face_extraction(faces=None, deleteOrg=True, selectDuplicated=True, transferWeight=True):
+    '''
+    メッシュを選択したフェイスで切り分ける
+    deleteOrg　切り分け元のフェイスを削除するかどうかを指定デフォルトTrue
+    faces →　外部ツールからフェイスのリストを渡して実行したい場合の引数
+    '''
+    if faces is None:
+        selection = cmds.ls(sl=True)
+    else:
+        selection = faces
+    selObjects = []
+    for sel in selection:
+        objNameTemp = sel.split('.')
+        if not objNameTemp[0] in selObjects:
+            selObjects.append(objNameTemp[0])
+
+    cmds.select(cl=True)
+    duplicated = []  # 最後の選択格納用
+    # ハイライトされているオブジェクト毎に処理
+    for selObj in selObjects:
+        # print 'currentObj : ' + str(selObj)
+        compTemp = []  # バラバラのコンポーネントをオブジェクト毎に格納するリスト
+        # 選択されているコンポーネントを整理
+        for sel in selection:
+            objNameTemp = sel.split('.')
+            objName = objNameTemp[0]  # コンポーネントのオブジェクト名
+            # オブジェクト名が一致且つフェイス選択ならリスト入り
+            if selObj == objName and '.f[' in sel:
+                compTemp.append(sel)
+                # print 'compTemp add : '+str(sel)
+        # print 'compTemp ALL : '+str(compTemp)
+        if len(compTemp) != 0:
+            dupObj = cmds.duplicate(selObj, rr=True)
+            # 子供のオブジェクト取得関数呼び出し
+            children = cmds.listRelatives(dupObj[0], type='transform', ad=True)
+            # 子供のオブジェクトがある場合は重複を避けるため削除
+            if children:
+                cmds.delete(children)
+            duplicated.append(dupObj[0])
+            if transferWeight:  # ウェイト転送フラグが有効だったら
+                weight.transfer_weight(selObj, dupObj, logTransfer=False)  # ウェイトを転送
+            faces = ",".join(compTemp)  # リストを括弧のない文字列に
+            faces = faces.replace(selObj, dupObj[0])  # 名前置き換え
+            delface = faces.split(',')
+            cmds.select(delface, r=True)
+            mel.eval('InvertSelection')  # 選択の反転
+            deleter = cmds.ls(sl=True)
+            cmds.delete(deleter)  # 最初に選択されていなかったフェース部分のみ削除
+            # 削除フラグが立っていたら古いフェイス削除
+            if deleteOrg is True:
+                cmds.delete(compTemp)
+    if selectDuplicated:
+        cmds.select(duplicated)
+    return duplicated
+    
 #クラスタデフォーマの書き戻し
 class ClusterCopy():
     def copy(self, mesh):

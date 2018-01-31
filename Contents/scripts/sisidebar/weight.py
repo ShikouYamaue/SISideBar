@@ -190,3 +190,101 @@ class WeightCopyPaste():
                 cmds.deformerWeights(meshName + '.xml', export=True, deformer=srcSkinCluster, path=self.filePath + '\\')
         with open(self.fileName, 'w') as f:  # ファイル開く'r'読み込みモード'w'書き込みモード
             json.dump(saveData, f)
+
+def transfer_weight(skinMesh, transferedMesh, transferWeight=True, returnInfluences=False, logTransfer=True):
+    '''
+    スキンウェイトの転送関数
+    転送先がバインドされていないオブジェクトの場合は転送元のバインド情報を元に自動バインド
+    ・引数
+    skinMesh→転送元メッシュ（1個,リスト形式でも可）
+    transferedMesh(リスト形式,複数可、リストじゃなくても大丈夫)
+    transferWeight→ウェイトを転送するかどうか。省略可能、デフォルトはTrue
+    logTransfer→ログ表示するかどうか
+    returnInfluences→バインドされているインフルエンス情報を戻り値として返すかどうか。省略可能、デフォルトはFalse
+    '''
+
+    massege01 = lang.Lang(
+        en=': It does not perform the transfer of weight because it is not a skin mesh.',
+        ja=u': スキンメッシュではないのでウェイトの転送を行いません'
+    ).output()
+    massege02 = lang.Lang(
+        en='Transfer the weight:',
+        ja=u'ウェイトを転送:'
+    ).output()
+    massege03 = lang.Lang(
+        en='Transfer bind influences:',
+        ja=u'バインド状態を転送:'
+    ).output()
+
+    if isinstance(skinMesh, list):  # 転送元がリストだった場合、最初のメッシュのみ取り出す
+        skinMesh = skinMesh[0]  # リストを渡されたときのための保険
+        
+    # ノードの中からスキンクラスタを取得してくる#inMesh直上がSkinClusterとは限らないので修正
+    srcSkinCluster = cmds.ls(cmds.listHistory(skinMesh), type='skinCluster')
+    # srcSkinCluster = cmds.listConnections(skinMesh+'.inMesh', s=True, d=False)
+    if not srcSkinCluster:
+        if logTransfer:
+            print skinMesh + massege01
+        return False  # スキンクラスタがなかったら関数抜ける
+    # スキンクラスタのパラメータ色々を取得しておく
+    srcSkinCluster = srcSkinCluster[0]
+    skinningMethod = cmds.getAttr(srcSkinCluster + ' .skm')
+    dropoffRate = cmds.getAttr(srcSkinCluster + ' .dr')
+    maintainMaxInfluences = cmds.getAttr(srcSkinCluster + ' .mmi')
+    maxInfluences = cmds.getAttr(srcSkinCluster + ' .mi')
+    bindMethod = cmds.getAttr(srcSkinCluster + ' .bm')
+    normalizeWeights = cmds.getAttr(srcSkinCluster + ' .nw')
+    influences = cmds.skinCluster(srcSkinCluster, q=True, inf=True)  # qフラグは照会モード、ちなみにeは編集モード
+
+    # リストタイプじゃなかったらリストに変換する
+    if not isinstance(transferedMesh, list):
+        temp = transferedMesh
+        transferedMesh = []
+        transferedMesh.append(temp)
+
+    for dst in transferedMesh:
+        #子供のノード退避用ダミーペアレントを用意
+        dummy = general.TemporaryReparent().main(mode='create')
+        general.TemporaryReparent().main(dst,dummyParent=dummy, mode='cut')
+        
+        shapes = cmds.listRelatives(dst, s=True, pa=True, type='mesh')
+        if not shapes:  # もしメッシュがなかったら
+            continue  # 処理を中断して次のオブジェクトへ
+        # スキンクラスタの有無を取得
+        dstSkinCluster = cmds.ls(cmds.listHistory(shapes[0]), type='skinCluster')
+        # スキンクラスタがない場合はあらかじめ取得しておいた情報をもとにバインドする
+        if not dstSkinCluster:
+            # バインド
+            dstSkinCluster = cmds.skinCluster(
+                dst,
+                influences,
+                omi=maintainMaxInfluences,
+                mi=maxInfluences,
+                dr=dropoffRate,
+                sm=skinningMethod,
+                nw=normalizeWeights,
+                tsb=True,
+            )
+            if logTransfer:
+                print massege03 + '[' + skinMesh + '] >>> [' + dst + ']'
+        dstSkinCluster = dstSkinCluster[0]
+
+        if transferWeight:
+            cmds.copySkinWeights(
+                ss=srcSkinCluster,
+                ds=dstSkinCluster,
+                surfaceAssociation='closestPoint',
+                influenceAssociation=['name', 'closestJoint', 'oneToOne'],
+                normalize=True,
+                noMirror=True
+            )
+            if logTransfer:
+                print massege02 + '[' + skinMesh + '] >>> [' + dst + ']'
+        #親子付けを戻す
+        general.TemporaryReparent().main(dst,dummyParent=dummy, mode='parent')
+        #ダミーペアレントを削除
+        general.TemporaryReparent().main(dummyParent=dummy, mode='delete')
+    if returnInfluences:
+        return influences
+    else:
+        return True

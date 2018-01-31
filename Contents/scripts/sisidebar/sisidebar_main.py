@@ -18,6 +18,7 @@ from . import setup
 from . import vector
 from . import extrude_edge
 from . import append_polygon
+from . import normal
 import math
 import datetime as dt
 import random
@@ -54,7 +55,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.6 -'
+version = ' - SI Side Bar / ver_2.3.7 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -3397,7 +3398,7 @@ class SiSideBarWeight(qt.DockWindow):
         #self.select_menus.setTearOffEnabled(True)#ティアオフ可能にもできる
         self.check_sel_highlight()
         mag = lang.Lang(en='Extrude edge (keep UV)',
-                                ja=u'エッジの押し出し(UVを保持)')
+                                ja=u'エッジの押し出し(UVを維持)')
         action00 = QAction(mag.output(), self.edit_menus)
         action00.triggered.connect(qt.Callback(self.extrude_edge))
         self.edit_menus.addAction(action00)
@@ -3409,10 +3410,17 @@ class SiSideBarWeight(qt.DockWindow):
         self.edit_menus.addSeparator()#分割線追加
         #----------------------------------------------------------------------------------------------------
         mag = lang.Lang(en='Append polygon (keep UV)',
-                                ja=u'ポリゴン追加(UVを保持)')
+                                ja=u'ポリゴン追加(UVを維持)')
         action02 = QAction(mag.output(), self.edit_menus)
         action02.triggered.connect(self.append_polygon_ui)
         self.edit_menus.addAction(action02)
+        #----------------------------------------------------------------------------------------------------
+        self.edit_menus.addSeparator()#分割線追加
+        mag = lang.Lang(en='Convert normal lock to hard edge information and unlock',
+                                ja=u'法線ロックをハードエッジ情報に変換してロック解除')
+        action03 = QAction(mag.output(), self.edit_menus)
+        action03.triggered.connect(qt.Callback(normal.convert_edge_lock))
+        self.edit_menus.addAction(action03)
         return self.edit_menus
         
     def append_polygon_ui(self):

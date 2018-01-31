@@ -88,7 +88,17 @@ class Callback(object):
             
         finally:
             cmds.undoInfo(closeChunk=True)
+            
+def getMayaWindow():
+    try:
+        imp.find_module("shiboken2")
+        import shiboken2
+        return shiboken2.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
 
+    except ImportError:
+        import shiboken
+        return shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    
 #ウィジェットカラーを変更する関数
 def change_widget_color(widget, 
                                         hibgColor = [100, 140, 180],
