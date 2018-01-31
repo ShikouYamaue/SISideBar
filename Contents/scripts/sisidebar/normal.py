@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from maya import cmds
 from . import freeze
+from . import common
+from . import modeling
 
 def convert_edge_lock():
     sel = cmds.ls(sl=True, l=True)
