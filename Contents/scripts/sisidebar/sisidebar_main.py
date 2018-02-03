@@ -25,6 +25,7 @@ import random
 import copy
 import time
 import itertools
+from functools import partial
 #PySide2、PySide両対応
 import imp
 try:
@@ -55,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.7 -'
+version = ' - SI Side Bar / ver_2.3.8 -'
 window_name = 'SiSideBar'
 window_width = 183
 top_hover = False#トップレベルボタンがホバーするかどうか
@@ -322,7 +323,6 @@ class SiSideBarWeight(qt.DockWindow):
         self.chane_context_space()
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
-        self.check_ui_button()#UIボタンの状態をチェックしておく
         sisidebar_sub.get_matrix()
         
     #UI上にポインタが来たらUI設定更新
@@ -731,7 +731,71 @@ class SiSideBarWeight(qt.DockWindow):
     def closeEvent(self, e):
         if maya_ver <= 2014:
             self.dockCloseEventTriggered()
-                
+            
+    attr_job_list = list()
+    fcurve_job_list = list()
+    trs_attr_list = ['.scaleX', '.scaleY', '.scaleZ', '.rotateX', '.rotateY', '.rotateZ', '.translateX', '.translateY', '.translateZ']
+    fcurve_job_ctrl_count = 0
+    def create_fcurve_job(self):
+        check_key_anim(from_fcurve=True)#大量のオブジェクト処理でジョブ作成が間に合わない場合の保険
+        #print 'create fcurve jobs'
+        self.kill_attr_job()
+        self.kill_fcurve_job()
+        self.fcurve_job_list = list()
+        if cmds.selectMode(q=True, co=True):
+            return
+        selection = cmds.ls(sl=True, l=True, tr=True)
+        #print selection, self.trs_attr_list
+        for node, attr in itertools.product(selection, self.trs_attr_list):
+            #print node+attr
+            job = cmds.scriptJob(connectionChange=[node+attr, self.re_check_fcurve])
+            self.attr_job_list.append(job)
+            fcurve = cmds.listConnections(node+attr)
+            if not fcurve:
+                #print 'not fcurve return :'
+                continue
+            #print 'set sub fcurve job :'
+            job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
+            self.fcurve_job_list.append(job)
+            job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
+            self.fcurve_job_list.append(job)
+        self.fcurve_job_ctrl_count += 1
+        
+    def check_key_anim_from_fcurve(self):
+            #print 'check key anim form fcurve'
+            check_key_anim(from_fcurve=True)
+            
+    pre_fcurve_job_ctrl_count = -1
+    def re_check_fcurve(self):
+        self.check_key_anim_from_fcurve()
+        if self.pre_fcurve_job_ctrl_count == self.fcurve_job_ctrl_count:
+            #print 'same fcurve layer : return'
+            return
+        self.kill_fcurve_job()
+        #print 'recheck sub fcurve job :'
+        self.pre_fcurve_job_ctrl_count = self.fcurve_job_ctrl_count
+        selection = cmds.ls(sl=True, l=True, tr=True)
+        for node, attr in itertools.product(selection, self.trs_attr_list):
+            fcurve = cmds.listConnections(node+attr)
+            if not fcurve:
+                continue
+            #print 'create_sub_fcurve_job :', node+attr, fcurve
+            job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
+            self.fcurve_job_list.append(job)
+            job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
+            self.fcurve_job_list.append(job)
+            #print self.fcurve_job_list
+            
+    def kill_attr_job(self):
+        for job in self.attr_job_list:
+            cmds.scriptJob(k=job)
+        self.attr_job_list = list()
+    def kill_fcurve_job(self):
+        for job in self.fcurve_job_list:
+            cmds.scriptJob(k=job)
+        self.fcurve_job_list = list()
+        
+        
     #スクリプトジョブ作成
     def create_job(self):
         global script_job
@@ -740,6 +804,7 @@ class SiSideBarWeight(qt.DockWindow):
         global undo_job
         global redo_job
         global workspace_job
+        global fcurve_job
         if 'script_job' in globals():
             if script_job:
                 return
@@ -749,6 +814,7 @@ class SiSideBarWeight(qt.DockWindow):
         redo_job = cmds.scriptJob(cu=True, e=("Redo", sisidebar_sub.change_selection))
         context_job = cmds.scriptJob(cu=True, e=("ToolChanged", sisidebar_sub.change_context))
         workspace_job = cmds.scriptJob(e=("SceneOpened", setup.check_open), kws=False)
+        fcurve_job = cmds.scriptJob(cu=True, e=("SelectionChanged", self.create_fcurve_job))
         #print 'check job for create :', script_job
         
     #スクリプトジョブ削除
@@ -760,6 +826,7 @@ class SiSideBarWeight(qt.DockWindow):
         global undo_job
         global redo_job
         global workspace_job
+        global fcurve_job
         if script_job is not None:
             cmds.scriptJob(k=script_job)
             cmds.scriptJob(k=timeline_job)
@@ -767,11 +834,14 @@ class SiSideBarWeight(qt.DockWindow):
             cmds.scriptJob(k=redo_job)
             cmds.scriptJob(k=undo_job)
             cmds.scriptJob(k=workspace_job)
+            cmds.scriptJob(k=fcurve_job)
             script_job = None
+        self.kill_attr_job()
+        self.kill_fcurve_job()
+            
     pre_vol_id = -1
     pre_obj_vol = -1
     pre_cmp_vol = -1
-    
     #以前の設定からUni/Volボタン状態を復旧する
     def rebuild_uni_vol(self, mode):
         #print 'rebuild_uni_vol', mode
@@ -2524,6 +2594,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.destroy_mode(init_ui=False)
             #self.destroy_mode(init_ui=False)
         self.load_mouse_setting()#マウスジェスチャー設定をロード
+        self.check_ui_button()#UIボタンの状態をチェックしておく
         
     #デストロイモード用のラインを隠した状態で作っておく
     ds_line_list=[]
@@ -5041,8 +5112,20 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False, lock=Fa
     #cmds.undoInfo(cn='tgl_center', cck=True)
               
 #キーアニメの有無を確認して色を変える
-def check_key_anim():
-    #print 'check_key_anim'
+global pre_check_anim_count
+pre_check_anim_count = -1
+def check_key_anim(from_fcurve=False):
+    global window
+    global pre_check_anim_count
+    if from_fcurve:
+        #print 'check_key_anim : fc'
+        if pre_check_anim_count == window.fcurve_job_ctrl_count:
+            #print 'same fcurve layer in check anim : return'
+            return
+        pre_check_anim_count = window.fcurve_job_ctrl_count
+    else:
+        #print 'check_key_anim'
+        pre_check_anim_count = -1
     selection = cmds.ls(sl=True, l=True, type='transform')
     global key_colors
     key_colors = [0, 0, 0, 0, 0, 0, 0, 0, 0]
