@@ -131,7 +131,7 @@ AppendPolygonと違い、フェースのUV座標を保持しながら面を追�
 FBX経由でモデルを入出力した場合ハードエッジ情報が失われて、法線ロック情報に置き換わってしまうので、再度ロック解除する場合などに。
 ![default](https://user-images.githubusercontent.com/28256498/35630921-f4035fa0-06e5-11e8-9d23-1c43d6e894f4.gif)
 
-・とりあえず使用説明動画とってみました
+・とりあえず使用説明動画とってみました  
 https://youtu.be/14T5_Ak4dAE  
 https://youtu.be/Ymq6SQwWF8s  
 https://youtu.be/tC5p24b9sUQ  
