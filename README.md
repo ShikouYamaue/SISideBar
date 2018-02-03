@@ -46,16 +46,18 @@ Maya起動時に前回の終了状態でウィンドウ位置、ドッキング�
 ・SRT入力窓の再現  
 ・四則演算入力のSI方式とMaya方式の両立（10+、+=10など）  
 ・計算式入力対応 (1*(3+5))/25+3 とか  
-・ランダム関数入力 r→0～1, r(n)→0～n, r(n,n2)→n～n2, r(n,n2,s)シードをsで整数指定、同じシードなら同じ乱数が返ってくる  
-・リニア関数対応 l(n1, n2) ｎ1～n2の間に選択オブジェクトを均等に配置、ランダム関数、マルチライン入力との併用も可能  
+・ランダム関数入力 r→0～1, r(n)→0～n, r(n,n2)→n～n2, r(n,n2,s)シードをsで整数指定、同じシードなら同じ乱数が返ってくる
+![2017-11-17_02h42_23](https://user-images.githubusercontent.com/28256498/35768336-97f33334-093d-11e8-8454-f801946e33c9.png)　　
+・リニア関数対応 l(n1, n2) ｎ1～n2の間に選択オブジェクトを均等に配置、ランダム関数、マルチライン入力との併用も可能
+![linear](https://user-images.githubusercontent.com/28256498/35768342-a6fa6000-093d-11e8-9f0d-713b0e614365.gif)　　
 ・ホイール入力への対応（Shift,Ctrlで桁調整 10, 1, 0.1）  
 ・カッコ[ ]による数値追加入力に対応 通常1.0ずつ、 shift 0.1ずつ、ctrl 10ずつ  
 ・スペース入力は0.0扱い  
 ・コンポーネントへの入力対応  
 ・3軸ボタン、を右クリックで一括入力、各XYZ軸右クリックで一括入力状態をトグル  
-・アトリビュートのロック状態の表示、ロック/アンロック一括切り替え機能  
-![default](https://user-images.githubusercontent.com/28256498/33526068-27f318aa-d87e-11e7-81dd-ec940fd98879.gif)
-
+・アトリビュートのロック状態の表示、ロック/アンロック一括切り替え機能
+右クリックで軸別ロック切り替え
+![2 2 0](https://user-images.githubusercontent.com/28256498/35768320-5238fd10-093d-11e8-9557-17376fa63eab.gif)
 
 ・マウスジェスチャー入力に対応  
 入力窓をクリック＆ドラッグで数値加算できます。  
@@ -63,7 +65,17 @@ Maya起動時に前回の終了状態でウィンドウ位置、ドッキング�
 SIは対角で+-、-+となってましたがわかりにくいので仕様変更。  
 円を描くようにすると続けて加算できます。  
 Uターンすると符号反転（+-切り替え）します。Uターン角度の閾値は現在120°  
-Shiftで+-0.1、Ctrlで+-10  
+Shiftで+-0.1、Ctrlで+-10
+![default](https://user-images.githubusercontent.com/28256498/35768278-8feb0b72-093c-11e8-9b48-d87b6eefedf1.gif)
+
+・選択フィルターとのリンク
+左クリック→単独選択
+Shift+左クリック→追加、削除選択
+右クリック→全選択
+![2 3 0](https://user-images.githubusercontent.com/28256498/35768285-ac676e1c-093c-11e8-853f-e5db19ece336.gif)
+
+・Mayaの選択設定とのリンク
+![2 2 7](https://user-images.githubusercontent.com/28256498/35768314-22952db8-093d-11e8-8ac7-f142e27d07f9.gif)
 
 ・オブジェクト名検索、スペース区切りで複数ワード検索可能　例）pShper* pCube*  
 ・検索タイプのフィルター機能、右クリックでオプションメニューオープン  
@@ -80,11 +92,16 @@ Shiftで+-0.1、Ctrlで+-10
 
 ・トランスフォームスペースのリンク（Global, Local, View, Objectなど）
 
+・COG(センターオブジオメトリ)モードの再現
+有効にすると選択オブジェクトの中心に一時的にピボットを移動します。無効にするor選択解除で元に戻ります。
+![cog](https://user-images.githubusercontent.com/28256498/35768354-c51a6e86-093d-11e8-8182-31c31c44b00b.gif)
+
 ・VolモードUniモードの再現
 Volモード1軸スケール時にボリュームを維持するように他の軸を調整します。
 Uniモード全体のスケール比率を維持します。
 
 ・Transformメニュー再現、拡充  
+![default](https://user-images.githubusercontent.com/28256498/35768385-46c3192e-093e-11e8-9363-0ee0c408b057.jpg)
 ・ResetActor  
 ・JointOriento↔Rotation  
 ・MutchiTransform  
@@ -92,7 +109,9 @@ Uniモード全体のスケール比率を維持します。
 ・ResetTransform  
 ・MoveCenterToSelection  
 ・RoundTransform / SRTの小数点指定桁数以下の丸め機能  
-・絶対値に移動  
+・絶対値に移動の再現
+有効にしておくとコンポーネント移動の際、指定した座標平面に整列します。
+![default](https://user-images.githubusercontent.com/28256498/35768374-1d777178-093e-11e8-81d8-e9aa799a55dd.jpg)
 ・サイドバーの軸選択状態を優先するモード  
 ・ニュートラルノードの設定 / ニュートラルポーズ代替機能  
 ・SRTの表示桁数設定  
