@@ -74,19 +74,19 @@ maya_w = 77
 #フロートウィンドウのオフセット量をまとめて管理
 #dy, fy, px, mx
 if maya_ver >= 2017:
-    transform_offset = [-40, -40, 385, -180]
+    transform_offset = [-40, -40, 385, -180*ui_scale]
 elif  maya_ver >= 2016:
-    transform_offset = [-40, -40, 340, -180]
+    transform_offset = [-40, -40, 340, -180*ui_scale]
 else:
-    transform_offset = [-40, -40, 355, -180]
+    transform_offset = [-40, -40, 355, -180*ui_scale]
 if maya_ver >= 2016:
-    prop_offset = [-55, -55, 315, -175]
-    sym_offset = [-55, -55, 300, -175]
+    prop_offset = [-55, -55, 315, -175*ui_scale]
+    sym_offset = [-55, -55, 300, -175*ui_scale]
 else:
-    prop_offset = [-55, -55, 315, -180]
-    sym_offset = [-55, -55, 320, -180]
-filter_offset = [-100, -100, 215, -180]
-edge_extrude_offset = [-162, -162, 215, -180]
+    prop_offset = [-55, -55, 315, -180*ui_scale]
+    sym_offset = [-55, -55, 320, -180*ui_scale]
+filter_offset = [-100, -100, 215, -180*ui_scale]
+edge_extrude_offset = [-162, -162, 215, -180*ui_scale]
 global uni_vol_dict
 #Uni/Volボタン仕様変更のため
 uni_vol_dict = {'Uni/Vol':-1, 'Uni':2, 'Vol':5,  'Normal':-1, 'View':-1}
