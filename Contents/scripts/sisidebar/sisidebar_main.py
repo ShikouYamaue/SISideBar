@@ -56,9 +56,17 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.8 -'
+version = ' - SI Side Bar / ver_2.3.9 -'
 window_name = 'SiSideBar'
-window_width = 183
+
+#UIスケーリングサイズを取得しておく
+if cmds.optionVar( exists='interfaceScalingValue' ) and cmds.optionVar( q='interfaceScalingMode' ) == 1:
+    ui_scale = cmds.optionVar( q='interfaceScalingValue' )
+else:
+    ui_scale = 1.0
+
+window_width = 183*ui_scale
+
 top_hover = False#トップレベルボタンがホバーするかどうか
 top_h = 20#トップレベルボタンの高さ
 si_w = 80

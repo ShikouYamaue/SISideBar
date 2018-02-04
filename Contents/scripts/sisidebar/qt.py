@@ -343,16 +343,29 @@ def make_flat_button(icon=None, name='', text=200, bg=[54, 51, 51], ui_color=68,
             change_button_color(button, textColor=text, bgColor=bg, hiColor=push_col, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
         else:
             change_button_color(button, textColor=text, bgColor=bg, hiColor=costom_push, mode='button', hover=hover, destroy=destroy_flag, dsColor=border_col)
+    #UIスケーリングサイズを取得しておく
+    if cmds.optionVar( exists='interfaceScalingValue' ) and cmds.optionVar( q='interfaceScalingMode' ) == 1:
+        ui_scale = cmds.optionVar( q='interfaceScalingValue' )
+    else:
+        ui_scale = 1.0
     if w_max:
-        button.setMaximumWidth(w_max)
+        button.setMaximumWidth(w_max*ui_scale)
     if w_min:
-        button.setMinimumWidth(w_min)
+        button.setMinimumWidth(w_min*ui_scale)
     if h_max:
-        button.setMaximumHeight(h_max)
+        button.setMaximumHeight(h_max*ui_scale)
     if h_min:
-        button.setMinimumHeight(h_min)
+        button.setMinimumHeight(h_min*ui_scale)
     if icon_size:
-        button.setIconSize(QSize(*icon_size))
+        x = icon_size[0]*ui_scale
+        y = icon_size[1]*ui_scale
+        button.setIconSize(QSize(x, y))
+    else:
+        icon_size = button.iconSize()
+        #print icon_size
+        x = icon_size.width()*ui_scale
+        y = icon_size.height()*ui_scale
+        button.setIconSize(QSize(x, y))
     if policy:#拡大縮小するようにポリシー設定
         button.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
     if tip:
