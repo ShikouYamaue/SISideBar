@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.3.9 -'
+version = ' - SI Side Bar / ver_2.4.0 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -2289,54 +2289,60 @@ class SiSideBarWeight(qt.DockWindow):
         snap_h = 22
         #print snap_mode         
         tip = lang.Lang(
-        en='Snap to grids\n\nMoves the selected item to the nearest grid intersection point.\n',
-        ja=u'グリッドスナップ\n\n選択した項目を最も近いグリッド交点に移動します。\n')
+        en='Snap to grids\n\nMoves the selected item to the nearest grid intersection point.\n\nRight click / check all or cancel all\n',
+        ja=u'グリッドスナップ\n\n選択した項目を最も近いグリッド交点に移動します。\n\n右クリック / 全チェックor全解除\n')
         self.snap_glid_but = make_flat_button(icon=':/snapGrid.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_glid_but.setChecked(snap_mode)
         self.snap_glid_but.clicked.connect(lambda : cmds.snapMode(grid=self.snap_glid_but.isChecked()))
+        self.snap_glid_but.rightClicked.connect(self.all_toggle_snapping)
         self.main_layout.addWidget(self.snap_glid_but, vn, 0, 1 ,2)
         
         tip = lang.Lang(
-        en='Snap to curves\n\nMoves the selected item to the nearest curve.\n',
-        ja=u'カーブスナップ\n\n選択した項目を最も近いカーブに移動します。\n')
+        en='Snap to curves\n\nMoves the selected item to the nearest curve.\n\nRight click / check all or cancel all\n',
+        ja=u'カーブスナップ\n\n選択した項目を最も近いカーブに移動します。\n\n右クリック / 全チェックor全解除\n')
         snap_mode = cmds.snapMode(q=True, curve=True)
         self.snap_segment_but = make_flat_button(icon=':/snapCurve.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_segment_but.setChecked(snap_mode)
         self.snap_segment_but.clicked.connect(lambda : cmds.snapMode(curve=self.snap_segment_but.isChecked()))
+        self.snap_segment_but.rightClicked.connect(self.all_toggle_snapping)
         self.main_layout.addWidget(self.snap_segment_but, vn, 2, 1 ,2)
         
         tip = lang.Lang(
-        en='Snap to points\n\nMoves the selected item to the nearest control vertex or pivot.\n',
-        ja=u'ポイントスナップ\n\n選択した項目を最も近いコントロール頂点(CV)または\nピボットポイントに移動します。\n')
+        en='Snap to points\n\nMoves the selected item to the nearest control vertex or pivot.\n\nRight click / check all or cancel all\n',
+        ja=u'ポイントスナップ\n\n選択した項目を最も近いコントロール頂点(CV)または\nピボットポイントに移動します。\n\n右クリック / 全チェックor全解除\n')
         snap_mode = cmds.snapMode(q=True, point=True)
         self.snap_point_but = make_flat_button(icon=':/snapPoint.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_point_but.setChecked(snap_mode)
         self.snap_point_but.clicked.connect(lambda : cmds.snapMode(point=self.snap_point_but.isChecked()))
+        self.snap_point_but.rightClicked.connect(self.all_toggle_snapping)
         self.main_layout.addWidget(self.snap_point_but, vn, 4, 1 ,2)
         
         tip = lang.Lang(
-        en='Snap to Projected Center\n\nMoves to the center of the selected object.\n',
-        ja=u'投影された中心にスナップ\n\n選択したオブジェクトの中心にスナップします。\n')
+        en='Snap to Projected Center\n\nMoves to the center of the selected object.\n\nRight click / check all or cancel all\n',
+        ja=u'投影された中心にスナップ\n\n選択したオブジェクトの中心にスナップします。\n\n右クリック / 全チェックor全解除\n')
         snap_mode = cmds.snapMode(q=True, meshCenter=True)
         self.snap_pcenter_but = make_flat_button(icon=':/snapMeshCenter.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_pcenter_but.setChecked(snap_mode)
         self.snap_pcenter_but.clicked.connect(lambda : cmds.snapMode(meshCenter=self.snap_pcenter_but.isChecked()))
+        self.snap_pcenter_but.rightClicked.connect(self.all_toggle_snapping)
         self.main_layout.addWidget(self.snap_pcenter_but, vn, 6, 1 ,2)
         
         tip = lang.Lang(
-        en='Snap to view planes\n\nMoves the selected item to the nearest view plane.\n',
-        ja=u'ビュープレーンスナップ\n\n選択した項目を最も近いビュープレーンに移動します。\n')
+        en='Snap to view planes\n\nMoves the selected item to the nearest view plane.\n\nRight click / check all or cancel all\n',
+        ja=u'ビュープレーンスナップ\n\n選択した項目を最も近いビュープレーンに移動します。\n\n右クリック / 全チェックor全解除\n')
         snap_mode = cmds.snapMode(q=True, viewPlane=True)
         self.snap_plane_but = make_flat_button(icon=':/snapPlane.png', name='', text=text_col, bg=hilite, checkable=True, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_plane_but.setChecked(snap_mode)
         self.snap_plane_but.clicked.connect(lambda : cmds.snapMode(viewPlane=self.snap_plane_but.isChecked()))
+        self.snap_plane_but.rightClicked.connect(self.all_toggle_snapping)
         self.main_layout.addWidget(self.snap_plane_but, vn, 8, 1 ,2)
         
         tip = lang.Lang(
-        en='Make the selected object live\n\nConverts the selected surface to a live surface (RMB to select\nfrom previous live surface).\n',
-        ja=u'選択したオブジェクトをライブにします\n\n選択したサーフェイスをライブサーフェイスに変換します\n')
+        en='Make the selected object live\n\nConverts the selected surface to a live surface (RMB to select\nfrom previous live surface).\n\nRight click / check all or cancel all\n',
+        ja=u'選択したオブジェクトをライブにします\n\n選択したサーフェイスをライブサーフェイスに変換します\n\n右クリック / 全チェックor全解除\n')
         self.snap_live_but = make_flat_button(icon=':/makeLiveIcon.png', name='', text=text_col, bg=hilite, checkable=False, w_max=snap_w, h_max=snap_h, tip=tip.output())
         self.snap_live_but.clicked.connect(self.make_live_snap)
+        self.snap_live_but.rightClicked.connect(self.all_toggle_snapping)
         #self.snap_on_but.clicked.connect(self.parent_node)
         self.main_layout.addWidget(self.snap_live_but, vn, 10, 1 ,1)
         vn+=1
@@ -2603,6 +2609,7 @@ class SiSideBarWeight(qt.DockWindow):
             #self.destroy_mode(init_ui=False)
         self.load_mouse_setting()#マウスジェスチャー設定をロード
         self.check_ui_button()#UIボタンの状態をチェックしておく
+        self.create_fcurve_job()#最初のアニメチェックジョブを作成しておく
         
     #デストロイモード用のラインを隠した状態で作っておく
     ds_line_list=[]
@@ -2812,6 +2819,7 @@ class SiSideBarWeight(qt.DockWindow):
         else:
             for but, h in zip(buttons, heights):
                 but.setVisible(True)
+                
     def collapse_ds_ui(self, buttons=None, heights=None):
         self.collapse_count = len(buttons)
         self.cb_count = 0
@@ -2819,6 +2827,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.col_timer = QTimer()
         self.col_timer.start(100)
         self.col_timer.timeout.connect(self.collapse_but)
+        
     def collapse_but(self):
         try:
             self.collapse_buttons[self.cb_count].setVisible(False)
@@ -2829,8 +2838,6 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cb_count == self.collapse_count-1:
             self.col_timer.stop()
             
-        
-        
     #セレクションフィルター状態をロード
     def load_filter_but(self):
         save_file = self.dir_path+'\\sisidebar_selection_filter_'+str(maya_ver)+'.json'
@@ -2868,6 +2875,7 @@ class SiSideBarWeight(qt.DockWindow):
     def pick_walk(self, mode=''):
         #print 'pick_walk :', mode
         cmds.pickWalk(d=mode)
+        
     #入力からコンポーネントを検索して選択
     def search_component(self):
         if self.init_flag:
@@ -2977,6 +2985,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.selection_line.setText('')
         self.selection_line.clearFocus()
         self.display_selection()
+        
     #選択オブジェクト情報を表示
     def display_selection(self):
         if cmds.selectMode(q=True, o=True):
@@ -3105,6 +3114,7 @@ class SiSideBarWeight(qt.DockWindow):
         if event.type() == QEvent.FocusIn:
             cmds.scriptJob(ro=True, e=("idle", lambda : self.select_text_all(obj)), protected=True)
         return False
+        
     def select_text_all(self, obj):
         obj.selectAll()
             
@@ -4006,6 +4016,17 @@ class SiSideBarWeight(qt.DockWindow):
     #リセットアクターバインドポーズを実行
     def reset_actor(self):
         joint_animation.reset_actor()
+        
+    def all_toggle_snapping(self):
+        flag = any(but.isChecked() for but in self.snap_section_but[:-1])
+        #print flag
+        if flag:
+            check_flag = False
+        else:
+            check_flag = True
+        cmds.snapMode(grid=check_flag, curve=check_flag, point=check_flag, meshCenter=check_flag,  viewPlane=check_flag)
+        [but.setChecked(check_flag) for but in self.snap_section_but[:-1]]
+        
     #ダグノードの選択フィルタリングを変更する
     def select_filter_mode(self, mode=0):
         #shiftかどうかを判定
