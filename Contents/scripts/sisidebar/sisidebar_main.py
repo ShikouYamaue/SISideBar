@@ -763,6 +763,8 @@ class SiSideBarWeight(qt.DockWindow):
                 #print 'not fcurve return :'
                 continue
             #print 'set sub fcurve job :'
+            if cmds.nodeType(fcurve) != 'animCurveTU':
+                continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
@@ -788,6 +790,8 @@ class SiSideBarWeight(qt.DockWindow):
             if not fcurve:
                 continue
             #print 'create_sub_fcurve_job :', node+attr, fcurve
+            if cmds.nodeType(fcurve) != 'animCurveTU':
+                continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
@@ -5148,8 +5152,11 @@ def check_key_anim(from_fcurve=False):
     global pre_check_anim_count
     if from_fcurve:
         #print 'check_key_anim : fc'
-        if pre_check_anim_count == window.fcurve_job_ctrl_count:
-            #print 'same fcurve layer in check anim : return'
+        try:
+            if pre_check_anim_count == window.fcurve_job_ctrl_count:
+                #print 'same fcurve layer in check anim : return'
+                return
+        except:
             return
         pre_check_anim_count = window.fcurve_job_ctrl_count
     else:
