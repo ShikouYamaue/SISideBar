@@ -498,6 +498,10 @@ class SiSideBarWeight(qt.DockWindow):
             pass
             
     #マニピュレータコンテキストを初期化
+    try:
+        pre_type = cmds.nodeType(cmds.ls(sl=True, l=True))
+    except:
+        pre_type = None
     def set_up_manip(self):
         #print 'set_up_manip'
         if cmds.selectMode(q=True, o=True):
@@ -505,7 +509,7 @@ class SiSideBarWeight(qt.DockWindow):
             if sel:
                 type = cmds.nodeType(sel[0])
             else:
-                type = 'transform'
+                type = None
                 #print 'edit manip cod : object'
             #print type
             if maya_ver >=2015:
@@ -536,8 +540,9 @@ class SiSideBarWeight(qt.DockWindow):
             if sel:
                 #複数のコンポーネントタイプに対応Podはリストの最後のタイプでないとだめみたい
                 type = cmds.nodeType(sel[-1])
+                print type, self.pre_type
             else:
-                type = 'mesh'
+                type = self.pre_type
             if maya_ver >=2015:
                 scale_manip = cmds.manipScaleContext('Scale', e=True, 
                                                                                 pod=(self.editing_manip, type),
@@ -555,6 +560,14 @@ class SiSideBarWeight(qt.DockWindow):
                                                                                 pod=(self.editing_manip, type))
                 move_manip = cmds.manipMoveContext('Move', e=True, 
                                                                                 pod=(self.editing_manip, type))
+        if self.pre_type != type:
+            print 'change set tool', type, self.pre_type
+            current_tool = cmds.currentCtx()
+            #cmds.setToolTo('selectSuperContext')
+            cmds.setToolTo(current_tool)
+            cmds.select(sel, r=True)
+        self.pre_type = type
+                        
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
     def reload_srt(self):
         sisidebar_sub.get_matrix()

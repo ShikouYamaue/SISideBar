@@ -40,7 +40,6 @@ def change_context():
     
 #選択変更時のみの通り道を別途用意
 pre_mode = None
-@common.timer
 def change_selection():
     #print '*+*+*+*+*+*+*+selection changed+*+*+*+*+*+*+* :', cmds.ls(sl=True)
     global bake_mode
@@ -55,7 +54,7 @@ def change_selection():
     cmds.undoInfo(swf=True)
     
     #コンテキストを切り替えてリアルタイム検出を有効にする。
-    restore_context_and_axis()
+    #restore_context_and_axis()
     #コンテキストのpodモードを選択タイプによって切り替える
     sb.chenge_manip_type()
     sb.change_selection_display()
@@ -76,7 +75,9 @@ def change_selection():
     sb.check_option_parm()
     
 #コンテキストを切り替えてリアルタイム検出を有効にする。軸選択状態をサイドバーに復元する。
-@common.timer
+#選択タイプ検出時に直接実行するようになったので不要。
+pre_sel_comp = []
+pre_sel_obj = []
 def restore_context_and_axis():
     global current_mode
     global pre_mode
@@ -86,8 +87,10 @@ def restore_context_and_axis():
     #選択オブジェクトが切り替わったときだけ切り替え実行
     if cmds.selectMode(q=True, co=True):
         if cmds.ls(sl=True, type='transform'):#複合選択モードの時は逃げる
+            print 'multi selection mode return :'
             return
         if cmds.ls(sl=True, set=True):#複合選択モードの時は逃げる
+            print 'multi selection mode return :'
             return
         if 'pre_sel_comp' in globals():
             current_selection = cmds.ls(sl=True)
@@ -140,7 +143,6 @@ def set_round_decimal(decimal):
     global round_decimal
     round_decimal = decimal
     
-@common.timer
 def get_matrix():
     global sb
     from . import sisidebar_main as sb
