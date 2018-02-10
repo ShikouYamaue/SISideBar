@@ -9,6 +9,7 @@ import imp
 import os
 import time
 from . import sisidebar_main as sb
+from . import common
 try:
     import numpy as np
     np_flag = True
@@ -39,6 +40,7 @@ def change_context():
     
 #選択変更時のみの通り道を別途用意
 pre_mode = None
+@common.timer
 def change_selection():
     #print '*+*+*+*+*+*+*+selection changed+*+*+*+*+*+*+* :', cmds.ls(sl=True)
     global bake_mode
@@ -74,6 +76,7 @@ def change_selection():
     sb.check_option_parm()
     
 #コンテキストを切り替えてリアルタイム検出を有効にする。軸選択状態をサイドバーに復元する。
+@common.timer
 def restore_context_and_axis():
     global current_mode
     global pre_mode
@@ -87,7 +90,7 @@ def restore_context_and_axis():
         if cmds.ls(sl=True, set=True):#複合選択モードの時は逃げる
             return
         if 'pre_sel_comp' in globals():
-            current_selection = cmds.ls(sl=True, fl=True)
+            current_selection = cmds.ls(sl=True)
             if pre_sel_comp != current_selection:
                 if current_tool in target_tool_list:
                     if not cmds.ls(sl=True):
@@ -102,7 +105,7 @@ def restore_context_and_axis():
                         if current_selection != cmds.ls(sl=True):
                             cmds.select(current_selection, r=True)
         global pre_sel_comp
-        pre_sel_comp = cmds.ls(sl=True, fl=True)
+        pre_sel_comp = cmds.ls(sl=True)#Flatにすると比較が無駄に重くなるので注意
     if cmds.selectMode(q=True, o=True):
         if 'pre_sel_obj' in globals():
             current_selection = cmds.ls(sl=True, o=True)
@@ -137,6 +140,7 @@ def set_round_decimal(decimal):
     global round_decimal
     round_decimal = decimal
     
+@common.timer
 def get_matrix():
     global sb
     from . import sisidebar_main as sb

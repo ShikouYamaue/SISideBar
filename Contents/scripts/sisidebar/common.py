@@ -10,7 +10,8 @@ import locale
 import datetime as dt
 import json
 import inspect
-
+import time
+import functools
 #現在の行番号を調べる
 def location(depth=0):
     frame = inspect.currentframe().f_back
@@ -137,3 +138,26 @@ def conv_comp(obj, mode=''):
         comp = cmds.polyListComponentConversion(obj, tuv=True)
         comp = cmds.filterExpand(comp, sm=35)
     return comp
+    
+def timer(func):
+    import datetime
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print '-------------------------------------------------------------'
+        print func.__name__, ':', end - start
+        print '-------------------------------------------------------------'
+        return result
+    return wrapper
+    
+def timer(func):
+    #何もしないデコレータ、計測しないときはこちら
+    import functools
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+    

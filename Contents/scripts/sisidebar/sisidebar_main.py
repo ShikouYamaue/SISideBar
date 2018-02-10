@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.1 -'
+version = ' - SI Side Bar / ver_2.4.2 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
