@@ -319,7 +319,7 @@ def pre_pro_reference(sel=None):
     
 def set_reference(mode=''):
     c_ctx = cmds.currentCtx(q=True)
-    print c_ctx
+    #print c_ctx
     sel = cmds.ls(sl=True, l=True)
     #print 'set reference :', mode, sel
     current_ctx = cmds.currentCtx()
@@ -330,17 +330,14 @@ def set_reference(mode=''):
         rx = rot[0]/180*math.pi
         ry = rot[1]/180*math.pi
         rz = rot[2]/180*math.pi
-        if current_ctx == 'selectSuperContext':
-            return
-        if current_ctx == 'scaleSuperContext':
-            #mel.eval('manipScaleOrient 1;')
-            cmds.manipScaleContext('Scale', e=True, orientAxes=(rx, ry, rz))
-        if current_ctx == 'RotateSuperContext':
-            #mel.eval('manipRotateOrient 1;')
-            cmds.manipRotateContext('Rotate', e=True, orientAxes=(rx, ry, rz))
-        if current_ctx == 'moveSuperContext':
-            #mel.eval('manipMoveOrient 1;')
-            cmds.manipMoveContext('Move', e=True, orientAxes=(rx, ry, rz))
+        cmds.manipScaleContext('Scale', e=True, orientAxes=(rx, ry, rz))
+        cmds.manipRotateContext('Rotate', e=True, orientAxes=(rx, ry, rz))
+        cmds.manipMoveContext('Move', e=True, orientAxes=(rx, ry, rz))
+        
+        cmds.setToolTo('scaleSuperContext')#マニプ表示がおかしくなるのでいったんコンテキスト設定してから戻す
+        cmds.setToolTo('RotateSuperContext')
+        cmds.setToolTo('moveSuperContext')
+        cmds.setToolTo(current_ctx)
     else:
         if mode == 'vertex':
             manip_type = 'PointHandleTowards'
@@ -359,15 +356,10 @@ def set_reference(mode=''):
             comp = cmds.filterExpand(comp, sm=34)
             sel_node = comp[0]
         if comp:
-            if current_ctx == 'selectSuperContext':
-                return
-            if current_ctx == 'scaleSuperContext':
                 mel.eval('manipScaleOrient 5;')
                 mel.eval('{  string $Selection1[]; $Selection1[0] = "'+comp[0]+'"; manipScale'+manip_type+'($Selection1[0], {"'+sel_node+'"}, {}, "", 0);;  };')
-            if current_ctx == 'RotateSuperContext':
                 mel.eval('manipRotateOrient 5;')
                 mel.eval('{  string $Selection1[]; $Selection1[0] = "'+comp[0]+'"; manipRotate'+manip_type+'($Selection1[0], {"'+sel_node+'"}, {}, "", 0);;  };')
-            if current_ctx == 'moveSuperContext':
                 mel.eval('manipMoveOrient 5;')
                 mel.eval('{  string $Selection1[]; $Selection1[0] = "'+comp[0]+'"; manipMove'+manip_type+'($Selection1[0], {"'+sel_node+'"}, {}, "", 0);;  };')
         cmds.selectMode(co=True)

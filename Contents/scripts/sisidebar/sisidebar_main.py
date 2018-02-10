@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.0 -'
+version = ' - SI Side Bar / ver_2.4.1 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -366,7 +366,7 @@ class SiSideBarWeight(qt.DockWindow):
         print ini_rot_mode
         print ini_trans_mode
         '''
-        scale_obj_list =  [1, 3, 0, 3, 3, 3, 3, None, None, 5, 5]
+        scale_obj_list =  [1, 3, 0, 3, 3, 3, 4, None, None, 5, 5]
         scale_cmp_list = [1, 3, 0, 3, 3, 3, 4, None, None, 5, 5]
         rot_list = [1, 0, 3, 4, None, None, None, None, None, 5, 5]
         trans_list = [1, 3, 0, 2, 3, 3, 4, None, None, 5, 5]
@@ -376,9 +376,9 @@ class SiSideBarWeight(qt.DockWindow):
         self.rot_space = rot_list[ini_rot_mode] 
         self.trans_space = trans_list[ini_trans_mode]
         
-        
     #スペース設定を変更したらMayaのコンテキストにも反映する
     def chane_context_space(self):
+        #print 'change context space'
         if select_scale.isChecked():
             if cmds.selectMode(q=True, o=True):
                 if maya_ver >= 2018:
@@ -763,6 +763,8 @@ class SiSideBarWeight(qt.DockWindow):
                 #print 'not fcurve return :'
                 continue
             #print 'set sub fcurve job :'
+            if cmds.nodeType(fcurve) != 'animCurveTU':
+                continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
@@ -788,6 +790,8 @@ class SiSideBarWeight(qt.DockWindow):
             if not fcurve:
                 continue
             #print 'create_sub_fcurve_job :', node+attr, fcurve
+            if cmds.nodeType(fcurve) != 'animCurveTU':
+                continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.apply', self.check_key_anim_from_fcurve])
@@ -3379,12 +3383,13 @@ class SiSideBarWeight(qt.DockWindow):
         else:
             sym = True
         self.sym_but.setChecked(sym)
+        
         #self.toggle_sym()
         target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
         current_tool = cmds.currentCtx()
         if current_tool in target_tool_list:
             mode = current_tool.index(current_tool)
-            self.get_init_space()
+            #self.get_init_space()
             if mode < 3:
                 mode+=4
             #print mode
@@ -5148,8 +5153,11 @@ def check_key_anim(from_fcurve=False):
     global pre_check_anim_count
     if from_fcurve:
         #print 'check_key_anim : fc'
-        if pre_check_anim_count == window.fcurve_job_ctrl_count:
-            #print 'same fcurve layer in check anim : return'
+        try:
+            if pre_check_anim_count == window.fcurve_job_ctrl_count:
+                #print 'same fcurve layer in check anim : return'
+                return
+        except:
             return
         pre_check_anim_count = window.fcurve_job_ctrl_count
     else:
@@ -5274,9 +5282,9 @@ def set_active_mute(mode=0):
     '''
     #オブジェクトモード、スケールの時だけスペース設定にミュートが発生するので特殊処理
     mute_list = [False, False, False, False, True, False]
-    sel_mute_list = [False, False, False, True, True, True]
+    sel_mute_list = [False, False, False, True, False, True]
     text_col_list = [text_col, text_col, text_col, text_col, mute_text, text_col]
-    sel_text_col_list = [text_col, text_col, text_col, mute_text, mute_text, mute_text]
+    sel_text_col_list = [text_col, text_col, text_col, mute_text, text_col, mute_text]
     if cmds.selectMode(q=True, o=True):
         name_list = obj_mode_list[mode]
     else:
