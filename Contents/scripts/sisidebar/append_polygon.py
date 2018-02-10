@@ -310,7 +310,11 @@ class AppendPolygon(qt.SubWindow):
             #フェースの頂点がすべて非多様頂点だった場合は反転する
             if len(list(set(nmv) & set(last_vtx))) == 3:
                 #print 'get rev face :', last_face
-                cmds.polyNormal(last_face, ch=1, normalMode=4)
+                if maya_ver <= 2015:#2016以降、コマンドのふるまいが変わっていたので使い分け
+                    cmds.polyNormal(last_face, ch=1, normalMode=4)
+                else:
+                    cmds.polyNormal(last_face, ch=1, normalMode=0)
+                    
         self.move_uv(last_face)#UV座標の移動
         cmds.selectMode(co=True)
         cmds.select(pre_sel)
