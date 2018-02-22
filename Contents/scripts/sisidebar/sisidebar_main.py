@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.1 -'
+version = ' - SI Side Bar / ver_2.4.2 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -313,7 +313,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.get_init_space()
         self.init_save()
         self.load(init_pos=init_pos)
-        self.get_pre_about()
+        self.get_pre_about()#シンメトリ有効かどうかを取得
         self.setAcceptDrops(True)#ドラッグドロップを許可
         
         self.reload.connect(self.reload_srt)
@@ -540,7 +540,7 @@ class SiSideBarWeight(qt.DockWindow):
             if sel:
                 #複数のコンポーネントタイプに対応Podはリストの最後のタイプでないとだめみたい
                 type = cmds.nodeType(sel[-1])
-                print type, self.pre_type
+                #print 'check sel type :', type, self.pre_type
             else:
                 type = self.pre_type
             if maya_ver >=2015:
@@ -561,11 +561,11 @@ class SiSideBarWeight(qt.DockWindow):
                 move_manip = cmds.manipMoveContext('Move', e=True, 
                                                                                 pod=(self.editing_manip, type))
         if self.pre_type != type:
-            print 'change set tool', type, self.pre_type
+            #print 'change set tool', type, self.pre_type
             current_tool = cmds.currentCtx()
             #cmds.setToolTo('selectSuperContext')
             cmds.setToolTo(current_tool)
-            cmds.select(sel, r=True)
+            #cmds.select(sel, r=True)
         self.pre_type = type
                         
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
@@ -1010,8 +1010,8 @@ class SiSideBarWeight(qt.DockWindow):
                         self.but_scale_z.setChecked(self.sel_sz)
                         self.but_scale_all.setChecked(self.sel_s_all)
                         if cmds.selectMode(q=True, o=True):
-                            if self.scl_obj_space == 0:
-                                self.scl_obj_space = 1
+                            #if self.scl_obj_space == 0:
+                                #self.scl_obj_space = 1
                             #print 'pre scl object space :', self.scl_cmp_space
                             space_group.button(self.scl_obj_space).setChecked(True)
                             if self.uni_obj_mode != -1:
@@ -1110,8 +1110,8 @@ class SiSideBarWeight(qt.DockWindow):
             if mode == 3:
                 if select_scale.isChecked():
                     if cmds.selectMode(q=True, o=True):
-                        if self.scl_obj_space == 0:
-                            self.scl_obj_space = 1
+                        #if self.scl_obj_space == 0:
+                            #self.scl_obj_space = 1
                         #print 'pre scl object space :', self.scl_cmp_space
                         space_group.button(self.scl_obj_space).setChecked(True)
                         self.rebuild_uni_vol(mode=self.uni_obj_mode)
@@ -1130,8 +1130,8 @@ class SiSideBarWeight(qt.DockWindow):
             if mode == 4:
                 if select_scale.isChecked():
                     if cmds.selectMode(q=True, o=True):
-                        if self.scl_obj_space == 0:
-                            self.scl_obj_space = 1
+                        #if self.scl_obj_space == 0:
+                            #self.scl_obj_space = 1
                         #print 'pre scl object space :', self.scl_cmp_space
                         space_group.button(self.scl_obj_space).setChecked(True)
                         if self.uni_obj_mode != -1:
@@ -2940,10 +2940,10 @@ class SiSideBarWeight(qt.DockWindow):
                 except:
                     pass
         self.index_line.clearFocus()
+        
     #フィルタータイプ一覧
     select_type_list =  ['all', 'transform',  'joint', 'shape', None, None, 
                                 'parentConstraint', 'pointConstraint', 'orientConstraint', 'scaleConstraint', 'aimConstraint', None]
-                                
     #フローティング状態の時の検索窓の挙動を修正
     #検索窓がフォーカスとったとき暴発しないように以前の状態を保存
     pre_sel_text = None
@@ -5296,7 +5296,7 @@ def set_active_mute(mode=0):
     #オブジェクトモード、スケールの時だけスペース設定にミュートが発生するので特殊処理
     mute_list = [False, False, False, False, True, False]
     sel_mute_list = [False, False, False, True, False, True]
-    text_col_list = [text_col, text_col, text_col, text_col, mute_text, text_col]
+    text_col_list = [text_col, text_col, text_col, text_col, text_col, text_col]
     sel_text_col_list = [text_col, text_col, text_col, mute_text, text_col, mute_text]
     if cmds.selectMode(q=True, o=True):
         name_list = obj_mode_list[mode]
