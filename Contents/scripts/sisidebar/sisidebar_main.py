@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.2 -'
+version = ' - SI Side Bar / ver_2.4.3 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -560,12 +560,14 @@ class SiSideBarWeight(qt.DockWindow):
                                                                                 pod=(self.editing_manip, type))
                 move_manip = cmds.manipMoveContext('Move', e=True, 
                                                                                 pod=(self.editing_manip, type))
+        target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
         if self.pre_type != type:
             #print 'change set tool', type, self.pre_type
             current_tool = cmds.currentCtx()
-            #cmds.setToolTo('selectSuperContext')
-            cmds.setToolTo(current_tool)
-            #cmds.select(sel, r=True)
+            if current_tool in target_tool_list:
+                #cmds.setToolTo('selectSuperContext')
+                cmds.setToolTo(current_tool)
+                #cmds.select(sel, r=True)
         self.pre_type = type
                         
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
