@@ -15,7 +15,8 @@ class Lang(object):
             lang = loc
         if env != '':
             lang = env
-        if lang == 'ja':
+        if lang == 'ja' or 'ja-JP':
             return self.jp
         if lang == 'en':
             return self.en
+        return self.en
