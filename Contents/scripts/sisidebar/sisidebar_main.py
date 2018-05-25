@@ -56,7 +56,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.5 -'
+version = ' - SI Side Bar / ver_2.4.6 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -4391,8 +4391,8 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        selection = cmds.ls(sl=True, l=True)
         if cmds.selectMode(q=True, o=True):
+            selection = cmds.ls(sl=True, l=True, tr=True)
             for sel in selection:
                 #オブジェクトモードの時はローカル変換のみサポート
                 #scl = [cmds.getAttr(sel+'.scale'+a)for a in self.axis_attr_list]
@@ -4405,6 +4405,7 @@ class SiSideBarWeight(qt.DockWindow):
                 exec('cmds.scale(scl[0], scl[1], scl[2], sel'+pcp+')')
                 exec('scale'+self.axis_list[axis]+'.setText(str(scl[axis]))')
         else:#コンポーネント選択の時の処理
+            selection = cmds.ls(sl=True, l=True)
             if pre_scale[axis] == value:
                 return
             #カーブもとっておく
@@ -4493,8 +4494,8 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        selection = cmds.ls(sl=True, l=True)
         if cmds.selectMode(q=True, o=True):
+            selection = cmds.ls(sl=True, l=True, tr=True)
             for sel in selection:
                 if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
                     rot = cmds.xform(sel, q=True, ro=True)
@@ -4512,6 +4513,7 @@ class SiSideBarWeight(qt.DockWindow):
                     exec('cmds.rotate(rot[0], rot[1], rot[2], sel, ws=True'+pcp+')')
                 exec('trans'+self.axis_list[axis]+'.setText(str(rot[axis]))')
         else:#コンポーネント選択の時の処理
+            selection = cmds.ls(sl=True, l=True)
             if pre_rot[axis] == value:
                 return
             #カーブもとっておく
@@ -4609,8 +4611,9 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        selection = cmds.ls(sl=True, l=True)
         if cmds.selectMode(q=True, o=True):
+            selection = cmds.ls(sl=True, l=True, tr=True)
+            #print 'check selection in translation :', selection
             for sel in selection:
                 if sid == 0 or sid == 4:#ワールドスペース
                     pos = cmds.xform(sel, q=True, t=True, ws=True)
@@ -4635,6 +4638,7 @@ class SiSideBarWeight(qt.DockWindow):
                     exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
                 exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
         else:#コンポーネント選択の時の処理
+            selection = cmds.ls(sl=True, l=True)
             if text == self.focus_text:
                 #print 'focus same component'
                 return
