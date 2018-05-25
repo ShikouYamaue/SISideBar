@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="2.4.5"
+<ApplicationPackage SchemaVersion="2.4.6"
 	ProductType="Application"
 
 	AutodeskProduct="Maya"
 	Name="SiSideBar"
 	Description="Autodesk Maya SiSideBar"
-	AppVersion="2.4.5"
+	AppVersion="2.4.6"
 	Author="mochio"
 	AppNameSpace="com.autodesk.exchange.maya.sisidebar"
 	HelpFile=""
@@ -19,10 +19,10 @@
 		Url=""
 		Email="" />
 
-	<RuntimeRequirements SupportPath="./Contents" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2013"/>
+	<RuntimeRequirements SupportPath="./Contents" OS="win64|macOS|linux" Platform="Maya" SeriesMin="2014"/>
 
 	<Components>
-		<RuntimeRequirements SupportPath="./Contents" OS="win64" Platform="Maya" SeriesMin="2013"/>
+		<RuntimeRequirements SupportPath="./Contents" OS="win64" Platform="Maya" SeriesMin="2014"/>
 		<ComponentEntry ModuleName="./scripts/userSetup.py" />
 	</Components>
 	
