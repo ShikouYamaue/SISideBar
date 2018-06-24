@@ -190,7 +190,6 @@ UVセット一括リネーム、セットが1つの場合はmap1、複数の場�
 ゲインを修正 → テクスチャのカラーゲインを1（規定値）に戻します  
 Place2dをまとめる → 同一マテリアル内のPlace2dを一つにまとめます  
 
-/41818904-681a9ce6-77f2-11e8-9e78-0173a89ece02.gif)
 ![cleanuptexture](https://user-images.githubusercontent.com/28256498/41819009-7550deaa-77f4-11e8-9c41-ac8a5dff872b.gif)
 
 ・テクスチャパスのローカル化  
