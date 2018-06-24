@@ -8,7 +8,9 @@ import json
 
 class WeightCopyPaste():
     def main(self, skinMeshes, mode='copy', saveName='default', method='index', weightFile='auto', 
-                        threshold=0.2, engine='maya', tgt=1, path='default'):
+                        threshold=0.2, engine='maya', tgt=1, path='default', viewmsg=False):
+        if viewmsg:
+            cmds.inViewMessage( amg='<hl>Simple Weight</hl> : '+mode, pos='midCenterTop', fade=True, ta=0.75, a=0.5)
         '''
         ウェイトデータの保存、読み込み関数
         mode→コピーするかペーストするか'copy'or'paste'
@@ -77,17 +79,19 @@ class WeightCopyPaste():
                 meshName = str(weightFile).replace('|', '__pipe__')
                 if os.path.exists(self.fileName):
                     try:
-                        with open(self.fileName, 'r') as f:
-                            saveData = json.load(f)
-                            skinningMethod = saveData[weightFile + ';skinningMethod']
-                            dropoffRate = saveData[weightFile + ';dropoffRate']
-                            maintainMaxInfluences = saveData[weightFile + ';maintainMaxInfluences']
-                            maxInfluences = saveData[weightFile + ';maxInfluences']
-                            bindMethod = saveData[weightFile + ';bindMethod']
-                            normalizeWeights = saveData[weightFile + ';normalizeWeights']
-                            influences = saveData[weightFile + ';influences']
+                        with open(self.fileName, 'r') as f:  # ファイル開く'r'読み込みモード'w'書き込みモード
+                            saveData = json.load(f)  # ロード
+                            # self.visibility = saveData['visibility']#セーブデータ読み込み
+                            skinningMethod = saveData[';skinningMethod']
+                            dropoffRate = saveData[';dropoffRate']
+                            maintainMaxInfluences = saveData[';maintainMaxInfluences']
+                            maxInfluences = saveData[';maxInfluences']
+                            bindMethod = saveData[';bindMethod']
+                            normalizeWeights = saveData[';normalizeWeights']
+                            influences = saveData[';influences']
                         # 子のノードがトランスフォームならダミーに親子付けして退避
                         common.TemporaryReparent().main(skinMesh, dummyParent=dummy, mode='cut')
+                        influences = cmds.ls(influences, l=True, tr=True)
                         # バインド
                         dstSkinCluster = cmds.skinCluster(
                             skinMesh,
@@ -105,7 +109,7 @@ class WeightCopyPaste():
                         tempSkinNode = skinMesh#親を取得するためスキンクラスタのあるノードを保存しておく
                     except Exception as e:
                         print e.message
-                        print 'Not exist seved weight JSON data : ' + skinMesh
+                        print 'Error !! Skin bind failed : ' + skinMesh
                         continue
             else:
                 dstSkinCluster = dstSkinCluster[0]
@@ -150,6 +154,7 @@ class WeightCopyPaste():
                 for file in files:
                     os.remove(self.filePath + '\\' + file)
         skinFlag = False
+        all_influences = []
         for skinMesh in self.skinMeshes:
             try:
                 cmds.bakePartialHistory(skinMesh, ppt=True)
@@ -169,14 +174,27 @@ class WeightCopyPaste():
             bindMethod = cmds.getAttr(srcSkinCluster + ' .bm')
             normalizeWeights = cmds.getAttr(srcSkinCluster + ' .nw')
             influences = cmds.skinCluster(srcSkinCluster, q=True, inf=True)
-            saveData[skinMesh + ';skinningMethod'] = skinningMethod
-            saveData[skinMesh + ';dropoffRate'] = dropoffRate
-            saveData[skinMesh + ';maintainMaxInfluences'] = maintainMaxInfluences
-            saveData[skinMesh + ';maxInfluences'] = maxInfluences
-            saveData[skinMesh + ';bindMethod'] = bindMethod
-            saveData[skinMesh + ';normalizeWeights'] = normalizeWeights
-            saveData[skinMesh + ';influences'] = influences
+            saveData[';skinningMethod'] = skinningMethod
+            saveData[';dropoffRate'] = dropoffRate
+            saveData[';maintainMaxInfluences'] = maintainMaxInfluences
+            saveData[';maxInfluences'] = maxInfluences
+            saveData[';bindMethod'] = bindMethod
+            saveData[';normalizeWeights'] = normalizeWeights
+            all_influences += influences
+            #saveData[';influences'] = influences
             skinFlag = True
+        all_influences = list(set(all_influences))
+        saveData[';influences'] = all_influences
+        #インフルエンス数の変化に耐えられるようにあらかじめAddしてからコピーするS
+        for skinMesh in self.skinMeshes:
+            srcSkinCluster = cmds.ls(cmds.listHistory(skinMesh), type='skinCluster')
+            if not srcSkinCluster:
+                continue  # スキンクラスタがなかったらfor分の次に移行
+            srcSkinCluster = srcSkinCluster[0]
+            influences = cmds.skinCluster(srcSkinCluster, q=True, inf=True) 
+            sub_influences = list(set(all_influences) - set(influences))
+            if sub_influences:
+                cmds.skinCluster(skinMesh, e=True, ai=sub_influences, lw=True, ug=True, wt=0, ps=0)
             if self.engine == 'maya':
                 # 読みに行くセーブファイル名を指定、autoならメッシュ名
                 if self.weightFile == 'auto':

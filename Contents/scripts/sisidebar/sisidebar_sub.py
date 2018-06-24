@@ -307,6 +307,7 @@ def pre_pro_reference(sel=None):
     if cmds.selectMode(q=True, o=True):
         pre_ref_mode = 'object'
     else:
+        prej_ref_mode = 'component'
         if cmds.selectType(q=True, pv=True):
             pre_ref_mode = 'vertex'
         if cmds.selectType(q=True, pe=True):
@@ -317,10 +318,7 @@ def pre_pro_reference(sel=None):
     if cmds.selectMode(q=True, co=True):
         cmds.selectMode(o=True)
         pre_obj_list = cmds.ls(sl=True, l=True)
-        #print 'comp obj list', pre_obj_list
         cmds.selectMode(co=True)
-    #print 'pre_mode :', pre_mode
-    #print 'pre_sel :', pre_sel
     return pre_ref_mode
     
 def set_reference(mode=''):
@@ -333,6 +331,7 @@ def set_reference(mode=''):
         #print 'set reference object mode :'
         cmds.selectMode(o=True)
         rot = cmds.xform(sel, q=True, ro=True, ws=True)
+        pos = cmds.xform(sel, q=True, t=True, ws=True)
         rx = rot[0]/180*math.pi
         ry = rot[1]/180*math.pi
         rz = rot[2]/180*math.pi
@@ -375,6 +374,14 @@ def set_reference(mode=''):
             cmds.selectType(pv=0, smu=0, smp=0, pf=0, pe=1, smf=0, sme=1, puv=0)
         if pre_ref_mode == 'face':
             cmds.selectType(pv=0, smu=0, smp=0, pf=1, pe=0, smf=0, sme=1, puv=0)
+        trans = cmds.xform(sel, q=True, t=True, ws=True)
+        num = len(trans)/3
+        x = y = z = 0
+        for i in range(0, len(trans), 3):
+            x += trans[i]
+            y += trans[i+1]
+            z += trans[i+2]
+        pos = [x/num, y/num, z/num]
         #sel_obj = []
         #obj_list = list(set([vtx.split('.')[0] for vtx in pre_sel]))
         #if obj_list:
@@ -382,7 +389,6 @@ def set_reference(mode=''):
             #print obj_list, pre_sel
             #cmds.hilite(obj_list, r=True)
             #cmds.hilite(pre_sel, r=True)
-            
     #print 'set to pre mode :', pre_ref_mode
     #print 'set to mode pre :', pre_ref_mode
     if pre_ref_mode == 'object':
@@ -396,6 +402,8 @@ def set_reference(mode=''):
     else:
         cmds.select(cl=True)
     sb.after_pick_context(ctx=c_ctx)
+    #移動マニプを選択の中心に移動する
+    cmds.manipPivot(p=pos)
     
 def set_vol_mode(mode):
     global vol_mode
