@@ -37,6 +37,14 @@ Maya起動時に前回の終了状態でウィンドウ位置、ドッキング�
 ![2017-11-13_23h23_06](https://user-images.githubusercontent.com/28256498/32730253-d5b4e294-c8c9-11e7-9c9c-0d21e2a5c8e8.png)
 
 
+
+## とりあえず使用説明動画とってみました  
+
+https://youtu.be/14T5_Ak4dAE  
+https://youtu.be/Ymq6SQwWF8s  
+https://youtu.be/tC5p24b9sUQ  
+https://youtu.be/dZUoGX0SBOQ  
+
 ## 主な機能
     
 ・SRT選択状態のリンク
@@ -145,15 +153,46 @@ AppendPolygonと違い、フェースのUV座標を保持しながら面を追�
 コンポーネント取得とエッジを確定するタイミングを自動かボタン入力かできりかえられます。  
 ![2](https://user-images.githubusercontent.com/28256498/35469605-996ad270-037b-11e8-9ad5-10c14e037c19.gif)
 
-・法線のロックをハードエッジ情報を維持したまま解除する機能
-FBX経由でモデルを入出力した場合ハードエッジ情報が失われて、法線ロック情報に置き換わってしまうので、再度ロック解除する場合などに。
+・法線のロックをハードエッジ情報を維持したまま解除する機能  
+FBX経由でモデルを入出力した場合ハードエッジ情報が失われて、法線ロック情報に置き換わってしまうので、再度ロック解除する場合などに。  
 ![default](https://user-images.githubusercontent.com/28256498/35630921-f4035fa0-06e5-11e8-9d23-1c43d6e894f4.gif)
 
-・とりあえず使用説明動画とってみました  
-https://youtu.be/14T5_Ak4dAE  
-https://youtu.be/Ymq6SQwWF8s  
-https://youtu.be/tC5p24b9sUQ  
-https://youtu.be/dZUoGX0SBOQ  
+・Go Maya Export / Import  
+Mayaのシーン間でオブジェクトをやり取りする補助ツールです。  
+Eportで選択したオブジェクトが一時ファイルとして書き出され、Importで書き出したものをすべて読み込みます。  
+再度Exportすると前回出力分は上書きされます。  
+
+![gomaya](https://user-images.githubusercontent.com/28256498/41818814-e61ae580-77f0-11e8-93be-35f85b98b6aa.gif)
+
+・Simple Weight Copy / Paste  
+ウェイトコピーペーストツール、メッシュ名でコピーウェイトを保存、対応するメッシュ名と頂点番号or座標でペースト  
+バインド情報も一緒に書き戻すので事前バインド不要です。  
+ジョイント入れ替えや別のモデルにメッシュ移植したりするときに便利です。  
+
+![simpleweight](https://user-images.githubusercontent.com/28256498/41818904-681a9ce6-77f2-11e8-9e78-0173a89ece02.gif)
+
+・マルチUVセットの削除
+マルチUVセット設定されているメッシュの現在のUVSetをmap1にコピーして残りは全削除します。  
+不要な複数UVセットを一括クリーニング。  
+UVセットはmap1にリネームされます。  
+メッシュ選択せずに実行するとシーン内のすべてのメッシュに適用します。  
+
+・UVセットをmap-にリネーム  
+UVセット一括リネーム、セットが1つの場合はmap1、複数の場合は以降連番になります。  
+
+・テクスチャのクリーンアップ  
+テクスチャをクリーンアップ → テクスチャ名をファイル名にリネーム、不要なテクスチャ削除、同じファイル参照の重複テクスチャはひとつにまとめる  
+テクスチャ名のみ修正 → テクスチャ名をファイル名にリネーム  
+ゲインを修正 → テクスチャのカラーゲインを1（規定値）に戻します  
+Place2dをまとめる → 同一マテリアル内のPlace2dを一つにまとめます  
+
+/41818904-681a9ce6-77f2-11e8-9e78-0173a89ece02.gif)
+![cleanuptexture](https://user-images.githubusercontent.com/28256498/41819009-7550deaa-77f4-11e8-9c41-ac8a5dff872b.gif)
+
+・テクスチャパスのローカル化  
+テクスチャパスをsorceimage/hogehoge.tgaのように相対パスに修正します。  
+外部ファイルコピーオプションで外部参照のファイルをローカルパスにコピーしてきます。  
+
 
 ## 更新履歴
 
