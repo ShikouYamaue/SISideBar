@@ -60,7 +60,7 @@ def clean_up_texture():
                             connectItems = cmds.listConnections(texB+portName, p=True)
                             #接続を取得した変数がnoneTypeでなければ（接続があれば）
                             if connectItems is not None:
-                                for cItem in connectItems:Name, cItem, f=True)
+                                for cItem in connectItems:Name, cItem, f=True):
                                     cmds.connectAttr(texA+portName, cItem, f=True)
     #念のためもっかいリネーム
     rename_textures(attrPort)
