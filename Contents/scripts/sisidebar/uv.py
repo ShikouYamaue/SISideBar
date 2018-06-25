@@ -191,11 +191,11 @@ class EditUVSet():
         if self.force:
             return True
         if cmds.polyEvaluate(self.mesh, uv=True, uvs=self.currentSet[0]) == 0:
-            msg04 = common.LanguageMessage(
+            msg04 = lang.Lang(
                 en=str(self.mesh)+' : Current UVSet ['+str(self.currentSet[0])+'] is empty.\nDo you skip this mesh?',
                 ja=self.mesh+u' : 現在のUVSet ['+self.currentSet[0]+u'] が空です。\nこのメッシュをスキップしますか？'
             )   
-            self.msg04 = msg04.output
+            self.msg04 = msg04.output()
             self.skipMesh = cmds.confirmDialog(m=self.msg04, t='', b= [self.msg02, self.msg03], db=self.msg02, cb=self.msg03, icn='question',ds=self.msg03)
         else:
             return True#スキップしない
