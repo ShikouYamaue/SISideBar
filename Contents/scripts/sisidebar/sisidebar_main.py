@@ -60,7 +60,7 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.4.8 -'
+version = ' - SI Side Bar / ver_2.4.9 -'
 window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
@@ -3001,16 +3001,18 @@ class SiSideBarWeight(qt.DockWindow):
     def search_node(self):
         #ダミーラインにフォーカス取らせて暴発防止
         self.dummy_line.setFocus()
-        #print 'init flag', self.init_flag
+        #print 'init flag :', self.init_flag
         if self.init_flag:
-            #print 'skip init search'
+            #print 'skip init search : return'
             self.init_flag = False#起動時判定フラグをさげる
             return
         search_text = self.selection_line.text()
         if self.pre_pre_sel_text == search_text:
-            #print 'same text not search'
-            return
+            pass
+            #print 'same text not search : return'
+            #return
         if not search_text or search_text.startswith('MULTI('):
+            #print 'notext or multi selection : return'
             self.selection_line.clearFocus()
             return
         #print 'seach node form input :', self.selection_line.text()
