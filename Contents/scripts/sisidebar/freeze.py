@@ -11,6 +11,7 @@ from . import lang
 from . import weight
 
 def main(mesh=None, pop_zero_poly=False):
+    cmds.selectMode(o=True)
     #pop_zero_poly→ゼロポリゴンメッシュを発見した場合に警告メッセージを出すかどうか
     msg01 = lang.Lang(
         en='There is a zero polygon object : ',
@@ -140,6 +141,7 @@ def save_cluster(node):
     clusterWeight = cmds.getAttr(srcDeformerCluster+'.weightList[0].weights')
     
 def freeze():
+    cmds.selectMode(o=True)
     selection = cmds.ls(sl=True, type = 'transform')
     dummy = common.TemporaryReparent().main(mode='create')#モジュールでダミーの親作成
     clusterCopy = modeling.ClusterCopy()
