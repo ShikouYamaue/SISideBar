@@ -306,6 +306,7 @@ class RightClickButton(QPushButton):
             self.rightClicked.emit()
         else:
             super(self.__class__, self).mouseReleaseEvent(e)
+            
 class RightClickToolButton(QToolButton):
     rightClicked = Signal()
     def mouseReleaseEvent(self, e):
@@ -313,6 +314,70 @@ class RightClickToolButton(QToolButton):
             self.rightClicked.emit()
         else:
             super(self.__class__, self).mouseReleaseEvent(e)
+            
+#shift0.1入力、フォーカス時に窓選択に対応したスピンボックス
+class CustomDoubleSpinbox(QDoubleSpinBox):
+    wheeled = Signal()
+    focused = Signal()
+    keypressed = Signal()
+    mousepressed = Signal()
+    
+    def __init__(self, parent=None):
+        super(self.__class__, self).__init__(parent)
+        self.installEventFilter(self)
+        
+    #ホイールイベントをのっとる
+    def wheelEvent(self,e):
+        pass
+        
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.FocusIn:
+            self.sel_all_input()
+            self.focused.emit()
+        if event.type() == QEvent.Wheel:
+            delta = event.delta()
+            delta /= abs(delta)
+            shift_mod = self.check_shift_modifiers()
+            ctrl_mod = self.check_ctrl_modifiers()
+            if shift_mod:
+                self.setValue(self.value()+delta/10.0)
+            elif ctrl_mod:
+                self.setValue(self.value()+delta*10.0)
+            else:
+                self.setValue(self.value()+delta)
+            cmds.scriptJob(ro=True, e=("idle", self.emit_wheel_event), protected=True)
+        if event.type() == QEvent.KeyPress:
+            self.keypressed.emit()
+        if event.type() == QEvent.MouseButtonPress:
+            self.mousepressed.emit()
+        return False
+        
+    def emit_wheel_event(self):
+        self.wheeled.emit()
+        
+    #ウェイト入力窓を選択するジョブ
+    def sel_all_input(self):
+        cmds.scriptJob(ro=True, e=("idle", self.select_box_all), protected=True)
+        
+    #スピンボックスの数値を全選択する
+    def select_box_all(self):
+        try:
+            self.selectAll()
+        except:
+            pass
+            
+    def check_shift_modifiers(self):
+        mods = QApplication.keyboardModifiers()
+        isShiftPressed =  mods & Qt.ShiftModifier
+        shift_mod = bool(isShiftPressed)
+        return shift_mod
+        
+    def check_ctrl_modifiers(self):
+        mods = QApplication.keyboardModifiers()
+        isCtrlPressed =  mods & Qt.ControlModifier
+        ctrl_mod = bool(isCtrlPressed)
+        return ctrl_mod
+        
 #Shift押されてるかどうかを判定する関数            
 def check_key_modifiers():
     global shift_mod

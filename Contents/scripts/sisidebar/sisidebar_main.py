@@ -48,6 +48,8 @@ except:
     np_flag = False
     np_exist = False
     
+version = ' - SI Side Bar / ver_2.5.1 -'
+window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
 maya_api_ver = int(cmds.about(api=True))
@@ -60,8 +62,6 @@ else:
     image_path = os.path.join(os.path.dirname(__file__), 'icon/')
 #-------------------------------------------------------------
 pre_sel_group_but = False
-version = ' - SI Side Bar / ver_2.5.0 -'
-window_name = 'SiSideBar'
 
 #UIスケーリングサイズを取得しておく
 if cmds.optionVar( exists='interfaceScalingValue' ) and cmds.optionVar( q='interfaceScalingMode' ) == 1:
@@ -4361,8 +4361,9 @@ class SiSideBarWeight(qt.DockWindow):
             
     def toggle_prop(self):
         if self.prop_but.isChecked():
-            self.sym_but.setChecked(False)
-            self.toggle_sym()
+            if maya_ver <= 2015:
+                self.sym_but.setChecked(False)
+                self.toggle_sym()
             cmds.softSelect(e=True, softSelectEnabled=True)
         else:
             cmds.softSelect(e=True, softSelectEnabled=False)
@@ -4373,8 +4374,9 @@ class SiSideBarWeight(qt.DockWindow):
             
     def toggle_sym(self):
         if self.sym_but.isChecked():
-            self.prop_but.setChecked(False)
-            self.toggle_prop()
+            if maya_ver <= 2015:
+                self.prop_but.setChecked(False)
+                self.toggle_prop()
             try:
                 #print pre_about
                 cmds.symmetricModelling(e=True, symmetry=True, about=pre_about)
@@ -5660,7 +5662,7 @@ class PropOption(qt.MainWindow):
         label = QLabel(msg.output(), self)
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         p_layout.addWidget(label, vn, 0, 1, 2)
-        self.radius = QDoubleSpinBox(self)#スピンボックス
+        self.radius = qt.CustomDoubleSpinbox(self)#スピンボックス
         self.radius.setRange(0, 1000)
         self.radius.setValue(5.0)#値を設定
         self.radius.setDecimals(2)#値を設定
@@ -5835,7 +5837,7 @@ class SymOption(qt.MainWindow):
         label = QLabel(msg.output(), self)
         qt.change_button_color(label, textColor=menu_text ,  bgColor= ui_color )
         s_layout.addWidget(label, vn, 0, 1, 2)
-        self.tolerance = QDoubleSpinBox(self)#スピンボックス
+        self.tolerance = qt.CustomDoubleSpinbox(self)#スピンボックス
         self.tolerance.setRange(0.0001, 0.5)
         self.tolerance.setDecimals(4)#値を設定
         self.tolerance.setValue(0.0010)#値を設定
@@ -5870,7 +5872,7 @@ class SymOption(qt.MainWindow):
         label = QLabel(msg.output(), self)
         qt.change_button_color(label, textColor=menu_text, bgColor= ui_color)
         s_layout.addWidget(label, vn, 0, 1, 2)
-        self.seam_tol = QDoubleSpinBox(self)#スピンボックス
+        self.seam_tol = qt.CustomDoubleSpinbox(self)#スピンボックス
         self.seam_tol.setRange(0, 0.5)
         self.seam_tol.setDecimals(4)#値を設定
         self.seam_tol.setValue(0.0010)#値を設定

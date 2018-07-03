@@ -196,7 +196,17 @@ def get_matrix():
     cv_selection = cmds.ls(sl=True, type='double3', fl=True)
     #print cv_selection
     if selection or cv_selection:
+        sel_str = str(selection+cv_selection)
+        if '.vtx[' in sel_str:
+            cmds.selectType(polymeshVertex=True)
+            #cmds.selectType(particle=True)
+        if '.cv[' in sel_str:
+            cmds.selectType(cv=True)
+        if '.pt[' in sel_str:
+            cmds.selectType(latticePoint=True)
         cmds.selectMode(co=True)
+        #ラティスポイント他すべてを有効にする
+        
         components = cmds.polyListComponentConversion(selection, tv=True)+cv_selection
         #print components
         #if not components:
