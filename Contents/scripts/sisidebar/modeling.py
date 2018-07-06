@@ -179,3 +179,71 @@ def cehck_zero_poly_object(mesh=None, pop_msg=True):
         cmds.select(zeroPolyObj, r=True)
     return zeroPolyObj
     
+#スキニングを保ったままメッシュマージする関数
+class MeshMarge():
+    def main(self, objects):
+        self.objects= objects
+        qt.Callback(self.marge_run())
+        return self.marged_mesh
+        
+    def marge_run(self):
+        objects = common.search_polygon_mesh(self.objects, serchChildeNode=True, fullPath=True)
+        print objects
+        #print objects
+        if len(objects) < 2:
+            self.marged_mesh = objects
+            return True
+        skined_list = []
+        no_skin_list = []
+        parent_list = [cmds.listRelatives(obj, p=True, f=True) for obj in objects]
+        
+        for obj in objects:
+            skin = cmds.ls(cmds.listHistory(obj), type='skinCluster')
+            if skin:
+                skined_list.append(obj)
+            else:
+                no_skin_list.append(obj)
+                
+        if no_skin_list and skined_list:
+            skined_mesh = skined_list[0]
+            for no_skin_mesh in no_skin_list:
+                weight.transfer_weight(skined_mesh, no_skin_mesh, transferWeight=False, returnInfluences=False, logTransfer=False)
+                
+        if skined_list:
+            marged_mesh = pm.polyUniteSkinned(objects)[0]
+            pm.polyMergeVertex(marged_mesh, d=0.001)
+            target_mesh = pm.duplicate(marged_mesh)[0]
+            weight.transfer_weight(str(marged_mesh), str(target_mesh), transferWeight=True, returnInfluences=False, logTransfer=False)
+        else:
+            marged_mesh = pm.polyUnite(objects, o=True)[0]
+            pm.polyMergeVertex(marged_mesh, d=0.001)
+            target_mesh = pm.duplicate(marged_mesh)[0]
+            #pm.delete(objects)
+        for obj in objects:
+            if pm.ls(obj):
+                pm.delete(obj)
+            
+        pm.delete(marged_mesh)
+        
+        all_attr_list = [['.sx', '.sy', '.sz'], ['.rx', '.ry', '.rz'], ['.tx', '.ty', '.tz']]
+        for p_node in parent_list:
+            if cmds.ls(p_node, l=True):
+                all_lock_list = []
+                for attr_list in all_attr_list:
+                    lock_list = []
+                    for attr in attr_list:
+                        lock_list.append(pm.getAttr(target_mesh+attr, lock=True))
+                        pm.setAttr(target_mesh+attr, lock=False)
+                    all_lock_list.append(lock_list)
+                pm.parent(target_mesh, p_node[0])
+                for lock_list, attr_list in zip(all_lock_list, all_attr_list):
+                    for lock, attr in zip(lock_list, attr_list):
+                        continue
+                        pm.setAttr(target_mesh[0]+attr, lock=lock)
+                break
+        pm.rename(target_mesh, objects[0])
+        pm.select(target_mesh)
+        self.marged_mesh = str(target_mesh)
+        return True
+    
+    

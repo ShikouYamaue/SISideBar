@@ -10,6 +10,7 @@ import os
 import time
 from . import sisidebar_main as sb
 from . import common
+from . import prof
 try:
     import numpy as np
     np_flag = True
@@ -143,6 +144,7 @@ def set_round_decimal(decimal):
     global round_decimal
     round_decimal = decimal
     
+#@prof.profileFunction()
 def get_matrix():
     global sb
     from . import sisidebar_main as sb
@@ -155,7 +157,8 @@ def get_matrix():
     #ロックの有無をチェック
     try:
         sb.window.attribute_lock_state(mode=3, check_only=True)
-    except:
+    except Exception as e:
+        print e.message
         pass
     #一旦スケールX値をリセットしてメインウィンドウクラスに変更をお知らせする
     #sb.set_temp_text('change')
@@ -188,7 +191,7 @@ def get_matrix():
                     trans[i] = ''
                 else:
                     trans[i] = str(t_list[0][i])
-        sb.check_key_anim()
+        #sb.check_key_anim()
         sb.view_np_time(culc_time='- Select Culculation Mode -')
     #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
     selection = cmds.ls(sl=True, type='float3')

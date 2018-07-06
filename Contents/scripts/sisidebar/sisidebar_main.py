@@ -23,6 +23,7 @@ from . import uv
 from . import texture
 from . import weight
 from . import go
+from . import prof
 import math
 import datetime as dt
 import random
@@ -30,6 +31,7 @@ import copy
 import time
 import itertools
 from functools import partial
+import functools
 #PySide2、PySide両対応
 import imp
 try:
@@ -47,8 +49,8 @@ try:
 except:
     np_flag = False
     np_exist = False
-    
-version = ' - SI Side Bar / ver_2.5.1 -'
+
+version = ' - SI Side Bar / ver_2.5.2 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -101,6 +103,7 @@ evolution_flag = False
 cp_abs_flag = False
 ommit_manip_link = False
 
+    
 #-------------------------------------------------------------
 #Shift押されてるかどうかを判定する関数            
 def check_key_modifiers():
@@ -335,6 +338,7 @@ class SiSideBarWeight(qt.DockWindow):
         self.setWindowTitle(window_name)
         self._initUI()
         self.chane_context_space()
+        #Get Metrixからよびだしてるので初回分不要
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
         sisidebar_sub.get_matrix()
@@ -517,9 +521,9 @@ class SiSideBarWeight(qt.DockWindow):
         #print 'set_up_manip'
         try:
             if cmds.selectMode(q=True, o=True):
-                sel  = cmds.ls(sl=True, l=True, type = 'transform')
+                sel  = cmds.ls(sl=True, l=True)
                 if sel:
-                    type = cmds.nodeType(sel[0])
+                    type = cmds.nodeType(sel[-1])
                 else:
                     type = None
                     #print 'edit manip cod : object'
@@ -782,15 +786,18 @@ class SiSideBarWeight(qt.DockWindow):
     fcurve_job_list = list()
     trs_attr_list = ['.scaleX', '.scaleY', '.scaleZ', '.rotateX', '.rotateY', '.rotateZ', '.translateX', '.translateY', '.translateZ']
     fcurve_job_ctrl_count = 0
+    #@prof.profileFunction()
     def create_fcurve_job(self):
-        check_key_anim(from_fcurve=True)#大量のオブジェクト処理でジョブ作成が間に合わない場合の保険
-        #print 'create fcurve jobs'
+        self.check_key_anim_from_fcurve#大量のオブジェクト処理でジョブ作成が間に合わない場合の保険
+        
         self.kill_attr_job()
         self.kill_fcurve_job()
         self.fcurve_job_list = list()
         if cmds.selectMode(q=True, co=True):
             return
         selection = cmds.ls(sl=True, l=True, tr=True)
+        if len(selection) > 500:
+            return
         #print selection, self.trs_attr_list
         for node, attr in itertools.product(selection, self.trs_attr_list):
             #print node+attr
@@ -4480,48 +4487,55 @@ class SiSideBarWeight(qt.DockWindow):
     #アトリビュートのロック状態を調べてUIに反映する
     attr_lock_flag_list = [[None, None, None], [None, None, None], [None, None, None]]
     all_attr_list = [['.sx', '.sy', '.sz'], ['.rx', '.ry', '.rz'], ['.tx', '.ty', '.tz'],[]]
-    def attribute_lock_state(self, mode=0, check_only=False, axis=None):
+    #@prof.profileFunction()
+    def attribute_lock_state(self, mode=0, check_only=False, axis=None, check_key_flag=True, selection=None):
         #print 'check attribute lock', mode
+        if not selection:
+            selection = cmds.ls(sl=True, l=True, tr=True)
         if mode == 3:#モード3なら全部処理する
             #print 'check all lines'
-            self.attribute_lock_state(mode=0, check_only=True)
-            self.attribute_lock_state(mode=1, check_only=True)
-            self.attribute_lock_state(mode=2, check_only=True)
+            self.attribute_lock_state(mode=0, check_only=True, check_key_flag=False, selection=selection)
+            self.attribute_lock_state(mode=1, check_only=True, check_key_flag=False, selection=selection)
+            self.attribute_lock_state(mode=2, check_only=True, check_key_flag=False, selection=selection)
+            check_key_anim()
             return
         lock_state_list = [None, None, None]
         all_lock_flag = True
         attr_list = self.all_attr_list[mode]
-        selection = cmds.ls(sl=True, l=True, tr=True)
         if cmds.selectMode(q=True, co=True):
             lock_flag = False
             for i, attr in enumerate(attr_list):
                 lock_state_list[i] = lock_flag
         else:
-            for s in selection:
-                for i, attr in enumerate(attr_list):
-                    if axis is not None:
-                        if axis != i:
+            #print 'count lock sel :', len(selection)
+            if len(selection) >= 500 and check_only:#500個以上は判定をあきらめる
+                pass
+            else:
+                for s in selection:
+                    for i, attr in enumerate(attr_list):
+                        if axis is not None:
+                            if axis != i:
+                                continue
+                        try:
+                            lock_flag = cmds.getAttr(s+attr, lock=True)
+                        except Exception as e:
+                            #print e.message
+                            lock_flag = False
+                        #print lock_flag, s+attr
+                        #一個でもロックされてたら全解除
+                        if lock_flag:
+                            if not check_only:
+                                self.toggle_lock_attr(mode=mode, state=False, objects=selection, axis=axis)
+                                #check_key_anim()
+                                return
+                        #前回の状態と比較して、ロック状態が違えばマルチフラグを立てる
+                        pre_lock_flag = lock_state_list[i]
+                        if pre_lock_flag is None:
+                            lock_state_list[i] = lock_flag
                             continue
-                    try:
-                        lock_flag = cmds.getAttr(s+attr, lock=True)
-                    except Exception as e:
-                        #print e.message
-                        lock_flag = False
-                    #print lock_flag, s+attr
-                    #一個でもロックされてたら全解除
-                    if lock_flag:
-                        if not check_only:
-                            self.toggle_lock_attr(mode=mode, state=False, objects=selection, axis=axis)
-                            check_key_anim()
-                            return
-                    #前回の状態と比較して、ロック状態が違えばマルチフラグを立てる
-                    pre_lock_flag = lock_state_list[i]
-                    if pre_lock_flag is None:
-                        lock_state_list[i] = lock_flag
-                        continue
-                    else:
-                        if pre_lock_flag != lock_flag:
-                            lock_state_list[i] = 'multi'
+                        else:
+                            if pre_lock_flag != lock_flag:
+                                lock_state_list[i] = 'multi'
         #チェックモードでなければロック実行
         if selection:
             if check_only:
@@ -4531,7 +4545,9 @@ class SiSideBarWeight(qt.DockWindow):
                 self.toggle_lock_attr(mode=mode, state=True, objects=selection, axis=axis)
         else:
             self.change_lock_color(mode=mode, lock_state_list=[False]*3)
-        check_key_anim()
+        if check_key_flag:
+            #print 'check key anim in attr lock state'
+            check_key_anim()
             
     def toggle_lock_attr(self, mode=0, state=False, objects=None, axis=None):
         attr_list = self.all_attr_list[mode]
@@ -4554,6 +4570,8 @@ class SiSideBarWeight(qt.DockWindow):
                 qt.change_button_color(line, textColor=locked_text_col, bgColor=locked_bg_col )
             elif lock_state is False:
                 qt.change_button_color(line, textColor=string_col, bgColor=bg_col)
+            elif lock_state is None:
+                qt.change_button_color(line, textColor=130, bgColor=65)
             else:
                 qt.change_button_color(line, textColor=locked_text_col, bgColor=multi_lock_bg)
         #マルチライン入力後にリセットするためにステイトを保存しておく
@@ -5362,6 +5380,7 @@ def toggle_center_mode(init=None, mode=None, change=False, ntpose=False, lock=Fa
 #キーアニメの有無を確認して色を変える
 global pre_check_anim_count
 pre_check_anim_count = -1
+#@prof.profileFunction()
 def check_key_anim(from_fcurve=False):
     global window
     global pre_check_anim_count
@@ -5378,67 +5397,72 @@ def check_key_anim(from_fcurve=False):
         #print 'check_key_anim'
         pre_check_anim_count = -1
     selection = cmds.ls(sl=True, l=True, type='transform')
-    global key_colors
+    #print 'count check anim sel :', len(selection)
     key_colors = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    key_buts = [key_scale_x, key_scale_y, key_scale_z, key_rot_x, key_rot_y, key_rot_z, key_trans_x, key_trans_y, key_trans_z]
     key_names = ['scaleX', 'scaleY', 'scaleZ', 
                         'rotateX', 'rotateY', 'rotateZ', 
                         'translateX', 'translateY', 'translateZ']
-    key_buts = [key_scale_x, key_scale_y, key_scale_z, key_rot_x, key_rot_y, key_rot_z, key_trans_x, key_trans_y, key_trans_z]
-    icon_list =  ['Key_N.png', 'Key_G.png', 'Key_Y.png', 'Key_R.png', 'Key_N.png', 'Key_B.png']
-    c_time = cmds.currentTime(q=True)
-    if not selection:
-        for i in range(9):
-            key_buts[i].setIcon(QIcon(image_path+icon_list[0]))
-        
-    for s in selection:
-        f_curves = cmds.keyframe(s, query=True, name=True)
-        if not f_curves:
-            f_curves = []
-            #key_colors = [4]*9#明示的に空のキーであることを示す
-        #対称軸の名前でループ
-        for i ,kn in enumerate(key_names):
-            #ノードの値を取得して抽出
-            mode = i/3
-            axis = i%3
-            if mode == 0:
-                c_val = cmds.xform(s, q=True, r=True, s=True)
-            if mode == 1:
-                c_val = cmds.xform(s, q=True, r=True, ro=True)
-            if mode == 2:
-                c_val = cmds.xform(s, q=True, r=True, t=True)
-            #print 'c_val :', c_val[axis]
-            for fc in f_curves:
-                if kn in fc:
-                    #元の値がなく、F_Curveが見つかったら緑色に
-                    temp_color = 1
-                    #キーを探す
-                    c_key = cmds.keyframe(fc, q=True, vc=True, t=(c_time, c_time))
-                    #print 'c_key :', c_key
-                    #キーが無いときの処理
-                    if not c_key:
-                        t_val = cmds.getAttr(fc+'.output')
-                        #print 'get atter :', t_val
-                        #値が一致しなかったら黄色に
-                        if round(c_val[axis], 3) != round(t_val, 3):
-                            temp_color = 2
-                    else:
-                        #キーとSRTの値が一致したら赤色に
-                        if round(c_val[axis], 3) == round(c_key[0], 3):
-                            temp_color = 3
-                        else:#一致しなかったら黄色
-                            temp_color = 2
-                            
-                    break
-            else:
-                #Fカーブが無いときはグレーに
-                temp_color = 4
-                #print 'set color to :', temp_color, i
-            #他のオブジェクトアニメ情報と比較してそのままにするか青にするか決定
-            if key_colors[i] == 0:
-                key_colors[i] = temp_color
-            else:
-                if key_colors[i] != temp_color:
-                    key_colors[i] = 5
+    icon_list =  ['Key_N.png', 'Key_G.png', 'Key_Y.png', 'Key_R.png', 'Key_N.png', 'Key_B.png', 'Key_I.png']
+    if len(selection) >= 500:
+        key_colors = [6]*9
+        pass
+    else:
+        #print 'check key anim'
+        global key_colors
+        c_time = cmds.currentTime(q=True)
+        if not selection:
+            for i in range(9):
+                key_buts[i].setIcon(QIcon(image_path+icon_list[0]))
+            
+        for s in selection:
+            f_curves = cmds.keyframe(s, query=True, name=True)
+            if not f_curves:
+                f_curves = []
+                #key_colors = [4]*9#明示的に空のキーであることを示す
+            #対称軸の名前でループ
+            for i ,kn in enumerate(key_names):
+                #ノードの値を取得して抽出
+                mode = i/3
+                axis = i%3
+                if mode == 0:
+                    c_val = cmds.xform(s, q=True, r=True, s=True)
+                if mode == 1:
+                    c_val = cmds.xform(s, q=True, r=True, ro=True)
+                if mode == 2:
+                    c_val = cmds.xform(s, q=True, r=True, t=True)
+                #print 'c_val :', c_val[axis]
+                for fc in f_curves:
+                    if kn in fc:
+                        #元の値がなく、F_Curveが見つかったら緑色に
+                        temp_color = 1
+                        #キーを探す
+                        c_key = cmds.keyframe(fc, q=True, vc=True, t=(c_time, c_time))
+                        #print 'c_key :', c_key
+                        #キーが無いときの処理
+                        if not c_key:
+                            t_val = cmds.getAttr(fc+'.output')
+                            #print 'get atter :', t_val
+                            #値が一致しなかったら黄色に
+                            if round(c_val[axis], 3) != round(t_val, 3):
+                                temp_color = 2
+                        else:
+                            #キーとSRTの値が一致したら赤色に
+                            if round(c_val[axis], 3) == round(c_key[0], 3):
+                                temp_color = 3
+                            else:#一致しなかったら黄色
+                                temp_color = 2
+                        break
+                else:
+                    #Fカーブが無いときはグレーに
+                    temp_color = 4
+                    #print 'set color to :', temp_color, i
+                #他のオブジェクトアニメ情報と比較してそのままにするか青にするか決定
+                if key_colors[i] == 0:
+                    key_colors[i] = temp_color
+                else:
+                    if key_colors[i] != temp_color:
+                        key_colors[i] = 5
     #状態に合わせてボタンカラーを変更
     for i in range(9):
         key_buts[i].setIcon(QIcon(image_path+icon_list[key_colors[i]]))
@@ -6290,21 +6314,7 @@ class RockAttrMenu(qt.SubWindow):
         
         rock_menu = QMenu(self)
         qt.change_button_color(self, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='window')
-        '''
-        action3 = rock_menu.addAction('All Axis')
-        action3.triggered.connect(lambda : window.attribute_lock_state(mode=mode))
-        rock_menu.addSeparator()#分割線追加
-        action0 = rock_menu.addAction(name + ' X')
-        action0.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=0))
-        rock_menu.addSeparator()#分割線追加
-        action1 = rock_menu.addAction(name + ' Y')
-        action1.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=1))
-        rock_menu.addSeparator()#分割線追加
-        action2 = rock_menu.addAction(name + ' Z')
-        action2.triggered.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
-        #action0.triggered.connect()
-        p_layout.addWidget(rock_menu)
-        '''
+        
         button = make_flat_button(name='All Axis', text=menu_text, bg=menu_bg, costom_push=menu_bg, flat=False, checkable=False)
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode))
         p_layout.addWidget(button)
@@ -6318,11 +6328,6 @@ class RockAttrMenu(qt.SubWindow):
         button.clicked.connect(lambda : window.attribute_lock_state(mode=mode, axis=2))
         p_layout.addWidget(button)
         
-        
-        #button = make_flat_button(name='Close', text=menu_text, bg=menu_bg, flat=False, checkable=False)
-        #button.clicked.connect(self.close)
-        #qt.change_button_color(button, textColor=menu_text, bgColor=menu_bg, hiText=menu_high_text, hiBg=menu_high_bg, mode='button')
-        #p_layout.addWidget(button)
         #位置とサイズ調整
         self.resize(90, 135)
         pos = QCursor.pos()

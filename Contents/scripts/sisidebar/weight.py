@@ -262,8 +262,8 @@ def transfer_weight(skinMesh, transferedMesh, transferWeight=True, returnInfluen
 
     for dst in transferedMesh:
         #子供のノード退避用ダミーペアレントを用意
-        dummy = general.TemporaryReparent().main(mode='create')
-        general.TemporaryReparent().main(dst,dummyParent=dummy, mode='cut')
+        dummy = common.TemporaryReparent().main(mode='create')
+        common.TemporaryReparent().main(dst,dummyParent=dummy, mode='cut')
         
         shapes = cmds.listRelatives(dst, s=True, pa=True, type='mesh')
         if not shapes:  # もしメッシュがなかったら
@@ -299,9 +299,9 @@ def transfer_weight(skinMesh, transferedMesh, transferWeight=True, returnInfluen
             if logTransfer:
                 print massege02 + '[' + skinMesh + '] >>> [' + dst + ']'
         #親子付けを戻す
-        general.TemporaryReparent().main(dst,dummyParent=dummy, mode='parent')
+        common.TemporaryReparent().main(dst,dummyParent=dummy, mode='parent')
         #ダミーペアレントを削除
-        general.TemporaryReparent().main(dummyParent=dummy, mode='delete')
+        common.TemporaryReparent().main(dummyParent=dummy, mode='delete')
     if returnInfluences:
         return influences
     else:
