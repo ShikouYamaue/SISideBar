@@ -2,11 +2,21 @@
 #SI Side Bar
 from maya import cmds
 from maya import mel
+
 import pymel.core as pm
+import sys
 import os
 import json
 import copy
 import re
+import math
+import datetime as dt
+import random
+import copy
+import time
+import itertools
+import inspect
+
 from . import qt
 from . import common
 from . import lang
@@ -24,12 +34,6 @@ from . import texture
 from . import weight
 from . import go
 from . import prof
-import math
-import datetime as dt
-import random
-import copy
-import time
-import itertools
 from functools import partial
 import functools
 #PySide2、PySide両対応
@@ -50,7 +54,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.2 -'
+version = ' - SI Side Bar / ver_2.5.3 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -71,7 +75,7 @@ if cmds.optionVar( exists='interfaceScalingValue' ) and cmds.optionVar( q='inter
 else:
     ui_scale = 1.0
 
-window_width = 183*ui_scale
+window_width = 186*ui_scale
 
 top_hover = False#トップレベルボタンがホバーするかどうか
 top_h = 20#トップレベルボタンの高さ
@@ -310,9 +314,15 @@ class Option():
 global script_job
 #script_job = None#二個目を許可するときは一時的に開放すべし
 class SiSideBarWeight(qt.DockWindow):
+
+    def __del__(self):
+        # デストラクタ
+        print u"del:デストラクタ"
+        
     def __init__(self, parent = None, init_pos=False):
         self.init_flag = True#起動時かどうかを判定するフラグを立てておく
         super(SiSideBarWeight, self).__init__(parent)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         global sisidebar_sub
         from . import sisidebar_sub as sisidebar_sub
         #ウィンドウサイズのポリシー、.fixedにすると固定される
@@ -342,6 +352,9 @@ class SiSideBarWeight(qt.DockWindow):
         self.attribute_lock_state(mode=3, check_only=True)
         self.set_up_manip()
         sisidebar_sub.get_matrix()
+        
+        #ツールチップもついでに有効か
+        cmds.help(popupMode=True)
         
     #UI上にポインタが来たらUI設定更新
     def enterEvent(self, event):
@@ -421,6 +434,9 @@ class SiSideBarWeight(qt.DockWindow):
             
     #起動時にMayaの選択コンテキストからUIのSRT選択状態を設定する
     def select_from_current_context(self, select_handle=True):
+        if self.toggle_twk_flag:#2015以下でtweakモード変更したときに表示がちらつかないようにする
+            self.toggle_twk_flag = False
+            return
         current_tool = cmds.currentCtx()
         tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
         try:
@@ -437,7 +453,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.all_srt_but_list[mode][3].setChecked(True)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             #print 'select_from_current_context error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", window.remove_job), protected=True)
+            cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
             return
         for i, srt_list in enumerate(self.all_srt_but_list):
             if i != mode:
@@ -513,10 +529,7 @@ class SiSideBarWeight(qt.DockWindow):
             pass
             
     #マニピュレータコンテキストを初期化
-    try:
-        pre_type = cmds.nodeType(cmds.ls(sl=True, l=True))
-    except:
-        pre_type = None
+    pre_type = None
     def set_up_manip(self):
         #print 'set_up_manip'
         try:
@@ -526,31 +539,29 @@ class SiSideBarWeight(qt.DockWindow):
                     type = cmds.nodeType(sel[-1])
                 else:
                     type = None
-                    #print 'edit manip cod : object'
-                #print type
                 if maya_ver >=2015:
-                    scale_manip = cmds.manipScaleContext('Scale', e=True,
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                                prc=(self.select_from_current_context))#ツールを開始したときに実行
-                    rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                                prc=(self.select_from_current_context))#ツールを開始したときに実行
-                    move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type),#ドラッグ後に実行
-                                                                                prc=(self.select_from_current_context))#ツールを開始したときに実行
+                    cmds.manipScaleContext('Scale', e=True,
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
+                    cmds.manipRotateContext('Rotate', e=True, 
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
+                    cmds.manipMoveContext('Move', e=True, 
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type),#ドラッグ後に実行
+                                                        prc=(self.select_from_current_context))#ツールを開始したときに実行
                 else:
-                    scale_manip = cmds.manipScaleContext('Scale', e=True,
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type))#ドラッグ後に実行
-                    rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type))#ドラッグ後に実行
-                    move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                                prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
-                                                                                pod=(self.editing_manip, type))#ドラッグ後に実行
+                    cmds.manipScaleContext('Scale', e=True,
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type))#ドラッグ後に実行
+                    cmds.manipRotateContext('Rotate', e=True, 
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type))#ドラッグ後に実行
+                    cmds.manipMoveContext('Move', e=True, 
+                                                        prd=(lambda : set_child_comp(mode=True), type),#ドラッグ前に実行
+                                                        pod=(self.editing_manip, type))#ドラッグ後に実行
             if cmds.selectMode(q=True, co=True):
                 sel  = cmds.ls(sl=True, l=True)
                 if sel:
@@ -560,25 +571,24 @@ class SiSideBarWeight(qt.DockWindow):
                 else:
                     type = self.pre_type
                 if maya_ver >=2015:
-                    scale_manip = cmds.manipScaleContext('Scale', e=True, 
-                                                                                    pod=(self.editing_manip, type),
-                                                                                    prc=(self.select_from_current_context))
-                    rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                                    pod=(self.editing_manip, type),
-                                                                                    prc=(self.select_from_current_context))
-                    move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                                    pod=(self.editing_manip, type),
-                                                                                    prc=(self.select_from_current_context))
+                    cmds.manipScaleContext('Scale', e=True, 
+                                                        pod=(self.editing_manip, type),
+                                                        prc=(self.select_from_current_context))
+                    cmds.manipRotateContext('Rotate', e=True, 
+                                                        pod=(self.editing_manip, type),
+                                                        prc=(self.select_from_current_context))
+                    cmds.manipMoveContext('Move', e=True, 
+                                                        pod=(self.editing_manip, type),
+                                                        prc=(self.select_from_current_context))
                 else:
-                    scale_manip = cmds.manipScaleContext('Scale', e=True, 
-                                                                                    pod=(self.editing_manip, type))
-                    rot_manip = cmds.manipRotateContext('Rotate', e=True, 
-                                                                                    pod=(self.editing_manip, type))
-                    move_manip = cmds.manipMoveContext('Move', e=True, 
-                                                                                    pod=(self.editing_manip, type))
+                    cmds.manipScaleContext('Scale', e=True, 
+                                                        pod=(self.editing_manip, type))
+                    cmds.manipRotateContext('Rotate', e=True, 
+                                                        pod=(self.editing_manip, type))
+                    cmds.manipMoveContext('Move', e=True, 
+                                                        pod=(self.editing_manip, type))
         except Exception as e:
                 #print 'set up manip error :', e.message
-                self.remove_job()
                 return
         target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
         if self.pre_type != type:
@@ -589,7 +599,51 @@ class SiSideBarWeight(qt.DockWindow):
                 cmds.setToolTo(current_tool)
                 #cmds.select(sel, r=True)
         self.pre_type = type
-                        
+                   
+    def blank(self):
+        pass
+        
+    #マニプ設定を素にもどす
+    def reset_manip(self):
+        #print 'reset_manip'
+        try:
+            sel  = cmds.ls(sl=True, l=True)
+            if sel:
+                type = cmds.nodeType(sel[-1])
+            else:
+                type = None
+            if maya_ver >=2015:
+                cmds.manipScaleContext('Scale', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type),#ドラッグ後に実行
+                                                    prc=(self.blank))#ツールを開始したときに実行
+                cmds.manipRotateContext('Rotate', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type),#ドラッグ後に実行
+                                                    prc=(self.blank))#ツールを開始したときに実行
+                cmds.manipMoveContext('Move', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type),#ドラッグ後に実行
+                                                    prc=(self.blank))#ツールを開始したときに実行
+            else:
+                cmds.manipScaleContext('Scale', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type))#ドラッグ後に実行
+                cmds.manipRotateContext('Rotate', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type))#ドラッグ後に実行
+                cmds.manipMoveContext('Move', e=True,
+                                                    prd=(self.blank, type),#ドラッグ前に実行
+                                                    pod=(self.blank, type))#ドラッグ後に実行
+        except Exception as e:
+                #print 'set up manip error :', e.message
+                #self.error_avoidance()
+                return
+        target_tool_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext', 'selectSuperContext']
+        current_tool = cmds.currentCtx()
+        if current_tool in target_tool_list:
+            cmds.setToolTo(current_tool)
+        
     #直接podから実行すると落ちるのでシグナル経由で更新関数実行
     def reload_srt(self):
         sisidebar_sub.get_matrix()
@@ -610,8 +664,8 @@ class SiSideBarWeight(qt.DockWindow):
                 #sisidebar_sub.volume_scaling(mode)
                 vol_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.volume_scaling), protected=True)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
-            #print 'editing_manip error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", self.remove_job), protected=True)
+            print 'editing_manip error :', e.message
+            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
             return
         
         if maya_ver >= 2015:
@@ -740,6 +794,7 @@ class SiSideBarWeight(qt.DockWindow):
     #ウィンドウ閉じた時にジョブ削除ドックイベントはトリガーが通常と異なるので注意
     global center_mode
     center_mode = None
+    
     def dockCloseEventTriggered(self):
         print 'SI Side Bar : Close Event : Dock Window Closed'
         self.remove_job()
@@ -752,14 +807,6 @@ class SiSideBarWeight(qt.DockWindow):
         if self.cog_but.isChecked():
             self.cog_but.setChecked(False)
             self.setup_object_center()
-        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 
-                                            'select_manu_window', 'extrude_edge_uv', 'append_polygon_ui', 'edit_manu_window']
-        for op_window in option_window_list:
-            try:
-                exec(op_window+'.close()')
-                exec('del '+op_window)
-            except:
-                pass
         if destroy_flag:
             #print 'timer stop'
             try:
@@ -770,8 +817,21 @@ class SiSideBarWeight(qt.DockWindow):
                 self.collapse_timer.stop()
             except:
                 pass
-                
-            
+        #サブウィンドウ開いてたら閉じる
+        self.close_sub_windows()
+        
+    def close_sub_windows(self):
+        option_window_list = ['prop_option', 'filter_window', 'sym_window', 'trs_setting_window', 'transform_manu_window', 
+                                            'select_manu_window', 'extrude_edge_uv', 'append_polygon_ui', 'edit_manu_window']
+        for op_window in option_window_list:
+            try:
+                exec(op_window+'.close()')
+                exec('del '+op_window)
+            except:
+                pass
+    
+    
+    
     #タブ隠すだけで無効になるので使用中止
     #def hideEvent(self, e):
         #if maya_ver >= 2017:
@@ -845,17 +905,18 @@ class SiSideBarWeight(qt.DockWindow):
             
     def kill_attr_job(self):
         for job in self.attr_job_list:
-            cmds.scriptJob(k=job)
+            cmds.scriptJob(k=job, f=True)
         self.attr_job_list = list()
         
     def kill_fcurve_job(self):
         for job in self.fcurve_job_list:
-            cmds.scriptJob(k=job)
+            cmds.scriptJob(k=job, f=True)
         self.fcurve_job_list = list()
         
         
     #スクリプトジョブ作成
     def create_job(self):
+        global script_job_flag
         global script_job
         global context_job
         global timeline_job
@@ -863,9 +924,10 @@ class SiSideBarWeight(qt.DockWindow):
         global redo_job
         global workspace_job
         global fcurve_job
-        if 'script_job' in globals():
+        if 'script_job_flag' in globals():
             if script_job:
                 return
+        script_job_flag = True
         script_job = cmds.scriptJob(cu=True, e=("SelectionChanged", sisidebar_sub.change_selection))
         timeline_job = cmds.scriptJob(cu=True, e=("timeChanged", sisidebar_sub.change_selection))
         undo_job = cmds.scriptJob(cu=True, e=("Undo", sisidebar_sub.change_selection))
@@ -873,11 +935,24 @@ class SiSideBarWeight(qt.DockWindow):
         context_job = cmds.scriptJob(cu=True, e=("ToolChanged", sisidebar_sub.change_context))
         workspace_job = cmds.scriptJob(e=("SceneOpened", setup.check_open), kws=False)
         fcurve_job = cmds.scriptJob(cu=True, e=("SelectionChanged", self.create_fcurve_job))
+        #ジョブ番号確認用
+        # print 'script job :', script_job
+        # print 'timeline_job :', timeline_job
+        # print 'undo_job :', undo_job
+        # print 'redo_job :', redo_job
+        # print 'context_job :', context_job
+        # print 'workspace_job :', workspace_job
+        # print 'fcurve_job :', fcurve_job
+        
+        global job_list#ウィンドウ破壊後も使えるようにグローバルで持つ
+        job_list = [script_job, context_job, timeline_job, undo_job, redo_job, workspace_job, fcurve_job]
         #print 'check job for create :', script_job
         
     #スクリプトジョブ削除
     def remove_job(self):
-        #print 'remove job'
+        #print 'remove job', inspect.stack()
+        #self.reset_manip()
+        global script_job_flag
         global script_job
         global context_job
         global timeline_job
@@ -885,24 +960,42 @@ class SiSideBarWeight(qt.DockWindow):
         global redo_job
         global workspace_job
         global fcurve_job
-        job_list = [script_job, context_job, undo_job, redo_job, workspace_job, fcurve_job]
-        if script_job is not None:
-            for job in job_list:
+        global job_list
+        #print 'remove job list :', job_list
+        for i, job in enumerate(job_list):
+            if job:
                 try:
-                    cmds.scriptJob(k=job, force=True)
+                    #cmds.scriptJob(ro=True, e=("idle", lambda : cmds.scriptJob(k=job, f=True)), protected=True)
+                    cmds.scriptJob(k=job, f=True)
                 except Exception as e:
-                    print e.message
-                    pass
-            script_job = None
+                    #print 'remove job error :', job, e.message
+                    continue
+                job_list[i] = None
+        script_job = None
         try:
             self.kill_attr_job()
-        except:
+        except Exception as e:
+            #print 'remove attr job error :', e.message
             pass
         try:
             self.kill_fcurve_job()
-        except:
+        except Exception as e:
+            #print 'remove fcurve job error :', e.message
             pass
-            
+        cmds.undoInfo(swf=True)
+        cmds.scriptJob(ro=True, e=("idle", self.reset_manip), protected=True)
+    
+    #2018up2以降はクローズイベントが発生しないのにウィジェットなくなったことになるから別処理
+    def error_avoidance(self):
+        self.remove_job()
+        #サブウィンドウ閉じる
+        self.close_sub_windows()
+        #センターモードから抜ける
+        if center_mode:
+            toggle_center_mode(mode=False)
+        #センター位置を戻す
+        self.reset_cog_mode()
+        
     pre_vol_id = -1
     pre_obj_vol = -1
     pre_cmp_vol = -1
@@ -1229,19 +1322,21 @@ class SiSideBarWeight(qt.DockWindow):
             else:
                 self.but_trans_all.setChecked(False)
                 
-    #全選択ボタンを押したときは全軸有効/無効にする
+    #全選択ボタンを押したときは全軸有効にする
     def toggle_enable(self, mode=0, axis=0):
         if axis == 3:
+            '''
             m = self.srt_list[mode]
             a = self.axis_list[axis]
             exec('on_off = self.but_'+m+a+'.isChecked()')
-            #print 'all_change :', m+a, on_off
+            print 'all_change :', m+a, on_off
+            '''
             for i, b_list in enumerate(self.all_srt_but_list):
                 if i != mode:
                     continue
                 for but in b_list:
                     #print 'disable but :', mode, but.text()
-                    but.setChecked(on_off)
+                    but.setChecked(True)
             
     #選択したXYZのSRTモードボタンを有効にし、他のSRTをすべて無効にする。SRT自身での押下は無効。
     def set_disable(self, mode=0, but_id=0):
@@ -1978,7 +2073,7 @@ class SiSideBarWeight(qt.DockWindow):
         scale_x.setMinimumWidth(line_min_size)
         scale_x.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_x.text(), current=(0, 0))))
         scale_x.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_x.text(), current=(0, 0)))#入力変更が成されたかどうかを判定するように即時保存を実行
-        scale_x.editingFinished.connect(lambda : self.scaling(text=scale_x.text(), axis=0))
+        scale_x.editingFinished.connect(qt.Callback(lambda : self.scaling(text=scale_x.text(), axis=0)))
         self.main_layout.addWidget(scale_x, vn, tw, 1, text_b)
         tw += text_b
         
@@ -2004,7 +2099,7 @@ class SiSideBarWeight(qt.DockWindow):
         scale_y = self.make_line_edit(text=string_col, bg=bg_col)
         scale_y.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_y.text(), current=(0, 1))))#マルチラインは先にコネクト
         scale_y.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_y.text(), current=(0, 1)))#入力変更が成されたかどうかを判定するように即時保存を実行
-        scale_y.editingFinished.connect(lambda : self.scaling(text=scale_y.text(), axis=1))
+        scale_y.editingFinished.connect(qt.Callback(lambda : self.scaling(text=scale_y.text(), axis=1)))
         self.main_layout.addWidget(scale_y, vn, tw, 1 ,text_b)
         tw += text_b
         
@@ -2031,7 +2126,7 @@ class SiSideBarWeight(qt.DockWindow):
         scale_z = self.make_line_edit(text=string_col, bg=bg_col)
         scale_z.editingFinished.connect(qt.Callback(lambda : self.check_multi_selection(text=scale_z.text(), current=(0, 2))))
         scale_z.textChanged.connect(lambda : self.keep_pre_line_text(text=scale_z.text(), current=(0, 2)))#入力変更が成されたかどうかを判定するように即時保存を実行
-        scale_z.editingFinished.connect(lambda : self.scaling(text=scale_z.text(), axis=2))
+        scale_z.editingFinished.connect(qt.Callback(lambda : self.scaling(text=scale_z.text(), axis=2)))
         self.main_layout.addWidget(scale_z, vn, tw, 1 ,text_b)
         tw += text_b
         
@@ -2435,42 +2530,62 @@ class SiSideBarWeight(qt.DockWindow):
         #parent
         tip = lang.Lang(
         en='Parent the selected node to the last selected node\nLeft click >> Do not hold local transform\nRight click >> Maintain local transform',
-        ja=u'選択ノードを最後に選択したノードに親子付け\n左クリック→ローカル変換保持しない\n右クリック→ローカル変換を保持')
-        self.parent_but = make_flat_button(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip.output())
+        ja=u'選択ノードを最後に選択したノードに親子付け\n左クリック→ローカル変換保持しない\n右クリック→ローカル変換を保持').output()
+        self.parent_but = make_flat_button(name = 'Parent', text=text_col, bg=hilite, checkable=False, tip=tip)
         self.parent_but.clicked.connect(self.parent_node)
         self.parent_but.rightClicked.connect(lambda : self.parent_node(r=True))
         self.main_layout.addWidget(self.parent_but, vn, 0, 1 ,6)
         #cut
-        self.cut_but = make_flat_button(name = 'Cut', text=text_col, bg=hilite, checkable=False)
+        tip = lang.Lang(
+        en='Left click >> Move parentage to the next higher level\nRight click >> Parent-child under the scene root',
+        ja=u'左クリック→親子付けを一つ上の階層に移動\n右クリック→シーンルート直下に親子付け').output()
+        self.cut_but = make_flat_button(name = 'Cut', text=text_col, bg=hilite, checkable=False, tip=tip)
         self.main_layout.addWidget(self.cut_but, vn, 6, 1 ,5)
-        self.cut_but.clicked.connect(self.cut_node)
+        self.cut_but.clicked.connect(self.cut_node_once)
+        self.cut_but.rightClicked.connect(self.cut_node_root)
         vn+=1
-        #conscomp
-        #self.cns_comp_but = make_flat_button(name = 'CnsComp', text=mute_text, bg=immed)
-        #self.main_layout.addWidget(self.cns_comp_but, vn, 0, 1 ,6)
-        #self.cns_comp_but.setDisabled(True)#今のところ無効
-        
-        #--------------------------------------------------------------------------------
-        #デストロイモードボタンを挿入
-        self.destroy_but = make_flat_button(name=destroy_name, text=text_col, bg=hilite)
-        self.main_layout.addWidget(self.destroy_but, vn, 0, 1 ,6)
-        self.destroy_but.clicked.connect(self.destroy_mode)
-        #vn+=1
-        #qt.change_button_color(self.cns_comp_but, textColor=120, bgColor=red, destroy=destroy_flag, dsColor=border_col)#今のところ無効
-        #childcomp
         #設定はシーンのこのトランスフォームの維持を引き継ぐ
+        tip = lang.Lang(
+        en='Toggle Preserve UVs',
+        ja=u'UVを保持の切り替え').output()
+        keep_uv = cmds.manipMoveContext('Move', q=True, puv=True)
+        self.keep_uv_but = make_flat_button(name = 'KeepUV', text=text_col, bg=hilite, tip=tip)
+        self.keep_uv_but.setChecked(keep_uv)
+        self.keep_uv_but.clicked.connect(self.toggle_keep_uv)
+        self.main_layout.addWidget(self.keep_uv_but, vn, 0, 1 ,6)
+        self.toggle_keep_uv()#実行しとく
+        #設定はシーンのこのトランスフォームの維持を引き継ぐ
+        tip = lang.Lang(
+        en='Toggle Preserve Children',
+        ja=u'子を保持の切り替え').output()
         child_comp = cmds.manipMoveContext('Move', q=True, pcp=True)
-        self.child_comp_but = make_flat_button(name = 'ChldComp', text=text_col, bg=hilite)
+        self.child_comp_but = make_flat_button(name = 'ChldComp', text=text_col, bg=hilite, tip=tip)
         self.child_comp_but.setChecked(child_comp)
         self.child_comp_but.clicked.connect(self.toggle_child_comp)
         self.main_layout.addWidget(self.child_comp_but, vn, 6, 1 ,5)
+        self.toggle_child_comp()
         vn+=1
         #--------------------------------------------------------------------------------
-        #self.const_line_a = make_h_line()
-        #self.main_layout.addWidget(self.const_line_a, vn, 0, 1 ,11)
-        #vn+=1
+        tip = lang.Lang(
+        en='Toggle Tweak Mode',
+        ja=u'微調整モードの切り替え').output()
+        tweak_mode = cmds.manipMoveContext('Move', q=True, twk=True)
+        self.tweak_mode_but = make_flat_button(name = 'Tweak', text=text_col, bg=hilite, tip=tip)
+        self.tweak_mode_but.setChecked(tweak_mode)
+        self.tweak_mode_but.clicked.connect(self.toggle_tweak_mode)
+        self.main_layout.addWidget(self.tweak_mode_but, vn, 0, 1 ,6)
+        self.toggle_tweak_mode()
+        #デストロイモードボタンを挿入
+        tip = lang.Lang(
+        en='Destroy Mode',
+        ja=u'デストロイモード').output()
+        self.destroy_but = make_flat_button(name=destroy_name, text=text_col, bg=hilite, tip=tip)
+        self.main_layout.addWidget(self.destroy_but, vn, 6, 1, 5)
+        self.destroy_but.clicked.connect(self.destroy_mode)
+        vn+=1
+        #--------------------------------------------------------------------------------
         #一括操作のためにボタンをリスト化
-        self.const_section_but = [self.parent_but, self.cut_but, self.destroy_but, self.child_comp_but]
+        self.const_section_but = [self.parent_but, self.cut_but, self.destroy_but, self.child_comp_but, self.tweak_mode_but, self.keep_uv_but]
         self.const_section_height = [but.height() for but in self.const_section_but]
         self.constrain_top.rightClicked.connect(lambda : self.toggle_ui(buttons=self.const_section_but,  heights=self.const_section_height))
         #--------------------------------------------------------------------------------
@@ -2479,7 +2594,6 @@ class SiSideBarWeight(qt.DockWindow):
         #エディットエリア
         self.edit_top = make_flat_button(name=u'▽ Edit', checkable=False, flat=False, text=text_col, h_min=top_h, bg=mid_color, hover=top_hover)
         self.edit_top.clicked.connect(lambda : self.pop_top_menus(but=self.edit_top, menu_func=self.create_edit_menu))
-        #qt.change_button_color(self.edit_top, textColor=text_col, bgColor=mid_color)
         self.main_layout.addWidget(self.edit_top, vn, 0, 1 ,11)
         vn+=1
         self.main_layout.addWidget(self.make_ds_line(), vn, 0, 1 ,11)
@@ -2531,7 +2645,10 @@ class SiSideBarWeight(qt.DockWindow):
         self.main_layout.addWidget(self.edit_line_a, vn, 0, 1 ,11)
         vn+=1
         #計算時間--------------------------------------------------------------------------------
-        self.culc_time_line = QLabel('- Select Culculation Mode -')
+        if np_flag:
+            self.culc_time_line = QLabel('- Numpy Calculation Mode -')
+        else:
+            self.culc_time_line = QLabel('- Usual Calculation Mode -')
         qt.change_button_color(self.culc_time_line, textColor=menu_text, bgColor= ui_color)
         #self.culc_time_line = self.make_line_edit(text=string_col, bg=bg_col)
         self.main_layout.addWidget(self.culc_time_line, vn, 0, 1, 11)
@@ -2542,9 +2659,9 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         self.numpy = make_flat_button(name='Numpy', text=text_col, bg=hilite, h_max=12, w_min=si_w, w_max=si_w)
-        self.main_layout.addWidget(self.numpy, vn, 0, 1 ,6)
+        #self.main_layout.addWidget(self.numpy, vn, 0, 1 ,6)
         self.standard = make_flat_button(name = 'Standard', text=text_col, bg=hilite, h_max=12, w_min=maya_w, w_max=maya_w)
-        self.main_layout.addWidget(self.standard, vn, 6, 1 ,5)
+        #self.main_layout.addWidget(self.standard, vn, 6, 1 ,5)
         self.np_group = QButtonGroup(self)
         self.np_group.addButton(self.numpy, 0)
         self.np_group.addButton(self.standard,  1)
@@ -2818,46 +2935,54 @@ class SiSideBarWeight(qt.DockWindow):
     rpiv_list = []
     def setup_object_center(self):
         #以前のピボット位置に戻す
+        self.reset_cog_mode()
+        try:
+            if self.cog_but.isChecked():
+                sel_obj = pm.ls(sl=True, l=True, type='transform')
+                #pos_list = [pm.xform(s, q=True, t=True, ws=True) for s in sel_obj]
+                self.pre_sel_for_cog = sel_obj
+                self.spiv_list = [pm.xform(s+'.scalePivot', q=True, t=True, os=True) for s in sel_obj]
+                self.rpiv_list = [pm.xform(s+'.rotatePivot', q=True, t=True, os=True) for s in sel_obj]
+                if not sel_obj:
+                    return
+                '''
+                global np_flag
+                #print 'np_flag', np_flag
+                if np_flag:
+                    #print 'center in numpy'
+                    avr_pos = np.average(pos_list, axis=0).tolist()
+                else:
+                    #print 'center in math'
+                    pos_sum = [0.0, 0.0, 0.0]
+                    for pos in pos_list:
+                        pos_sum[0] += pos[0]
+                        pos_sum[1] += pos[1]
+                        pos_sum[2] += pos[2]
+                    avr_pos = map(lambda a: a/len(pos_list), pos_sum)
+                '''
+                #バウンディングボックスの中心に修正
+                bBox = pm.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
+                avr_pos = [(bBox[i]+bBox[i+3])/2 for i in range(3)]
+                #print pos_list
+                #print avr_pos
+                #print 'set up center'
+                for s in sel_obj:
+                    if pm.nodeType(s) == 'joint':
+                        continue
+                    pm.xform(s+'.scalePivot', t=avr_pos, ws=True)
+                    pm.xform(s+'.rotatePivot', t=avr_pos, ws=True)
+        except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
+            print e.message
+            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            return
+        
+    def reset_cog_mode(self):
+        #以前のピボット位置に戻す
         for s, sp, rp in zip(self.pre_sel_for_cog, self.spiv_list, self.rpiv_list):
             if pm.nodeType(s) == 'joint':
                 continue
             pm.xform(s+'.scalePivot', t=sp, os=True)
             pm.xform(s+'.rotatePivot', t=rp, os=True)
-            
-        if self.cog_but.isChecked():
-            sel_obj = pm.ls(sl=True, l=True, type='transform')
-            #pos_list = [pm.xform(s, q=True, t=True, ws=True) for s in sel_obj]
-            self.pre_sel_for_cog = sel_obj
-            self.spiv_list = [pm.xform(s+'.scalePivot', q=True, t=True, os=True) for s in sel_obj]
-            self.rpiv_list = [pm.xform(s+'.rotatePivot', q=True, t=True, os=True) for s in sel_obj]
-            if not sel_obj:
-                return
-            '''
-            global np_flag
-            #print 'np_flag', np_flag
-            if np_flag:
-                #print 'center in numpy'
-                avr_pos = np.average(pos_list, axis=0).tolist()
-            else:
-                #print 'center in math'
-                pos_sum = [0.0, 0.0, 0.0]
-                for pos in pos_list:
-                    pos_sum[0] += pos[0]
-                    pos_sum[1] += pos[1]
-                    pos_sum[2] += pos[2]
-                avr_pos = map(lambda a: a/len(pos_list), pos_sum)
-            '''
-            #バウンディングボックスの中心に修正
-            bBox = pm.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
-            avr_pos = [(bBox[i]+bBox[i+3])/2 for i in range(3)]
-            #print pos_list
-            #print avr_pos
-            #print 'set up center'
-            for s in sel_obj:
-                if pm.nodeType(s) == 'joint':
-                    continue
-                pm.xform(s+'.scalePivot', t=avr_pos, ws=True)
-                pm.xform(s+'.rotatePivot', t=avr_pos, ws=True)
         
     #Numpy使うかどうかを変更
     def change_np_mode(self):
@@ -3055,37 +3180,42 @@ class SiSideBarWeight(qt.DockWindow):
         
     #選択オブジェクト情報を表示
     def display_selection(self):
-        if cmds.selectMode(q=True, o=True):
-            obj_list = cmds.ls(sl=True)
-            comp_text = ''
-            qt.change_button_color(self.selection_line, textColor=string_col, bgColor=bg_col)
-            qt.change_button_color(self.index_line, textColor=gray_text, bgColor=bg_col)
-        if cmds.selectMode(q=True, co=True):
-            comp_list = cmds.ls(sl=True)
-            obj_list = list(set([comp.split('.')[0] for comp in comp_list]))
-            qt.change_button_color(self.selection_line, textColor=gray_text, bgColor=bg_col)
-            qt.change_button_color(self.index_line, textColor=string_col, bgColor=bg_col)
-        if not obj_list:
-            disp_text = ''
-        elif len(obj_list) > 1:
-            disp_text = 'MULTI('+str(len(obj_list))+')'
-        else:
-            disp_text = obj_list[0].split('|')[-1]
-        self.selection_line.setText(disp_text)
-        if not cmds.selectMode(q=True, co=True):
-            comp_text = ''
-        elif not obj_list:
-            comp_text = ''
-        elif len(obj_list) > 1:
-            comp_text = disp_text
-        else:
-            comp_text=[]
-            for comp in comp_list:
-                st = comp.find('[')+1
-                ed = comp.find(']')
-                comp_text.append(comp[st:ed])
-            comp_text = ' '.join(comp_text)
-        self.index_line.setText(comp_text)
+        try:
+            if cmds.selectMode(q=True, o=True):
+                obj_list = cmds.ls(sl=True)
+                comp_text = ''
+                qt.change_button_color(self.selection_line, textColor=string_col, bgColor=bg_col)
+                qt.change_button_color(self.index_line, textColor=gray_text, bgColor=bg_col)
+            if cmds.selectMode(q=True, co=True):
+                comp_list = cmds.ls(sl=True)
+                obj_list = list(set([comp.split('.')[0] for comp in comp_list]))
+                qt.change_button_color(self.selection_line, textColor=gray_text, bgColor=bg_col)
+                qt.change_button_color(self.index_line, textColor=string_col, bgColor=bg_col)
+            if not obj_list:
+                disp_text = ''
+            elif len(obj_list) > 1:
+                disp_text = 'MULTI('+str(len(obj_list))+')'
+            else:
+                disp_text = obj_list[0].split('|')[-1]
+            self.selection_line.setText(disp_text)
+            if not cmds.selectMode(q=True, co=True):
+                comp_text = ''
+            elif not obj_list:
+                comp_text = ''
+            elif len(obj_list) > 1:
+                comp_text = disp_text
+            else:
+                comp_text=[]
+                for comp in comp_list:
+                    st = comp.find('[')+1
+                    ed = comp.find(']')
+                    comp_text.append(comp[st:ed])
+                comp_text = ' '.join(comp_text)
+            self.index_line.setText(comp_text)
+        except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
+            print e.message
+            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            return
         
     #グループセレクションボタンの状態を維持する
     def set_pre_sel_group_but(self, mode):
@@ -3413,7 +3543,7 @@ class SiSideBarWeight(qt.DockWindow):
                     but.setChecked(flag)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             #print 'cehck ui button error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", self.remove_job), protected=True)
+            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
             return
                         
         snap_mode = cmds.snapMode(q=True, grid=True)
@@ -3434,8 +3564,13 @@ class SiSideBarWeight(qt.DockWindow):
             immed_mode = True
         self.immed_but.setChecked(immed_mode)
         
+        #ツール設定を確認
         child_comp = cmds.manipMoveContext('Move', q=True, pcp=True)
         self.child_comp_but.setChecked(child_comp)
+        keep_uv = cmds.manipMoveContext('Move', q=True, puv=True)
+        self.keep_uv_but.setChecked(keep_uv)
+        tweak_mode = cmds.manipMoveContext('Move', q=True, twk=True)
+        self.tweak_mode_but.setChecked(tweak_mode)
         
         prop = cmds.softSelect(q=True, softSelectEnabled=True)
         self.prop_but.setChecked(prop)
@@ -4333,7 +4468,7 @@ class SiSideBarWeight(qt.DockWindow):
         sets.remove_set_members()
     
     #親子付け切り離し、KTG_Modelルートがあればそのしたへ、無い場合はワールド直下へ。
-    def cut_node(self):
+    def cut_node_root(self):
         selection = pm.ls(sl=True, l=True)
         for sel in selection:
             p_node = sel
@@ -4356,6 +4491,17 @@ class SiSideBarWeight(qt.DockWindow):
                     break
         pm.select(selection, r=True)
         
+    def cut_node_once(self):
+        selection = pm.ls(sl=True, l=True)
+        for sel in selection:
+            p_node = pm.listRelatives(sel, p=True)
+            if p_node:
+                p_node = pm.listRelatives(p_node, p=True)
+                if p_node:
+                    pm.parent(sel, p_node)
+                else:
+                    pm.parent(sel,  w=True)
+            
     def parent_node(self, r=False):
         try:
             if r:
@@ -4449,6 +4595,29 @@ class SiSideBarWeight(qt.DockWindow):
         cmds.manipMoveContext('Move', e=True, pcp=child_comp)
         cmds.manipRotateContext('Rotate', e=True, pcp=child_comp)
         cmds.manipScaleContext('Scale', e=True, pcp=child_comp)
+        
+    def toggle_keep_uv(self):
+        keep_uv = self.keep_uv_but.isChecked()
+        cmds.manipMoveContext('Move', e=True, puv=keep_uv)
+        cmds.manipRotateContext('Rotate', e=True, puv=keep_uv)
+        cmds.manipScaleContext('Scale', e=True, puv=keep_uv)
+        
+    toggle_twk_flag = False
+    def toggle_tweak_mode(self):
+        tweak_mode = self.tweak_mode_but.isChecked()
+        cmds.manipMoveContext('Move', e=True, twk=tweak_mode)
+        cmds.manipRotateContext('Rotate', e=True, twk=tweak_mode)
+        if maya_ver >= 2016:
+            cmds.manipScaleContext('Scale', e=True, twk=tweak_mode)
+        else:
+            current_tool = cmds.currentCtx()
+            if not tweak_mode:
+                self.toggle_twk_flag = True
+                cmds.setToolTo('RotateSuperContext')
+                self.toggle_twk_flag = True
+                cmds.setToolTo('moveSuperContext')
+            cmds.setToolTo(current_tool)
+            
         
     #スナップ設定をトグル
     def toggle_snap(self):
@@ -4717,9 +4886,10 @@ class SiSideBarWeight(qt.DockWindow):
                     rot[axis]=value
                 #回転実行
                 if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
+                    #print 'rot os'
                     exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', os=True)')
                 else:#グローバル処理
-                    exec('cmds.rotate(rot[0], rot[1], rot[2], sel, ws=True'+pcp+')')
+                    exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', ws=True)')
                 exec('trans'+self.axis_list[axis]+'.setText(str(rot[axis]))')
         else:#コンポーネント選択の時の処理
             selection = cmds.ls(sl=True, l=True)
@@ -4758,9 +4928,9 @@ class SiSideBarWeight(qt.DockWindow):
                 #print 'Pivot COG :', piv_pos
                 if sid == 0 or sid == 4:
                     cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
-                if sid == 3:#オブジェクトモードの時
+                if sid == 3:#ジンバル
                     cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, eu=True, p=piv_pos)
-                if sid == 1 or sid == 2 or sid == 5:#ローカルスペース
+                if sid == 1 or sid == 2 or sid == 5:#オブジェクト
                     cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, os=True, p=piv_pos)
                     #return
             else:
@@ -4772,14 +4942,13 @@ class SiSideBarWeight(qt.DockWindow):
                     if not self.cog_but.isChecked():
                         piv_pos = cmds.xform(mesh, q=True, t=True, ws=True)
                         #print 'comp_mode piv rot position :', piv_pos
-                    if sid == 3:#オブジェクトモードの時
-                        #print 'object mode :'
-                        #cmds.xform(vtx, s=add_scale, r=True, os=True)
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, eu=True, p=piv_pos)
                     if sid == 0 or sid == 4:#ワールドスペース
                         #print 'global_mode :'
                         cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, ws=True, p=piv_pos)
-                    if sid == 1 or sid == 2 or sid == 5:#ローカルスペース
+                    if sid == 3:#ジンバル
+                        #print 'object mode :'
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, eu=True, p=piv_pos)
+                    if sid == 1 or sid == 2 or sid == 5:#オブジェクト
                         #print 'local_mode :'
                         cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, os=True, p=piv_pos)
         sisidebar_sub.get_matrix()
@@ -4898,10 +5067,10 @@ class SiSideBarWeight(qt.DockWindow):
                 if sid == 0 or sid == 4:#ワールドスペース
                     cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
                     #cmds.xform(vtx, t=add_trans, r=True, ws=True)
-                elif sid == 1 or sid == 2 or sid == 5:#ローカルスペース
+                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
                     cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
                     #cmds.xform(vtx, t=add_trans, r=True, os=True)
-                elif sid == 3:#オブジェクトスペース
+                elif sid == 1:#オブジェクトスペース
                     cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
         sisidebar_sub.get_matrix()
         #self.out_focus()
@@ -5187,7 +5356,7 @@ def set_child_comp(mode):
             cmds.manipMoveContext('Move', e=True, pcp=True)
     except Exception as e:
         #print 'set_child_comp error :', e.message
-        window.remove_job()
+        window.error_avoidance()
         return
 #センター移動をオブジェクトにベイクする
 def transform_center():
@@ -5478,7 +5647,7 @@ def change_context():
         window.select_from_current_context()
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         #print 'change_context error :', e.message
-        cmds.scriptJob(ro=True, e=("idle", window.remove_job), protected=True)
+        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
         
 #選択モード、オブジェクト、コンポーネントモードでボタン名、選択可能を変える
 def set_active_mute(mode=0):
@@ -5493,7 +5662,7 @@ def set_active_mute(mode=0):
             mode = 3
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         #print 'set active mute error :', e.message
-        cmds.scriptJob(ro=True, e=("idle", window.remove_job), protected=True)
+        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
         return
     
         #space_group.button(2).setChecked(True)
@@ -5592,15 +5761,20 @@ def set_srt_text(scale, rot, trans):
     scale = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, scale)
     rot = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, rot)
     trans = map(lambda a : a.replace('-0.0', '0.0') if a=='-0.0' else a, trans)
-    scale_x.setText(scale[0])
-    scale_y.setText(scale[1])
-    scale_z.setText(scale[2])
-    rot_x.setText(rot[0])
-    rot_y.setText(rot[1])
-    rot_z.setText(rot[2])
-    trans_x.setText(trans[0])
-    trans_y.setText(trans[1])
-    trans_z.setText(trans[2])
+    try:
+        scale_x.setText(scale[0])
+        scale_y.setText(scale[1])
+        scale_z.setText(scale[2])
+        rot_x.setText(rot[0])
+        rot_y.setText(rot[1])
+        rot_z.setText(rot[2])
+        trans_x.setText(trans[0])
+        trans_y.setText(trans[1])
+        trans_z.setText(trans[2])
+    except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
+        print e.message
+        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
+        return
         
 def set_pre_transform(trans, rot, scale):
     global pre_trans

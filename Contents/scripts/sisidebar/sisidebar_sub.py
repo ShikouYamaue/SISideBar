@@ -169,7 +169,11 @@ def get_matrix():
     if cmds.selectMode(q=True, o=True):
         selection = cmds.ls(sl=True, type='transform')
         if selection:
-            s_list, r_list, t_list = get_srt(selection)
+            try:
+                s_list, r_list, t_list = get_srt(selection)
+            except Exception as e:
+                print e.message
+                return
             #print 'get matrix :', s_list, r_list, t_list
             for i in range(3):
                 s_list = [map(lambda a: round(float(a), view_decimal), xyz) for xyz in s_list]
@@ -192,7 +196,10 @@ def get_matrix():
                 else:
                     trans[i] = str(t_list[0][i])
         #sb.check_key_anim()
-        sb.view_np_time(culc_time='- Select Culculation Mode -')
+        if np_flag:
+            sb.view_np_time(culc_time='- Numpy Calculation Mode -')
+        else:
+            sb.view_np_time(culc_time='- Usual Calculation Mode -')
     #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
     selection = cmds.ls(sl=True, type='float3')
     #カーブもとっておく
@@ -266,7 +273,11 @@ def get_srt(selection, mode='object'):
     s_list = []
     r_list = []
     t_list = []
-    sid = sb.space_group.checkedId()
+    try:#2018up2以降の不具合対応
+        sid = sb.space_group.checkedId()
+    except Exception as e:
+        print e.message
+        return
     for sel in selection:
         try:
             parent = cmds.listRelatives(sel, p=True)
