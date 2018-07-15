@@ -54,7 +54,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.3 -'
+version = ' - SI Side Bar / ver_2.5.4 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -3788,7 +3788,7 @@ class SiSideBarWeight(qt.DockWindow):
         texture_window.show()
         move_to_best_pos(object=texture_window, offset=texture_offset)
         
-    def weight_copy(self, method='index', engin='maya', saveName='sisidebar.copypaste'):
+    def weight_copy(self, method='index', engin='maya', saveName='simple.copypaste'):
         selection = cmds.ls(sl=True)
         skinMeshes = common.search_polygon_mesh(selection, serchChildeNode=True)
         if skinMeshes is not None:
@@ -3798,7 +3798,7 @@ class SiSideBarWeight(qt.DockWindow):
                                             engine = engin,
                                             viewmsg = True)
                                                 
-    def weight_paste(self, method='index', threshold=0.2, engin='maya', saveName='sisidebar.copypaste'):
+    def weight_paste(self, method='index', threshold=0.2, engin='maya', saveName='simple.copypaste'):
         selection = cmds.ls(sl=True)
         skinMeshes = common.search_polygon_mesh(selection, serchChildeNode=True)
         if skinMeshes is not None:
