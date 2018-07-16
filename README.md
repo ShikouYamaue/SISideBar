@@ -1,4 +1,6 @@
 # SISideBar
+Softimageのサイドバーをリスペクトして作った統合ツールボックスです。  
+
 ## インストール
 
 Clone or download > Download ZIP からZIPファイルをダウンロードしてください。
