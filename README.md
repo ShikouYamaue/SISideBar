@@ -37,15 +37,7 @@ Maya起動時に前回の終了状態でウィンドウ位置、ドッキング�
     
 ![20171113-212852](https://user-images.githubusercontent.com/28256498/32726190-6982b406-c8bb-11e7-9c9d-25a018194a1a.jpg)
 ![2017-11-13_23h23_06](https://user-images.githubusercontent.com/28256498/32730253-d5b4e294-c8c9-11e7-9c9c-0d21e2a5c8e8.png)
-
-
-
-## とりあえず使用説明動画とってみました  
-
-https://youtu.be/14T5_Ak4dAE  
-https://youtu.be/Ymq6SQwWF8s  
-https://youtu.be/tC5p24b9sUQ  
-https://youtu.be/dZUoGX0SBOQ  
+ 
 
 ## 主な機能
     
