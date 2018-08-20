@@ -54,7 +54,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.4 -'
+version = ' - SI Side Bar / ver_2.5.5 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -2383,8 +2383,13 @@ class SiSideBarWeight(qt.DockWindow):
         vn+=1
         #--------------------------------------------------------------------------------
         #編集モード
-        self.cog_but = make_flat_button(name = 'COG', text=text_col, bg=hilite)
-        self.cog_but.clicked.connect(qt.Callback(self.setup_object_center))
+        tip = lang.Lang(
+        en='COG mode >> Scale / rotate from the center of the object, component\n'+\
+            'COP mode >> manipulator If there is pivot setting, scale / rotate around the pivot',
+        ja=u'COGモード → オブジェクト、コンポーネントの中心からスケール/ローテーションします\n'+\
+            u'COPモード → マニピュレータピボット設定がある場合はピボットを中心にスケール/ローテーションします').output()
+        self.cog_but = make_flat_button(name = 'COG/P', text=text_col, bg=hilite, tip=tip)
+        self.cog_but.clicked.connect(qt.Callback(lambda : self.setup_object_center(change_mode=True)))
         self.main_layout.addWidget(self.cog_but, vn, 0, 1 ,4)
         prop = cmds.softSelect(q=True, softSelectEnabled=True)
         self.prop_but = make_flat_button(name = '/Prop', text=text_col, bg=hilite)
@@ -2933,11 +2938,22 @@ class SiSideBarWeight(qt.DockWindow):
     pre_sel_for_cog = []
     spiv_list = []
     rpiv_list = []
-    def setup_object_center(self):
+    def setup_object_center(self, change_mode=False):
+        if change_mode:
+            text = self.cog_but.text()
+            if text == 'COG/P':
+                self.cog_but.setText('COG')
+                self.cog_but.setChecked(True)
+            elif text == 'COG':
+                self.cog_but.setText('COP')
+                self.cog_but.setChecked(True)
+            else:
+                self.cog_but.setText('COG/P')
+                self.cog_but.setChecked(False)
         #以前のピボット位置に戻す
         self.reset_cog_mode()
         try:
-            if self.cog_but.isChecked():
+            if self.cog_but.text()  == 'COG':
                 sel_obj = pm.ls(sl=True, l=True, type='transform')
                 #pos_list = [pm.xform(s, q=True, t=True, ws=True) for s in sel_obj]
                 self.pre_sel_for_cog = sel_obj
@@ -3438,6 +3454,7 @@ class SiSideBarWeight(qt.DockWindow):
         #print pre_text_value
     #ホイール入力を適用
     def apply_wheel_value(self):
+        cmds.undoInfo(openChunk=True)
         for i, m_line in enumerate(self.all_xyz_list):
             for j, a_line in enumerate(m_line):
                 value = a_line.text()
@@ -3452,6 +3469,7 @@ class SiSideBarWeight(qt.DockWindow):
                     if i == 2:
                         self.translation(text=value, axis=j, focus=False)
                     self.keep_focused_text(value)
+        cmds.undoInfo(closeChunk=True)
                 #self.keep_pre_line_text(text=value, current=(i,  j))
     #入力後の暴発を防ぐためにフォーカスを外す
     def out_focus(self):
@@ -4811,9 +4829,13 @@ class SiSideBarWeight(qt.DockWindow):
             #COGのときは全てのコンポーネントの中心ピボット
             if self.cog_but.isChecked():
                 piv_pos = []
-                for mesh, vtx in obj_dict.items():
-                    piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
-                piv_pos = self.get_piv_pos(piv_pos)
+                if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
+                    piv_pos = cmds.manipPivot(p=True, q=True)[0]
+                    print 'cop mode :', piv_pos
+                else:
+                    for mesh, vtx in obj_dict.items():
+                        piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
+                    piv_pos = self.get_piv_pos(piv_pos)
                 #print 'Pivot COG :', piv_pos
                 if sid == 0 or sid ==4:
                     cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ws=True, p=piv_pos)
@@ -4922,9 +4944,13 @@ class SiSideBarWeight(qt.DockWindow):
                 #COGのときは全てのコンポーネントの中心ピボット
                 #グローバル回転+COGを処理
                 piv_pos = []
-                for mesh, vtx in obj_dict.items():
-                    piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
-                piv_pos = self.get_piv_pos(piv_pos)
+                if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
+                    piv_pos = cmds.manipPivot(p=True, q=True)[0]
+                    #print 'cop mode :', piv_pos
+                else:
+                    for mesh, vtx in obj_dict.items():
+                        piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
+                    piv_pos = self.get_piv_pos(piv_pos)
                 #print 'Pivot COG :', piv_pos
                 if sid == 0 or sid == 4:
                     cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
@@ -6618,6 +6644,7 @@ def toggle_cog():
     else:
         window.cog_but.setChecked(True)
     qt.Callback(window.setup_object_center())
+    
 #明るめのラインを返す
 global line_list
 line_list = []
@@ -6626,7 +6653,8 @@ def make_h_line(text=255, bg=128):
     line = qt.make_h_line()
     qt.change_button_color(line, textColor=text, bgColor=bg)
     line_list.append(line)
-    return line    
+    return line 
+    
 #Numpyモード比較計算時間を表示
 def view_np_time(culc_time):
     try:
