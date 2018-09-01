@@ -2,6 +2,7 @@
 #SI Side Bar
 from maya import cmds
 from maya import mel
+import maya.OpenMayaUI as omui
 
 import pymel.core as pm
 import sys
@@ -54,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.5 -'
+version = ' - SI Side Bar / ver_2.5.6 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -6700,89 +6701,24 @@ def change_selection_display():
     window.display_selection()
     
 #UIの再構築--------------------------------------------------------------------------------------------
-def get_save_dir():
-    _dir = os.environ.get('MAYA_APP_DIR')
-    return os.path.join(_dir, 'Scripting_Files')
-
-def get_shelf_floating_filepath():
-    return os.path.join(get_save_dir(), 'shelf_floating.json')
-      
 def get_ui(name, weight_type):
     all_ui = {w.objectName(): w for w in QApplication.allWidgets()}
-    ui = []
     for k, v in all_ui.items():
-        if name not in k:
-            continue
-        # 2017だとインスタンスの型をチェックしないと別の物まで入ってきてしまうらしい
-        # 2016以前だと比較すると通らなくなる…orz
-        if maya_ver >= 2017:
-            if v.__class__.__name__ == weight_type:
-                return v
-        else:
-            return v
-    return None      
+        if v.__class__.__name__ == weight_type:
+            v.close()
 
-def get_show_repr(vis_judgment=True):
-    '''
-    UIの状態を取得
-    :param vis_judgment:表示状態を考慮するか
-    :return:
-    '''
-    dict_ = {}
-    dict_['display'] = False
-    dict_['dockable'] = True
-    dict_['floating'] = True
-    dict_['area'] = None
-    dict_['x'] = 0
-    dict_['y'] = 0
-    dict_['width'] = 400
-    dict_['height'] = 150
-
-    _ui = get_ui(TITLE, 'SiSideBarWeight')
-    if _ui is None:
-        return dict_
-
-    if vis_judgment is True and _ui.isVisible() is False:
-        return dict_
-
-    dict_['display'] = True
-    dict_['dockable'] = _ui.isDockable()
-    dict_['floating'] = _ui.isFloating()
-    dict_['area'] = _ui.dockArea()
-    if dict_['dockable'] is True:
-        dock_dtrl = _ui.parent()
-        _pos = dock_dtrl.mapToGlobal(QtCore.QPoint(0, 0))
-    else:
-        _pos = _ui.pos()
-    _sz = _ui.geometry().size()
-    dict_['x'] = _pos.x()
-    dict_['y'] = _pos.y()
-    dict_['width'] = _sz.width()
-    dict_['height'] = _sz.height()
-    return dict_
-    
 TITLE = "SiSideBar"
 def make_ui():
     # 同名のウインドウが存在したら削除
-    ui = get_ui(TITLE, 'SiSideBarWeight')
-    if ui is not None:
-        ui.close()
+    get_ui(TITLE, 'SiSideBarWeight')
 
     app = QApplication.instance()
     ui = SiSideBarWeight()
     return ui
-
-def load_floating_data():
-    path = get_shelf_floating_filepath()
-    if os.path.isfile(path) is False:
-        return None
-    f = open(path, 'r')
-    dict_ = json.load(f)
-    return dict_
     
 def main(x=None, y=None, init_pos=False):
     print 'si side bar : main'
-    #Maya2016以下はいままで通りのしょり
+    #Maya2016以下はいままで通り
     if maya_ver <= 2016:
         Option(init_pos=init_pos)
         return
@@ -6790,27 +6726,32 @@ def main(x=None, y=None, init_pos=False):
     global window
     window = make_ui()
     save_data = window.load(init_pos=False)
-    _floating = load_floating_data()
-    if _floating:
-        width = _floating['width']
-        height = _floating['height']
+    
+    #不要なワークスペースコントロールセットを削除
+    try:
+        cmds.deleteUI(TITLE+'WorkspaceControl')
+    except:
+        pass
+    
+    if save_data:
+        width = save_data['sw']
+        height = save_data['sh']
     else:
         width = None
         height = None
-
+    
     ui_script = "import sisidebar.sisidebar_main;sisidebar.sisidebar_main.restoration_workspacecontrol()"
     
-    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
     opts = {
         "dockable": True,
         "floating": True,
-        "area": "right",
+        "area": None,
         "allowedArea": None,
         "x": None,
         "y": None,
         # below options have been introduced at 2017
-        "widthSizingProperty": None,
-        "heightSizingProperty": None,
+        "widthSizingProperty": width,
+        "heightSizingProperty": height,
         "initWidthAsMinimum": None,
         "retain": False,
         "plugins": None,
@@ -6819,59 +6760,16 @@ def main(x=None, y=None, init_pos=False):
         "closeCallback": None
     }
     window.setDockableParameters(**opts)
-    '''
-    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
-    opts = {
-        "dockable": True,
-        "floating": True,
-        "width": width,
-        "height": height,
-        # 2017でのバグ回避のため area: left で決め打ちしてしまっているが
-        # 2017未満ではrestoration_docking_ui で area を再設定するため問題ない
-        # 2017 では workspace layout にどこにいるか等の実体がある
-        "area": "left",
-        "allowedArea": None,
-        "x": x,
-        "y": y,
-        # below options have been introduced at 2017
-        "widthSizingProperty": None,
-        "heightSizingProperty": None,
-        "initWidthAsMinimum": None,
-        "retain": False,
-        "plugins": None,
-        "controls": None,
-        "uiScript": ui_script,
-        "closeCallback": None
-    }
-    window.setDockableParameters(**opts)
-    '''
 
 def restoration_workspacecontrol():
     print 'si side bar : restoration_workspacecontrol'
     # workspacecontrolの再現用
     global window
     window = make_ui()
-    ui_script = "import sisidebar.sisidebar_main;sisidebar.sisidebar_main.restoration_workspacecontrol()"
-    # 保存されたデータのウインドウ位置を使うとウインドウのバーが考慮されてないのでズレる
-    opts = {
-        "dockable": True,
-        "floating": False,
-        "area": "left",
-        "allowedArea": None,
-        "x": None,
-        "y": None,
-        # below options have been introduced at 2017
-        "widthSizingProperty": None,
-        "heightSizingProperty": None,
-        "initWidthAsMinimum": None,
-        "retain": False,
-        "plugins": None,
-        "controls": None,
-        "uiScript": ui_script,
-        "closeCallback": None
-    }
-    window.setDockableParameters(**opts)
     
+    restoredControl = omui.MQtUtil.getCurrentParent()
+    mixinPtr = omui.MQtUtil.findControl(window.objectName())
+    omui.MQtUtil.addWidgetToMayaLayout(long(mixinPtr), long(restoredControl))
 
 
 if __name__ == '__main__':

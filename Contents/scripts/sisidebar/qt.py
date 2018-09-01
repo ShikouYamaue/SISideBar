@@ -22,17 +22,7 @@ maya_ver = int(cmds.about(v=True)[:4])
 maya_api_ver = int(cmds.about(api=True))
 try:
     from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
-    #2017以降だったらパッチあてる、2018でもまだ不具合あるっぽい
-    if 2017 <= maya_ver and maya_ver < 2019:
-        # TODO: 新バージョンが出たら確認すること
-        print 'import patched mixin'
-        from .patch import m2017
-        #from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
-        MayaQWidgetDockableMixin = m2017.MayaQWidgetDockableMixin2017
-        #from .patch.ringoMixin import MayaQWidgetDockableMixin
-            
-    else:
-        from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
+    from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
         
     class MainWindow(MayaQWidgetBaseMixin, QMainWindow):
         def __init__(self, *args, **kwargs):
