@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.6 -'
+version = ' - SI Side Bar / ver_2.5.7 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -4788,82 +4788,82 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        if cmds.selectMode(q=True, o=True):
-            selection = cmds.ls(sl=True, l=True, tr=True)
-            for sel in selection:
-                #オブジェクトモードの時はローカル変換のみサポート
-                #scl = [cmds.getAttr(sel+'.scale'+a)for a in self.axis_attr_list]
-                scl = cmds.xform(sel, q=True, r=True, s=True)
-                if sign:
-                    exec('scl[axis] '+sign+'= value')
-                else:
-                    scl[axis]=value
-                #スケール実行
-                exec('cmds.scale(scl[0], scl[1], scl[2], sel'+pcp+')')
-                exec('scale'+self.axis_list[axis]+'.setText(str(scl[axis]))')
-        else:#コンポーネント選択の時の処理
-            selection = cmds.ls(sl=True, l=True)
-            if pre_scale[axis] == value:
-                return
+            
+        transforms = cmds.ls(sl=True, l=True, tr=True)
+        for sel in transforms:
+            #オブジェクトモードの時はローカル変換のみサポート
+            #scl = [cmds.getAttr(sel+'.scale'+a)for a in self.axis_attr_list]
+            scl = cmds.xform(sel, q=True, r=True, s=True)
+            if sign:
+                exec('scl[axis] '+sign+'= value')
+            else:
+                scl[axis]=value
+            #スケール実行
+            exec('cmds.scale(scl[0], scl[1], scl[2], sel'+pcp+')')
+            exec('scale'+self.axis_list[axis]+'.setText(str(scl[axis]))')
+            
+        if pre_scale[axis] != value:
+            sel_comps = cmds.ls(sl=True, type='float3')
             #カーブもとっておく
             cv_selection = cmds.ls(sl=True, type='double3', fl=True)
-            components = cmds.polyListComponentConversion(selection, tv=True)
+            components = cmds.polyListComponentConversion(sel_comps, tv=True)
             if components:
-                components = cmds.filterExpand(components, sm=31)+cv_selection
+                components = cmds.filterExpand(components, sm=31) + cv_selection
             else:
-                components = cv_selectione
-            obj_list = list(set([vtx.split('.')[0] for vtx in components]))
-            obj_dict = {obj:[] for obj in obj_list}
-            [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
-            add_scale = [1.0, 1.0, 1.0]
-            if sign:
-               if sign == '+':
-                   add_value = 1.0+value
-               elif sign == '-':
-                   add_value = 1.0-1*value
-               else:
-                   exec('add_value = 1.0 '+sign+' value')
-            else:
-                add_value = value
-            add_scale[axis] = add_value
-            #print 'add scale :', add_scale
-            #COGのときは全てのコンポーネントの中心ピボット
-            if self.cog_but.isChecked():
-                piv_pos = []
-                if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
-                    piv_pos = cmds.manipPivot(p=True, q=True)[0]
-                    print 'cop mode :', piv_pos
+                components = cv_selection
+            if components:
+                obj_list = list(set([vtx.split('.')[0] for vtx in components]))
+                obj_dict = {obj:[] for obj in obj_list}
+                [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
+                add_scale = [1.0, 1.0, 1.0]
+                if sign:
+                   if sign == '+':
+                       add_value = 1.0+value
+                   elif sign == '-':
+                       add_value = 1.0-1*value
+                   else:
+                       exec('add_value = 1.0 ' + sign + ' value')
                 else:
+                    add_value = value
+                add_scale[axis] = add_value
+                #print 'add scale :', add_scale
+                #COGのときは全てのコンポーネントの中心ピボット
+                if self.cog_but.isChecked():
+                    piv_pos = []
+                    if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
+                        piv_pos = cmds.manipPivot(p=True, q=True)[0]
+                        print 'cop mode :', piv_pos
+                    else:
+                        for mesh, vtx in obj_dict.items():
+                            piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
+                        piv_pos = self.get_piv_pos(piv_pos)
+                    #print 'Pivot COG :', piv_pos
+                    if sid == 0 or sid ==4:
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ws=True, p=piv_pos)
+                    if sid == 1 or sid == 2 or sid == 5:
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ls=True, p=piv_pos)
+                    if sid == 3:
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, os=True, p=piv_pos)
+                else:#それぞれのメッシュの中心ピボット
                     for mesh, vtx in obj_dict.items():
-                        piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
-                    piv_pos = self.get_piv_pos(piv_pos)
-                #print 'Pivot COG :', piv_pos
-                if sid == 0 or sid ==4:
-                    cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ws=True, p=piv_pos)
-                if sid == 1 or sid == 2 or sid == 5:
-                    cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ls=True, p=piv_pos)
-                if sid == 3:
-                    cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, os=True, p=piv_pos)
-            else:#それぞれのメッシュの中心ピボット
-                for mesh, vtx in obj_dict.items():
-                    if cmds.nodeType(mesh) == 'mesh':
-                        mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
-                    #print 'comp_mode pre scale :', pre_scale
-                    base_pos = cmds.xform(mesh, q=True, t=True, ws=True)
-                    #print 'comp_mode base scale position :', base_pos
-                    if sid == 3:#オブジェクトモードの時だけそれぞれの角度にスケール
-                        #print 'object mode :'
-                        #cmds.xform(vtx, s=add_scale, r=True, os=True)
-                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, os=True)
-                    else:#それ以外の場合はグローバル座標それぞれの位置にスケール
-                        #print 'add_mode :'
-                        #SIだとコンポーネントスケールはワールドもローカルも手打ちでは同じ動きをする。分けられるけど、どうしよう。
-                        #cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
-                        #分けたバージョンは以下
-                        if sid == 0 or sid ==4:
-                            cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
-                        if sid == 1 or sid == 2 or sid == 5:
-                            cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ls=True, p=base_pos)
+                        if cmds.nodeType(mesh) == 'mesh':
+                            mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
+                        #print 'comp_mode pre scale :', pre_scale
+                        base_pos = cmds.xform(mesh, q=True, t=True, ws=True)
+                        #print 'comp_mode base scale position :', base_pos
+                        if sid == 3:#オブジェクトモードの時だけそれぞれの角度にスケール
+                            #print 'object mode :'
+                            #cmds.xform(vtx, s=add_scale, r=True, os=True)
+                            cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, os=True)
+                        else:#それ以外の場合はグローバル座標それぞれの位置にスケール
+                            #print 'add_mode :'
+                            #SIだとコンポーネントスケールはワールドもローカルも手打ちでは同じ動きをする。分けられるけど、どうしよう。
+                            #cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
+                            #分けたバージョンは以下
+                            if sid == 0 or sid ==4:
+                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
+                            if sid == 1 or sid == 2 or sid == 5:
+                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ls=True, p=base_pos)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -4895,89 +4895,89 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        if cmds.selectMode(q=True, o=True):
-            selection = cmds.ls(sl=True, l=True, tr=True)
-            for sel in selection:
-                if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
-                    rot = cmds.xform(sel, q=True, ro=True)
-                else:#グローバル処理
-                    rot = cmds.xform(sel, q=True, ro=True, ws=True)
-                if sign:
-                    exec('rot[axis] '+sign+'= value')
-                    #print rot
-                else:
-                    rot[axis]=value
-                #回転実行
-                if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
-                    #print 'rot os'
-                    exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', os=True)')
-                else:#グローバル処理
-                    exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', ws=True)')
-                exec('trans'+self.axis_list[axis]+'.setText(str(rot[axis]))')
-        else:#コンポーネント選択の時の処理
-            selection = cmds.ls(sl=True, l=True)
-            if pre_rot[axis] == value:
-                return
+            
+        transforms = cmds.ls(sl=True, l=True, tr=True)
+        for sel in transforms:
+            if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
+                rot = cmds.xform(sel, q=True, ro=True)
+            else:#グローバル処理
+                rot = cmds.xform(sel, q=True, ro=True, ws=True)
+            if sign:
+                exec('rot[axis] '+sign+'= value')
+                #print rot
+            else:
+                rot[axis]=value
+            #回転実行
+            if sid == 1 or sid == 2:#ローカルスペースとビューの時の処理
+                #print 'rot os'
+                exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', os=True)')
+            else:#グローバル処理
+                exec('cmds.rotate(rot[0], rot[1], rot[2], sel'+pcp+', ws=True)')
+            exec('trans'+self.axis_list[axis]+'.setText(str(rot[axis]))')
+            
+        if pre_rot[axis] != value:
+            sel_comps = cmds.ls(sl=True, type='float3')
             #カーブもとっておく
             cv_selection = cmds.ls(sl=True, type='double3', fl=True)
-            components = cmds.polyListComponentConversion(selection, tv=True)
+            components = cmds.polyListComponentConversion(sel_comps, tv=True)
             if components:
                 components = cmds.filterExpand(components, sm=31)+cv_selection
             else:
                 components = cv_selection
-            obj_list = list(set([vtx.split('.')[0] for vtx in components]))
-            obj_dict = {obj:[] for obj in obj_list}
-            [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
-            add_rot = [0.0, 0.0, 0.0]
-            current_rot = [0.0, 0.0, 0.0]
-            if sign:
-               if sign == '+':
-                   add_value = value
-               elif sign == '-':
-                   add_value = -1*value
-               else:
-                   add_value = 0.0
-            else:
-                add_value = value
-            add_rot[axis] = add_value
-            #print 'New rot :', add_rot
-            if self.cog_but.isChecked():
-                #COGのときは全てのコンポーネントの中心ピボット
-                #グローバル回転+COGを処理
-                piv_pos = []
-                if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
-                    piv_pos = cmds.manipPivot(p=True, q=True)[0]
-                    #print 'cop mode :', piv_pos
+            if components:
+                obj_list = list(set([vtx.split('.')[0] for vtx in components]))
+                obj_dict = {obj:[] for obj in obj_list}
+                [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
+                add_rot = [0.0, 0.0, 0.0]
+                current_rot = [0.0, 0.0, 0.0]
+                if sign:
+                   if sign == '+':
+                       add_value = value
+                   elif sign == '-':
+                       add_value = -1*value
+                   else:
+                       add_value = 0.0
                 else:
-                    for mesh, vtx in obj_dict.items():
-                        piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
-                    piv_pos = self.get_piv_pos(piv_pos)
-                #print 'Pivot COG :', piv_pos
-                if sid == 0 or sid == 4:
-                    cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
-                if sid == 3:#ジンバル
-                    cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, eu=True, p=piv_pos)
-                if sid == 1 or sid == 2 or sid == 5:#オブジェクト
-                    cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, os=True, p=piv_pos)
-                    #return
-            else:
-                #COGグローバル以外の処理
-                for mesh, vtx in obj_dict.items():
-                    if cmds.nodeType(mesh) == 'mesh':
-                        mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
-                    #print 'comp_mode pre rot :', pre_rot
-                    if not self.cog_but.isChecked():
-                        piv_pos = cmds.xform(mesh, q=True, t=True, ws=True)
-                        #print 'comp_mode piv rot position :', piv_pos
-                    if sid == 0 or sid == 4:#ワールドスペース
-                        #print 'global_mode :'
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, ws=True, p=piv_pos)
+                    add_value = value
+                add_rot[axis] = add_value
+                #print 'New rot :', add_rot
+                if self.cog_but.isChecked():
+                    #COGのときは全てのコンポーネントの中心ピボット
+                    #グローバル回転+COGを処理
+                    piv_pos = []
+                    if self.cog_but.text()  == 'COP' and cmds.manipPivot(q=True, pv=True):
+                        piv_pos = cmds.manipPivot(p=True, q=True)[0]
+                        #print 'cop mode :', piv_pos
+                    else:
+                        for mesh, vtx in obj_dict.items():
+                            piv_pos += cmds.xform(vtx, q=True, t=True, ws=True)
+                        piv_pos = self.get_piv_pos(piv_pos)
+                    #print 'Pivot COG :', piv_pos
+                    if sid == 0 or sid == 4:
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
                     if sid == 3:#ジンバル
-                        #print 'object mode :'
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, eu=True, p=piv_pos)
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, eu=True, p=piv_pos)
                     if sid == 1 or sid == 2 or sid == 5:#オブジェクト
-                        #print 'local_mode :'
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, os=True, p=piv_pos)
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, os=True, p=piv_pos)
+                        #return
+                else:
+                    #COGグローバル以外の処理
+                    for mesh, vtx in obj_dict.items():
+                        if cmds.nodeType(mesh) == 'mesh':
+                            mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
+                        #print 'comp_mode pre rot :', pre_rot
+                        if not self.cog_but.isChecked():
+                            piv_pos = cmds.xform(mesh, q=True, t=True, ws=True)
+                            #print 'comp_mode piv rot position :', piv_pos
+                        if sid == 0 or sid == 4:#ワールドスペース
+                            #print 'global_mode :'
+                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, ws=True, p=piv_pos)
+                        if sid == 3:#ジンバル
+                            #print 'object mode :'
+                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, eu=True, p=piv_pos)
+                        if sid == 1 or sid == 2 or sid == 5:#オブジェクト
+                            #print 'local_mode :'
+                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, os=True, p=piv_pos)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -5016,89 +5016,85 @@ class SiSideBarWeight(qt.DockWindow):
             pcp = ', pcp=True'
         else:
             pcp = ''
-        if cmds.selectMode(q=True, o=True):
-            selection = cmds.ls(sl=True, l=True, tr=True)
-            #print 'check selection in translation :', selection
-            for sel in selection:
-                if sid == 0 or sid == 4:#ワールドスペース
-                    pos = cmds.xform(sel, q=True, t=True, ws=True)
-                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
-                    pos = cmds.xform(sel, q=True, t=True)
-                elif sid == 1:#オブジェクトスペース
-                    pos = cmds.xform(sel, q=True, t=True, os=True)
-                    #exec('pos = cmds.xform(sel, q=True, t=True'+space+')')
-                    #pos = [cmds.getAttr(sel+'.translate'+a)for a in self.axis_attr_list]
-                if sign:
-                    exec('pos[axis] '+sign+'= value')
-                    #print pos
-                else:
-                    pos[axis]=value
-                #移動実行
-                if sid == 0 or sid == 4:#ワールドスペース
-                    exec('cmds.move(pos[0], pos[1], pos[2], sel, ws=True'+pcp+')')
-                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
-                    exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
-                elif sid == 1:#オブジェクトスペース
-                    #print 'os move', text
-                    exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
-                exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
-        else:#コンポーネント選択の時の処理
-            selection = cmds.ls(sl=True, l=True)
-            if text == self.focus_text:
-                #print 'focus same component'
-                return
-            if pre_trans[axis] == value and text == self.pre_pre_lines_text[2][axis]:
-                #print 'same! component'
-                return
-            #カーブもとっておく
-            cv_selection = cmds.ls(sl=True, type='double3', fl=True)
-            components = cmds.polyListComponentConversion(selection, tv=True)
-            if components:
-                components = cmds.filterExpand(components, sm=31)+cv_selection
+        transforms = cmds.ls(sl=True, l=True, tr=True)
+        #print 'check selection in translation :', selection
+        for sel in transforms:
+            if sid == 0 or sid == 4:#ワールドスペース
+                pos = cmds.xform(sel, q=True, t=True, ws=True)
+            elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                pos = cmds.xform(sel, q=True, t=True)
+            elif sid == 1:#オブジェクトスペース
+                pos = cmds.xform(sel, q=True, t=True, os=True)
+                #exec('pos = cmds.xform(sel, q=True, t=True'+space+')')
+                #pos = [cmds.getAttr(sel+'.translate'+a)for a in self.axis_attr_list]
+            if sign:
+                exec('pos[axis] '+sign+'= value')
+                #print pos
             else:
-                components = cv_selection
-            obj_list = list(set([vtx.split('.')[0] for vtx in components]))
-            #obj_list = cmds.ls(hl=True)
-            obj_dict = {obj:[] for obj in obj_list}
-            [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
-            #print obj_dict
-            for mesh, vtx in obj_dict.items():
-                if cmds.nodeType(mesh) == 'mesh':
-                    mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
-                #print 'comp_mode pre trans :', pre_trans
-                add_trans = [0.0, 0.0, 0.0]
-                if sid == 0 or sid == 4:#ワールドスペース
-                    base_trans = cmds.xform(mesh, q=True, t=True, ws=True)
-                else:#ローカルスペース
-                    base_trans = cmds.xform(mesh, q=True, t=True, os=True)
-                if sign:
-                    if sign == '+':
-                        add_value = value
-                    elif sign == '-':
-                        add_value = -1*value
-                    else:
-                        exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
+                pos[axis]=value
+            #移動実行
+            if sid == 0 or sid == 4:#ワールドスペース
+                exec('cmds.move(pos[0], pos[1], pos[2], sel, ws=True'+pcp+')')
+            elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                exec('cmds.move(pos[0], pos[1], pos[2], sel'+pcp+',ls=True)')
+            elif sid == 1:#オブジェクトスペース
+                #print 'os move', text
+                exec('cmds.move(pos[0], pos[1], pos[2], sel,  os=True'+pcp+')')
+            exec('trans'+self.axis_list[axis]+'.setText(str(pos[axis]))')
+        
+        if text != self.focus_text:
+            if pre_trans[axis] != value or text != self.pre_pre_lines_text[2][axis]:
+                sel_comps = cmds.ls(sl=True, type='float3')
+                #カーブもとっておく
+                cv_selection = cmds.ls(sl=True, type='double3', fl=True)
+                components = cmds.polyListComponentConversion(sel_comps, tv=True)
+                if components:
+                    components = cmds.filterExpand(components, sm=31)+cv_selection
                 else:
-                    if cp_abs_flag:
-                        for line_obj in self.t_xyz_list:
-                            if line_obj.hasFocus():
-                                break
+                    components = cv_selection
+                if components:
+                    obj_list = list(set([vtx.split('.')[0] for vtx in components]))
+                    #obj_list = cmds.ls(hl=True)
+                    obj_dict = {obj:[] for obj in obj_list}
+                    [obj_dict[vtx.split('.')[0]].append(vtx) for vtx in components]
+                    #print obj_dict
+                    for mesh, vtx in obj_dict.items():
+                        if cmds.nodeType(mesh) == 'mesh':
+                            mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
+                        #print 'comp_mode pre trans :', pre_trans
+                        add_trans = [0.0, 0.0, 0.0]
+                        if sid == 0 or sid == 4:#ワールドスペース
+                            base_trans = cmds.xform(mesh, q=True, t=True, ws=True)
+                        else:#ローカルスペース
+                            base_trans = cmds.xform(mesh, q=True, t=True, os=True)
+                        if sign:
+                            if sign == '+':
+                                add_value = value
+                            elif sign == '-':
+                                add_value = -1*value
+                            else:
+                                exec('add_value = pre_trans[axis] '+sign+' value-pre_trans[axis]')
                         else:
-                            #print 'skip for trans in scale rot mode'
-                            return
-                        #print 'run cp absolute'
-                        self.scaling(text='0.0', axis=axis, focus=True)
-                    add_value = value - pre_trans[axis]
-                #print 'add value', add_value
-                add_trans[axis] = add_value
-                if sid == 0 or sid == 4:#ワールドスペース
-                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
-                    #cmds.xform(vtx, t=add_trans, r=True, ws=True)
-                elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
-                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
-                    #cmds.xform(vtx, t=add_trans, r=True, os=True)
-                elif sid == 1:#オブジェクトスペース
-                    cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
+                            if cp_abs_flag:
+                                for line_obj in self.t_xyz_list:
+                                    if line_obj.hasFocus():
+                                        break
+                                else:
+                                    #print 'skip for trans in scale rot mode'
+                                    return
+                                #print 'run cp absolute'
+                                self.scaling(text='0.0', axis=axis, focus=True)
+                            add_value = value - pre_trans[axis]
+                        #print 'add value', add_value
+                        add_trans[axis] = add_value
+                        if sid == 0 or sid == 4:#ワールドスペース
+                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
+                            #cmds.xform(vtx, t=add_trans, r=True, ws=True)
+                        elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
+                            #cmds.xform(vtx, t=add_trans, r=True, os=True)
+                        elif sid == 1:#オブジェクトスペース
+                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:

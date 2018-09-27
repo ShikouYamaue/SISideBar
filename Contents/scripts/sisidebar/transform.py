@@ -295,7 +295,7 @@ def set_attr_locked(node, attr_lock_flag_list):
 def check_depth(node):
     count = 0
     while True:
-        parent = cmds.listRelatives(node, p=True)
+        parent = cmds.listRelatives(node, p=True, f=True)
         if not parent:
             break
         node = parent

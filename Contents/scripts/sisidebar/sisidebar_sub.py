@@ -200,24 +200,27 @@ def get_matrix():
             sb.view_np_time(culc_time='- Numpy Calculation Mode -')
         else:
             sb.view_np_time(culc_time='- Usual Calculation Mode -')
-    #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
     selection = cmds.ls(sl=True, type='float3')
     #カーブもとっておく
     cv_selection = cmds.ls(sl=True, type='double3', fl=True)
     #print cv_selection
     if selection or cv_selection:
+        #ラティスポイント他すべてを有効にする
         sel_str = str(selection+cv_selection)
+        '''
         if '.vtx[' in sel_str:
             cmds.selectType(polymeshVertex=True)
             #cmds.selectType(particle=True)
+        '''
         if '.cv[' in sel_str:
             cmds.selectType(cv=True)
+            cmds.selectMode(co=True)
         if '.pt[' in sel_str:
             cmds.selectType(latticePoint=True)
-        cmds.selectMode(co=True)
-        #ラティスポイント他すべてを有効にする
+            cmds.selectMode(co=True)
+        #オブジェクトモードでもコンポーネント選択がある場合は強制的にモード変更する
         
-        components = cmds.polyListComponentConversion(selection, tv=True)+cv_selection
+        components = cmds.polyListComponentConversion(selection, tv=True) + cv_selection
         #print components
         #if not components:
         s_list, r_list, t_list = get_srt(components, mode='component')
@@ -290,7 +293,7 @@ def get_srt(selection, mode='object'):
                 scale = cmds.xform(sel, q=True, s=True, os=True, r=True)
                 rot = cmds.xform(sel, q=True, ro=True, os=True)
                 if sid in local_sids:#ローカルスペースとビューの時の処理
-                    if cmds.selectMode(q=True, o=True):
+                    if cmds.selectMode(q=True, o=True) and mode == 'object':
                         #print sid
                         if sid == 3 or sid == 2 or sid == 5:#ローカルスペース
                             trans = [cmds.getAttr(sel+'.translate'+a)for a in axis_attr_list]
