@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.7 -'
+version = ' - SI Side Bar / ver_2.5.8 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -198,7 +198,7 @@ class FloatingWindow(qt.SubWindow):
         
     def mouseReleaseEvent(self, e):
         #print self.menu_name
-        reset_menu_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_init_window(mode = self.menu_name)), protected=True)
+        cmds.evalDeferred(lambda : self.re_init_window(mode = self.menu_name))
         #print 'click2'
         
     def re_init_window(self, mode='transform_top'):
@@ -454,7 +454,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.all_srt_but_list[mode][3].setChecked(True)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             #print 'select_from_current_context error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
+            cmds.evalDeferred(window.error_avoidance)
             return
         for i, srt_list in enumerate(self.all_srt_but_list):
             if i != mode:
@@ -663,17 +663,17 @@ class SiSideBarWeight(qt.DockWindow):
                 sisidebar_sub.set_vol_mode(mode)
                 self.pre_vol_id = uni_vol_dict[view_but.text()]
                 #sisidebar_sub.volume_scaling(mode)
-                vol_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.volume_scaling), protected=True)
+                cmds.evalDeferred(sisidebar_sub.volume_scaling)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             print 'editing_manip error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            cmds.evalDeferred( self.error_avoidance)
             return
         
         if maya_ver >= 2015:
             self.select_xyz_from_manip()
         else:
             #2014以前はアンドゥインフォから強引に軸を取得する
-            handle_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.current_handle_getter), protected=True)
+            cmds.evalDeferred(sisidebar_sub.current_handle_getter)
         self.reload.emit()
         #
         if ommit_manip_link:
@@ -966,7 +966,6 @@ class SiSideBarWeight(qt.DockWindow):
         for i, job in enumerate(job_list):
             if job:
                 try:
-                    #cmds.scriptJob(ro=True, e=("idle", lambda : cmds.scriptJob(k=job, f=True)), protected=True)
                     cmds.scriptJob(k=job, f=True)
                 except Exception as e:
                     #print 'remove job error :', job, e.message
@@ -984,7 +983,7 @@ class SiSideBarWeight(qt.DockWindow):
             #print 'remove fcurve job error :', e.message
             pass
         cmds.undoInfo(swf=True)
-        cmds.scriptJob(ro=True, e=("idle", self.reset_manip), protected=True)
+        cmds.evalDeferred(self.reset_manip)
     
     #2018up2以降はクローズイベントが発生しないのにウィジェットなくなったことになるから別処理
     def error_avoidance(self):
@@ -2990,7 +2989,7 @@ class SiSideBarWeight(qt.DockWindow):
                     pm.xform(s+'.rotatePivot', t=avr_pos, ws=True)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             print e.message
-            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            cmds.evalDeferred(self.error_avoidance)
             return
         
     def reset_cog_mode(self):
@@ -3231,7 +3230,7 @@ class SiSideBarWeight(qt.DockWindow):
             self.index_line.setText(comp_text)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             print e.message
-            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            cmds.evalDeferred(self.error_avoidance)
             return
         
     #グループセレクションボタンの状態を維持する
@@ -3326,7 +3325,7 @@ class SiSideBarWeight(qt.DockWindow):
             #print 'wheel event :', event.delta()
             self.culc_input_event(obj=obj, delta=delta, mod=key_mod, value=value)
         if event.type() == QEvent.FocusIn:
-            cmds.scriptJob(ro=True, e=("idle", lambda : self.select_text_all(obj)), protected=True)
+            cmds.evalDeferred(lambda : self.select_text_all(obj))
         return False
         
     def select_text_all(self, obj):
@@ -3434,7 +3433,7 @@ class SiSideBarWeight(qt.DockWindow):
         
         #キー入力の場合は入力終了後にイベントを発生させるためジョブを作る
         if mode == 'key':
-            input_job = cmds.scriptJob(ro=True, e=("idle", lambda : self.re_input_value(obj=obj, value=value)), protected=True)
+            cmds.evalDeferred(lambda : self.re_input_value(obj=obj, value=value))
         elif mode == 'gesture':
             self.re_input_value(obj=obj, value=value)
     
@@ -3562,7 +3561,7 @@ class SiSideBarWeight(qt.DockWindow):
                     but.setChecked(flag)
         except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
             #print 'cehck ui button error :', e.message
-            cmds.scriptJob(ro=True, e=("idle", self.error_avoidance), protected=True)
+            cmds.evalDeferred(self.error_avoidance)
             return
                         
         snap_mode = cmds.snapMode(q=True, grid=True)
@@ -5670,7 +5669,7 @@ def change_context():
         window.select_from_current_context()
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         #print 'change_context error :', e.message
-        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
+        cmds.evalDeferred(window.error_avoidance)
         
 #選択モード、オブジェクト、コンポーネントモードでボタン名、選択可能を変える
 def set_active_mute(mode=0):
@@ -5685,7 +5684,7 @@ def set_active_mute(mode=0):
             mode = 3
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         #print 'set active mute error :', e.message
-        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
+        cmds.evalDeferred(window.error_avoidance)
         return
     
         #space_group.button(2).setChecked(True)
@@ -5796,7 +5795,7 @@ def set_srt_text(scale, rot, trans):
         trans_z.setText(trans[2])
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         print e.message
-        cmds.scriptJob(ro=True, e=("idle", window.error_avoidance), protected=True)
+        cmds.evalDeferred(window.error_avoidance)
         return
         
 def set_pre_transform(trans, rot, scale):
@@ -6687,11 +6686,13 @@ def create_focus_job():
     global focus_job
     if not 'focus_job' in globals():
         #print 'create_focus_job'
-        focus_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.out_focus), protected=True)
+        cmds.evalDeferred(sisidebar_sub.out_focus)
+        focus_job = True
     else:
         #print 'create_focus_job'
         if focus_job is None:
-            focus_job = cmds.scriptJob(ro=True, e=("idle", sisidebar_sub.out_focus), protected=True)
+            cmds.evalDeferred(sisidebar_sub.out_focus)
+            focus_job = True
             
 def change_selection_display():
     window.display_selection()
