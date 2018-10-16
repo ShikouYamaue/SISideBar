@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.8 -'
+version = ' - SI Side Bar / ver_2.5.9 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -2065,7 +2065,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_scale_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                     text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_x.clicked.connect(lambda : set_key_frame(mode=0, axis=0))
-        key_scale_x.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
+        key_scale_x.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=0, axis=3)))
         self.main_layout.addWidget(key_scale_x, vn, tw, 1, anim_b)
         tw += anim_b
         
@@ -2093,7 +2093,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_scale_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_y.clicked.connect(lambda : set_key_frame(mode=0, axis=1))
-        key_scale_y.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
+        key_scale_y.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=0, axis=3)))
         self.main_layout.addWidget(key_scale_y, vn, tw, 1, anim_b)
         tw += anim_b
         scale_y = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2110,7 +2110,7 @@ class SiSideBarWeight(qt.DockWindow):
         #ロック状態切り替え
         self.lock_attribute_scale = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
-        self.lock_attribute_scale.clicked.connect(lambda : self.attribute_lock_state(mode=0))
+        self.lock_attribute_scale.clicked.connect(qt.Callback(lambda : self.attribute_lock_state(mode=0)))
         self.lock_attribute_scale.rightClicked.connect(lambda : RockAttrMenu(name='Scale', mode=0))
         self.main_layout.addWidget(self.lock_attribute_scale, vn, tw, 1 ,sel_b)
         vn+=1
@@ -2120,7 +2120,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_scale_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_scale_z.clicked.connect(lambda : set_key_frame(mode=0, axis=2))
-        key_scale_z.rightClicked.connect(lambda : set_key_frame(mode=0, axis=3))
+        key_scale_z.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=0, axis=3)))
         self.main_layout.addWidget(key_scale_z, vn, tw, 1, anim_b)
         tw += anim_b
         scale_z = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2157,7 +2157,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_rot_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_x.clicked.connect(lambda : set_key_frame(mode=1, axis=0))
-        key_rot_x.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
+        key_rot_x.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=1, axis=3)))
         self.main_layout.addWidget(key_rot_x, vn, tw, 1, anim_b)
         tw += anim_b
         rot_x = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2185,7 +2185,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_rot_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_y.clicked.connect(lambda : set_key_frame(mode=1, axis=1))
-        key_rot_y.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
+        key_rot_y.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=1, axis=3)))
         self.main_layout.addWidget(key_rot_y, vn, tw, 1, anim_b)
         tw += anim_b
         rot_y = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2202,7 +2202,7 @@ class SiSideBarWeight(qt.DockWindow):
         #ロック状態切り替え
         self.lock_attribute_rot = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
-        self.lock_attribute_rot.clicked.connect(lambda : self.attribute_lock_state(mode=1))
+        self.lock_attribute_rot.clicked.connect(qt.Callback(lambda : self.attribute_lock_state(mode=1)))
         self.lock_attribute_rot.rightClicked.connect(lambda : RockAttrMenu(name='Rot', mode=1))
         self.main_layout.addWidget(self.lock_attribute_rot, vn, tw, 1 ,sel_b)
         vn+=1
@@ -2212,7 +2212,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_rot_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_rot_z.clicked.connect(lambda : set_key_frame(mode=1, axis=2))
-        key_rot_z.rightClicked.connect(lambda : set_key_frame(mode=1, axis=3))
+        key_rot_z.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=1, axis=3)))
         self.main_layout.addWidget(key_rot_z, vn, tw, 1, anim_b)
         tw += anim_b
         rot_z = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2249,7 +2249,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_trans_x = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_x.clicked.connect(lambda : set_key_frame(mode=2, axis=0))
-        key_trans_x.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
+        key_trans_x.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=2, axis=3)))
         self.main_layout.addWidget(key_trans_x, vn, tw, 1, anim_b)
         tw += anim_b
         trans_x = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2277,7 +2277,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_trans_y = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_y.clicked.connect(lambda : set_key_frame(mode=2, axis=1))
-        key_trans_y.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
+        key_trans_y.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=2, axis=3)))
         self.main_layout.addWidget(key_trans_y, vn, tw, 1, anim_b)
         tw += anim_b
         trans_y = self.make_line_edit(text=string_col, bg=bg_col)
@@ -2293,7 +2293,7 @@ class SiSideBarWeight(qt.DockWindow):
         #ロック状態切り替え
         self.lock_attribute_trans = make_flat_button(icon=image_path+self.l, icon_size=(20, 20), 
                                                             name = '', checkable=False, text=text_col, bg=hilite, w_max=sel_w, h_max=sel_h, tip=lock_but_tip.output())
-        self.lock_attribute_trans.clicked.connect(lambda : self.attribute_lock_state(mode=2))
+        self.lock_attribute_trans.clicked.connect(qt.Callback(lambda : self.attribute_lock_state(mode=2)))
         self.lock_attribute_trans.rightClicked.connect(lambda : RockAttrMenu(name='Trans', mode=2))
         self.main_layout.addWidget(self.lock_attribute_trans, vn, tw, 1 ,sel_b)
         vn+=1
@@ -2303,7 +2303,7 @@ class SiSideBarWeight(qt.DockWindow):
         key_trans_z = make_flat_button(icon=image_path+'Key_N.png', name = '', 
                                                                 text=text_col, bg=hilite, checkable=False, w_max=24, tip=key_but_tip.output())
         key_trans_z.clicked.connect(lambda : set_key_frame(mode=2, axis=2))
-        key_trans_z.rightClicked.connect(lambda : set_key_frame(mode=2, axis=3))
+        key_trans_z.rightClicked.connect(qt.Callback(lambda : set_key_frame(mode=2, axis=3)))
         self.main_layout.addWidget(key_trans_z, vn, tw, 1, anim_b)
         tw += anim_b
         trans_z = self.make_line_edit(text=string_col, bg=bg_col)
