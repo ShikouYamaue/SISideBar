@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.5.9 -'
+version = ' - SI Side Bar / ver_2.6.0 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -869,7 +869,8 @@ class SiSideBarWeight(qt.DockWindow):
                 #print 'not fcurve return :'
                 continue
             #print 'set sub fcurve job :'
-            if cmds.nodeType(fcurve) != 'animCurveTU':
+            anim_curve_list = ['animCurveTU', 'animCurveTA', 'animCurveTL']
+            if not cmds.nodeType(fcurve) in anim_curve_list:
                 continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
