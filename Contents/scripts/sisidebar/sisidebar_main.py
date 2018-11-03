@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.6.0 -'
+version = ' - SI Side Bar / ver_2.6.1 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -864,7 +864,7 @@ class SiSideBarWeight(qt.DockWindow):
             #print node+attr
             job = cmds.scriptJob(connectionChange=[node+attr, self.re_check_fcurve])
             self.attr_job_list.append(job)
-            fcurve = cmds.listConnections(node+attr)
+            fcurve = cmds.listConnections(node+attr, s=True, d=False)
             if not fcurve:
                 #print 'not fcurve return :'
                 continue
@@ -893,11 +893,12 @@ class SiSideBarWeight(qt.DockWindow):
         self.pre_fcurve_job_ctrl_count = self.fcurve_job_ctrl_count
         selection = cmds.ls(sl=True, l=True, tr=True)
         for node, attr in itertools.product(selection, self.trs_attr_list):
-            fcurve = cmds.listConnections(node+attr)
+            fcurve = cmds.listConnections(node+attr, s=True, d=False)
             if not fcurve:
                 continue
             #print 'create_sub_fcurve_job :', node+attr, fcurve
-            if cmds.nodeType(fcurve) != 'animCurveTU':
+            anim_curve_list = ['animCurveTU', 'animCurveTA', 'animCurveTL']
+            if not cmds.nodeType(fcurve) in anim_curve_list:
                 continue
             job = cmds.scriptJob(attributeChange=[fcurve[0]+'.outStippleRange',  self.check_key_anim_from_fcurve])
             self.fcurve_job_list.append(job)
@@ -4794,10 +4795,27 @@ class SiSideBarWeight(qt.DockWindow):
             #オブジェクトモードの時はローカル変換のみサポート
             #scl = [cmds.getAttr(sel+'.scale'+a)for a in self.axis_attr_list]
             scl = cmds.xform(sel, q=True, r=True, s=True)
+            if sid == 0:
+                ws = cmds.xform(sel, q=True, s=True, ws=True)
+                os = cmds.xform(sel, q=True, r=True, s=True)
+                #print 'world scaling mode :', axis, value
+                #print 'get scale :', ws, os, sign
+                if sign:
+                    pass
+                    add_sub_sign = ['+', '-']
+                    if sign  in add_sub_sign:
+                        value = value * os[axis] / ws[axis]
+                    #scl[axis] = os[axis] / ws[axis]
+                else:
+                    value = value * os[axis] / ws[axis]
+                    #value /= ws[axis]
+                    #print 'get scale :', ws, os, scl[axis]
+                    #print 'new scale :', value
             if sign:
-                exec('scl[axis] '+sign+'= value')
+                #+=, -=, *=, /=する
+                exec('scl[axis] ' + sign + '= value')
             else:
-                scl[axis]=value
+                scl[axis] = value
             #スケール実行
             exec('cmds.scale(scl[0], scl[1], scl[2], sel'+pcp+')')
             exec('scale'+self.axis_list[axis]+'.setText(str(scl[axis]))')

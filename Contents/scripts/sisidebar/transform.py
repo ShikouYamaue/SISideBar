@@ -229,7 +229,7 @@ def reset_transform(mode='', c_comp=False, reset_pivot=True):
 #フリーズスケーリングをまとめて
 def freeze_transform(mode='', c_comp=False):
     from . import sisidebar_sub
-    selections = cmds.ls(sl=True, l=True)
+    selections = cmds.ls(sl=True, l=True, tr=True)
     #下からのマルチ選択でも正しく上からフリーズできるように階層深さでソート
     sel_depth = [[sel, check_depth(sel)] for sel in selections]
     sel_depth = sorted(sel_depth, key=lambda a:a[1])
@@ -337,6 +337,7 @@ def match_transform(mode='', child_comp=False):
             hud_but = cmds.hudButton('HUD_match_cancel',e=True, s=7, b=5, vis=1, l='Cancel', bw=80, bsh='roundRectangle', rc=finish_matching)
     jobNum = cmds.scriptJob(ro=True, e=('SelectionChanged', qt.Callback(trs_matching)), protected=True)
     sisidebar_sub.get_matrix()
+    
 def finish_matching():
     global hud_but
     global matching_obj
@@ -381,6 +382,7 @@ def trs_matching(node=None, sel_org=True):
     else:
         if isinstance(mached_obj, list):
             mached_obj = mached_obj[0]
+    #print 'trs matching :', mached_obj
     scl = cmds.xform(mached_obj, q=True, s=True, ws=True)
     rot = cmds.xform(mached_obj, q=True, ro=True, ws=True)
     pos = cmds.xform(mached_obj, q=True, t=True, ws=True)
