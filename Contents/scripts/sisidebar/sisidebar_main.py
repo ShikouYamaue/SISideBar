@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.6.1 -'
+version = ' - SI Side Bar / ver_2.6.2 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -3804,7 +3804,7 @@ class SiSideBarWeight(qt.DockWindow):
         
     def cleanup_texture_ui(self):
         global texture_offset
-        texture_window = CleanUpTexture(qt.getMayaWindow())
+        texture_window = CleanUpTexture(qt.get_maya_window())
         texture_window.show()
         move_to_best_pos(object=texture_window, offset=texture_offset)
         

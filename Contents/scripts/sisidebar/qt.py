@@ -16,10 +16,28 @@ try:
 except ImportError:
     import shiboken
     
-maya_window = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+MAYA_VER = int(cmds.about(v=True)[:4])
+MAYA_API_VER = int(cmds.about(api=True))
     
-maya_ver = int(cmds.about(v=True)[:4])
-maya_api_ver = int(cmds.about(api=True))
+try:
+    MAYA_WIDNOW = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+except:
+    MAYA_WIDNOW = None
+
+#MayaWindow単独取得関数
+def get_maya_window():
+    try:
+        imp.find_module("shiboken2")
+        import shiboken2
+        return shiboken2.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+
+    except ImportError:
+        try:
+            import shiboken
+            return shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+        except:
+            return None
+            
 try:
     from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
     from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
@@ -32,34 +50,34 @@ try:
             super(DockWindow, self).__init__(*args, **kwargs)
            
     #2018の不具合対応のためにQMainWindow用意しておく
-    if 2017 <= maya_ver and maya_ver < 2019:
+    if 2017 <= MAYA_VER and MAYA_VER < 2019:
         class SubWindow(QMainWindow):
-            def __init__(self, parent = maya_window):
-                super(SubWindow, self).__init__(maya_window)
+            def __init__(self, parent = MAYA_WIDNOW):
+                super(SubWindow, self).__init__(MAYA_WIDNOW)
     else:
         class SubWindow(MayaQWidgetBaseMixin, QMainWindow):
             def __init__(self, *args, **kwargs):
                 super(SubWindow, self).__init__(*args, **kwargs)
         
-           
 #2014以前はMixin無いのでMainWindow使う
 except ImportError:
     import shiboken
-    maya_window = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    try:
+        MAYA_WIDNOW = shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    except:
+        MAYA_WIDNOW = None
     
     class MainWindow(QMainWindow):
-        def __init__(self, parent = maya_window):
-            super(MainWindow, self).__init__(maya_window)
+        def __init__(self, parent = MAYA_WIDNOW):
+            super(MainWindow, self).__init__(MAYA_WIDNOW)
            
     class DockWindow(QMainWindow):
-        def __init__(self, parent = maya_window):
-            super(DockWindow, self).__init__(maya_window)
+        def __init__(self, parent = MAYA_WIDNOW):
+            super(DockWindow, self).__init__(MAYA_WIDNOW)
             
     class SubWindow(QMainWindow):
-        def __init__(self, parent = maya_window):
-            super(SubWindow, self).__init__(maya_window)
-    
-    
+        def __init__(self, parent = MAYA_WIDNOW):
+            super(SubWindow, self).__init__(MAYA_WIDNOW)
     
     
 class Callback(object):
@@ -79,16 +97,6 @@ class Callback(object):
         finally:
             cmds.undoInfo(closeChunk=True)
             
-def getMayaWindow():
-    try:
-        imp.find_module("shiboken2")
-        import shiboken2
-        return shiboken2.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
-
-    except ImportError:
-        import shiboken
-        return shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
-    
 #ウィジェットカラーを変更する関数
 def change_widget_color(widget, 
                                         hibgColor = [100, 140, 180],
