@@ -20,7 +20,7 @@ except ImportError:
     from PySide.QtCore import *
     
 save_path = os.path.join(
-        os.getenv('MAYA_APP_dir'),
+        os.getenv('MAYA_APP_DIR'),
         'Scripting_Files')
         
 maya_ver = int(cmds.about(v=True)[:4])
