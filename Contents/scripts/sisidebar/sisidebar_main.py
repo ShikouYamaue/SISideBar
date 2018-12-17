@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.6.2 -'
+version = ' - SI Side Bar / ver_2.6.3 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -6227,7 +6227,7 @@ class SymOption(qt.MainWindow):
         
 class TransformSettingOption(qt.MainWindow):
     dir_path = os.path.join(
-        os.getenv('MAYA_APP_dir'),
+        os.getenv('MAYA_APP_DIR'),
         'Scripting_Files')
     save_file = dir_path+'\\sisidebar_transform_setting_'+str(maya_ver)+'.json'
     def __init__(self, parent = None):
