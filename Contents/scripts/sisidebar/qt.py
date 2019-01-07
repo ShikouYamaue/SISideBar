@@ -27,16 +27,10 @@ except:
 #MayaWindow単独取得関数
 def get_maya_window():
     try:
-        imp.find_module("shiboken2")
-        import shiboken2
-        return shiboken2.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
-
-    except ImportError:
-        try:
-            import shiboken
-            return shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
-        except:
-            return None
+        import shiboken
+        return shiboken.wrapInstance(long(OpenMayaUI.MQtUtil.mainWindow()), QWidget)
+    except:
+        return None
             
 try:
     from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
