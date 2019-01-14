@@ -806,8 +806,10 @@ class SiSideBarWeight(qt.DockWindow):
             toggle_center_mode(mode=False)
         #COGモードなら解除する
         if self.cog_but.isChecked():
+            print 'reset cog as close :'
             self.cog_but.setChecked(False)
-            self.setup_object_center()
+            #self.setup_object_center()
+            self.reset_cog_mode()
         if destroy_flag:
             #print 'timer stop'
             try:
@@ -2548,8 +2550,8 @@ class SiSideBarWeight(qt.DockWindow):
         ja=u'左クリック→親子付けを一つ上の階層に移動\n右クリック→シーンルート直下に親子付け').output()
         self.cut_but = make_flat_button(name = 'Cut', text=text_col, bg=hilite, checkable=False, tip=tip)
         self.main_layout.addWidget(self.cut_but, vn, 6, 1 ,5)
-        self.cut_but.clicked.connect(self.cut_node_once)
-        self.cut_but.rightClicked.connect(self.cut_node_root)
+        self.cut_but.clicked.connect(qt.Callback(self.cut_node_once))
+        self.cut_but.rightClicked.connect(qt.Callback(self.cut_node_root))
         vn+=1
         #設定はシーンのこのトランスフォームの維持を引き継ぐ
         tip = lang.Lang(
@@ -2936,6 +2938,7 @@ class SiSideBarWeight(qt.DockWindow):
         return
         for ds_line in self.ds_line_list:
             ds_line.setVisible(visible)
+            
     #オブジェクトのピボット位置を中心にそろえる
     pre_sel_for_cog = []
     spiv_list = []
@@ -2997,10 +3000,14 @@ class SiSideBarWeight(qt.DockWindow):
     def reset_cog_mode(self):
         #以前のピボット位置に戻す
         for s, sp, rp in zip(self.pre_sel_for_cog, self.spiv_list, self.rpiv_list):
-            if pm.nodeType(s) == 'joint':
+            try:
+                if pm.nodeType(s) == 'joint':
+                    continue
+                pm.xform(s+'.scalePivot', t=sp, os=True)
+                pm.xform(s+'.rotatePivot', t=rp, os=True)
+            except Exception as e:
+                print 'reset cog error :', e.message, s
                 continue
-            pm.xform(s+'.scalePivot', t=sp, os=True)
-            pm.xform(s+'.rotatePivot', t=rp, os=True)
         
     #Numpy使うかどうかを変更
     def change_np_mode(self):
