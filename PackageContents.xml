@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ApplicationPackage SchemaVersion="2.4.6"
+<ApplicationPackage SchemaVersion="2.6.5"
 	ProductType="Application"
 
 	AutodeskProduct="Maya"
 	Name="SiSideBar"
 	Description="Autodesk Maya SiSideBar"
-	AppVersion="2.4.6"
-	Author="mochio"
+	AppVersion="2.6.5"
+	Author="ys"
 	AppNameSpace="com.autodesk.exchange.maya.sisidebar"
 	HelpFile=""
 	OnlineDocumentation=""
