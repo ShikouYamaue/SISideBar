@@ -4531,6 +4531,7 @@ class SiSideBarWeight(qt.DockWindow):
                     pm.parent(sel, p_node)
                 else:
                     pm.parent(sel,  w=True)
+        pm.select(selection, r=True)
             
     def parent_node(self, r=False):
         try:
