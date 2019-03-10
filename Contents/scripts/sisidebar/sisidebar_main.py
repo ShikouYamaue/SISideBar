@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.6.6 -'
+version = ' - SI Side Bar / ver_2.6.7 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -433,8 +433,9 @@ class SiSideBarWeight(qt.DockWindow):
             id = context_id[space_group.checkedId()]
             cmds.manipMoveContext('Move', e=True, mode=id)
             
-    #起動時にMayaの選択コンテキストからUIのSRT選択状態を設定する
+    #Mayaの選択コンテキストからUIのSRT選択状態を設定する
     def select_from_current_context(self, select_handle=True):
+        #print 'select form current context'
         if self.toggle_twk_flag:#2015以下でtweakモード変更したときに表示がちらつかないようにする
             self.toggle_twk_flag = False
             return
@@ -1456,6 +1457,7 @@ class SiSideBarWeight(qt.DockWindow):
         current_flag = self.all_multi_list[current[0]][current[1]]
         if not current_flag:
             return
+        cmds.undoInfo(openChunk=True)
         for m, each_lines in enumerate(self.all_multi_list):
             for a, line_value in enumerate(each_lines):
                 if line_value:
@@ -1474,6 +1476,7 @@ class SiSideBarWeight(qt.DockWindow):
                     button = self.all_xyz_list[m][a]
                     #qt.change_button_color(button, textColor=string_col, bgColor=bg_col)
                     self.all_multi_list[m][a] = False
+        cmds.undoInfo(closeChunk=True)
                     
     def keep_focused_text(self, text):
         #print 'keep_focus', text
@@ -4551,29 +4554,33 @@ class SiSideBarWeight(qt.DockWindow):
     def get_pre_about(self):
         global pre_about
         pre_about = cmds.symmetricModelling(q=True, a=True)
+        self.pre_about = pre_about
+        #print 'get pre about :', pre_about
             
     def toggle_sym(self):
+        global pre_about
         if self.sym_but.isChecked():
             if maya_ver <= 2015:
                 self.prop_but.setChecked(False)
                 self.toggle_prop()
             try:
-                #print pre_about
-                cmds.symmetricModelling(e=True, symmetry=True, about=pre_about)
+                #print 'set pre about :', self.pre_about
+                cmds.symmetricModelling(e=True, symmetry=True, about=self.pre_about)
                 if 'sym_window' in globals():
-                    if pre_about == 'world':
+                    if self.pre_about == 'world':
                         sym_window.sym_group.button(1).setChecked(True)
-                    if pre_about == 'object':
+                    if self.pre_about == 'object':
                         sym_window.sym_group.button(2).setChecked(True)
-                    if pre_about == 'topo':
+                    if self.pre_about == 'topo':
                         sym_window.sym_group.button(3).setChecked(True)
             except:
                 cmds.symmetricModelling(e=True, symmetry=True, about='world')
                 if 'sym_window' in globals():
                     sym_window.sym_group.button(1).setChecked(True)
                 
-            #cmds.symmetricModelling(e=True, topoSymmetry=0) 
+        #cmds.symmetricModelling(e=True, topoSymmetry=0) 
         else:
+            self.get_pre_about()#シンメトリ軸設定を取得しておく
             cmds.symmetricModelling(e=True, symmetry=False)
             if maya_ver >= 2015:
                 cmds.symmetricModelling(e=True, topoSymmetry=False)
@@ -4851,6 +4858,13 @@ class SiSideBarWeight(qt.DockWindow):
                 else:
                     add_value = value
                 add_scale[axis] = add_value
+                sym = cmds.symmetricModelling(q=True, symmetry=True)
+                if sym and not self.cog_but.isChecked():
+                    current_tool = cmds.currentCtx()
+                    cmds.setToolTo('scaleSuperContext')
+                    piv_pos = cmds.manipScaleContext('Scale', q=True, p=True)
+                    cmds.setToolTo(current_tool)
+                    #print 'pivot pos :', piv_pos
                 #print 'add scale :', add_scale
                 #COGのときは全てのコンポーネントの中心ピボット
                 if self.cog_but.isChecked():
@@ -4864,31 +4878,35 @@ class SiSideBarWeight(qt.DockWindow):
                         piv_pos = self.get_piv_pos(piv_pos)
                     #print 'Pivot COG :', piv_pos
                     if sid == 0 or sid ==4:
-                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ws=True, p=piv_pos)
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], r=True, ws=True, p=piv_pos, smn=sym)
                     if sid == 1 or sid == 2 or sid == 5:
-                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, ls=True, p=piv_pos)
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], r=True, ls=True, p=piv_pos, smn=sym)
                     if sid == 3:
-                        cmds.scale(add_scale[0], add_scale[1], add_scale[2], components, r=True, os=True, p=piv_pos)
+                        cmds.scale(add_scale[0], add_scale[1], add_scale[2],  r=True, os=True, p=piv_pos, smn=sym)
                 else:#それぞれのメッシュの中心ピボット
                     for mesh, vtx in obj_dict.items():
                         if cmds.nodeType(mesh) == 'mesh':
                             mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
                         #print 'comp_mode pre scale :', pre_scale
-                        base_pos = cmds.xform(mesh, q=True, t=True, ws=True)
+                        if sym:
+                            base_pos = piv_pos
+                        else:
+                            base_pos = cmds.xform(mesh, q=True, t=True, ws=True)
                         #print 'comp_mode base scale position :', base_pos
                         if sid == 3:#オブジェクトモードの時だけそれぞれの角度にスケール
                             #print 'object mode :'
                             #cmds.xform(vtx, s=add_scale, r=True, os=True)
-                            cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, os=True)
+                            cmds.scale(add_scale[0], add_scale[1], add_scale[2], r=True, os=True, smn=sym)
                         else:#それ以外の場合はグローバル座標それぞれの位置にスケール
                             #print 'add_mode :'
                             #SIだとコンポーネントスケールはワールドもローカルも手打ちでは同じ動きをする。分けられるけど、どうしよう。
                             #cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
                             #分けたバージョンは以下
                             if sid == 0 or sid ==4:
-                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ws=True, p=base_pos)
+                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], r=True, ws=True, p=base_pos, smn=sym)
                             if sid == 1 or sid == 2 or sid == 5:
-                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], vtx, r=True, ls=True, p=base_pos)
+                                cmds.scale(add_scale[0], add_scale[1], add_scale[2], r=True, ls=True, p=base_pos, smn=sym)
+                                
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -4965,7 +4983,12 @@ class SiSideBarWeight(qt.DockWindow):
                 else:
                     add_value = value
                 add_rot[axis] = add_value
+                sym = cmds.symmetricModelling(q=True, symmetry=True)
                 #print 'New rot :', add_rot
+                if sym:
+                    smn = self.get_snm_flag()
+                else:
+                    smn = False
                 if self.cog_but.isChecked():
                     #COGのときは全てのコンポーネントの中心ピボット
                     #グローバル回転+COGを処理
@@ -4979,30 +5002,23 @@ class SiSideBarWeight(qt.DockWindow):
                         piv_pos = self.get_piv_pos(piv_pos)
                     #print 'Pivot COG :', piv_pos
                     if sid == 0 or sid == 4:
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, ws=True, p=piv_pos)
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], r=True, ws=True, p=piv_pos, smn=smn)
                     if sid == 3:#ジンバル
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, eu=True, p=piv_pos)
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], r=True, eu=True, p=piv_pos, smn=smn)
                     if sid == 1 or sid == 2 or sid == 5:#オブジェクト
-                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], components, r=True, os=True, p=piv_pos)
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], r=True, os=True, p=piv_pos, smn=smn)
                         #return
                 else:
                     #COGグローバル以外の処理
-                    for mesh, vtx in obj_dict.items():
-                        if cmds.nodeType(mesh) == 'mesh':
-                            mesh = cmds.listRelatives(mesh, p=True, f=True)[0]
-                        #print 'comp_mode pre rot :', pre_rot
-                        if not self.cog_but.isChecked():
-                            piv_pos = cmds.xform(mesh, q=True, t=True, ws=True)
-                            #print 'comp_mode piv rot position :', piv_pos
-                        if sid == 0 or sid == 4:#ワールドスペース
-                            #print 'global_mode :'
-                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, ws=True, p=piv_pos)
-                        if sid == 3:#ジンバル
-                            #print 'object mode :'
-                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, eu=True, p=piv_pos)
-                        if sid == 1 or sid == 2 or sid == 5:#オブジェクト
-                            #print 'local_mode :'
-                            cmds.rotate(add_rot[0], add_rot[1], add_rot[2], vtx, r=True, os=True, p=piv_pos)
+                    if sid == 0 or sid == 4:#ワールドスペース
+                        #print 'global_mode :'
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2],  r=True, ws=True, smn=smn)
+                    if sid == 3:#ジンバル
+                        #print 'object mode :'
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2], r=True, eu=True, smn=smn)
+                    if sid == 1 or sid == 2 or sid == 5:#オブジェクト
+                        #print 'local_mode :'
+                        cmds.rotate(add_rot[0], add_rot[1], add_rot[2],  r=True, os=True, smn=smn)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -5019,6 +5035,7 @@ class SiSideBarWeight(qt.DockWindow):
         global world_str_axis
         world_str_mode=2
         world_str_axis=axis
+        #移動方向反転フラグsmnを現在の軸座標から判定
         #print '/*/*/*/*/translation'
         global pre_trans
         if text == self.focus_text:
@@ -5112,14 +5129,27 @@ class SiSideBarWeight(qt.DockWindow):
                             add_value = value - pre_trans[axis]
                         #print 'add value', add_value
                         add_trans[axis] = add_value
-                        if sid == 0 or sid == 4:#ワールドスペース
-                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ws=True)
+                        sym = cmds.symmetricModelling(q=True, symmetry=True)
+                        ##symmetry有効の場合smnの場合分けが必要そう
+                        if sym:
+                            smn = self.get_snm_flag()
+                            if sid == 0 or sid == 4:#ワールドスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2], r=True, smn=smn)
+                                #cmds.xform(vtx, t=add_trans, r=True, ws=True)
+                            elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2],  r=True, ls=True, smn=smn)
+                                #cmds.xform(vtx, t=add_trans, r=True, os=True)
+                            elif sid == 1:#オブジェクトスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2], r=True, os=True, wd=sym, smn=smn)
+                        else:
+                            if sid == 0 or sid == 4:#ワールドスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2], r=True, ws=True)
                             #cmds.xform(vtx, t=add_trans, r=True, ws=True)
-                        elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
-                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, ls=True)
+                            elif sid == 3 or sid == 2 or sid == 5:#ローカルスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2],  r=True, ls=True)
                             #cmds.xform(vtx, t=add_trans, r=True, os=True)
-                        elif sid == 1:#オブジェクトスペース
-                            cmds.move(add_trans[0], add_trans[1], add_trans[2], vtx, r=True, os=True)
+                            elif sid == 1:#オブジェクトスペース
+                                cmds.move(add_trans[0], add_trans[1], add_trans[2], r=True, os=True)
         sisidebar_sub.get_matrix()
         #self.out_focus()
         if focus:
@@ -5129,6 +5159,17 @@ class SiSideBarWeight(qt.DockWindow):
             input_line_id = axis
             create_focus_job()
             
+    #移動方向反転フラグsmnを現在の軸座標から判定
+    def get_snm_flag(self):
+        axis_list = ['x', 'y', 'z']
+        sym_axis = cmds.symmetricModelling(q=True, ax=True)
+        axis_id = axis_list.index(sym_axis)
+        sym_axis_trans = pre_trans[axis_id]
+        if sym_axis_trans >= 0 :
+            return True
+        else:
+            return False
+        
     #一軸を絶対値にした位置リストを返す
     def exchange_abs_val(self, components, axis, abs):
         pos_list = [cmds.xform(con, q=True, t=True, ws=True) for con in components]
@@ -5696,6 +5737,8 @@ def change_context():
     except Exception as e:#2018up2以降のウィンドウ閉じた不具合対応
         #print 'change_context error :', e.message
         cmds.evalDeferred(window.error_avoidance)
+    #UI更新
+    sisidebar_sub.get_matrix()
         
 #選択モード、オブジェクト、コンポーネントモードでボタン名、選択可能を変える
 def set_active_mute(mode=0):
@@ -6169,7 +6212,9 @@ class SymOption(qt.MainWindow):
                     cmds.warning( msg.output())
                     pre_about = 'world'
             window.sym_but.setChecked(True)
+            window.pre_about = pre_about
             window.toggle_sym()
+            
     def change_axis(self):
         axis = self.axis_group.checkedId()
         #print cmds.symmetricModelling(q=True, ax=True)
@@ -6707,7 +6752,7 @@ def clear_focus_job():
     global focus_job
     focus_job = None
     
-#フォーカスを外すジョブを作る、処理終了後に一度だけ実行される
+#フォーカスを外す
 def create_focus_job():
     global focus_job
     if not 'focus_job' in globals():

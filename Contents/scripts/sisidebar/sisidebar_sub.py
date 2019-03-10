@@ -2,6 +2,9 @@
 #SI Side Bar Culc
 from maya import cmds
 from maya import mel
+import pymel.core as pm
+import maya.OpenMaya as om
+import maya.api.OpenMaya as om2
 import math
 import qt
 import datetime as dt
@@ -11,6 +14,7 @@ import time
 from . import sisidebar_main as sb
 from . import common
 from . import prof
+from . import math_matrix as mm
 try:
     import numpy as np
     np_flag = True
@@ -145,7 +149,9 @@ def set_round_decimal(decimal):
     round_decimal = decimal
     
 #@prof.profileFunction()
+SYM_AVOIDANCE = False#シンメトリ中の回避フラッグ
 def get_matrix():
+    global SYM_AVOIDANCE
     global sb
     from . import sisidebar_main as sb
     #print '-------------get Matrix---------------- :'
@@ -154,12 +160,20 @@ def get_matrix():
     #print 'current tool ;',  current_tool
     #cmds.setToolTo('selectSuperContext')
     #cmds.setToolTo(current_tool)
+    if SYM_AVOIDANCE:
+        SYM_AVOIDANCE = False
+        return
     #ロックの有無をチェック
     try:
         sb.window.attribute_lock_state(mode=3, check_only=True)
     except Exception as e:
         print e.message
         pass
+    try:#2018up2以降の不具合対応
+        sid = sb.space_group.checkedId()
+    except Exception as e:
+        print e.message
+        return
     #一旦スケールX値をリセットしてメインウィンドウクラスに変更をお知らせする
     #sb.set_temp_text('change')
     sb.set_active_mute()
@@ -224,7 +238,23 @@ def get_matrix():
         #print components
         #if not components:
         s_list, r_list, t_list = get_srt(components, mode='component')
-        start = dt.datetime.now()
+        start = dt.datetime.now()#計測開始
+        #マニプ情報取得に必要な情報を集める
+        sym = cmds.symmetricModelling(q=True, symmetry=True)
+        current_tool = cmds.currentCtx()
+        tools_list = ['scaleSuperContext', 'RotateSuperContext', 'moveSuperContext']
+        if sym:
+            axis_list = ['x', 'y', 'z']
+            sym_axis = cmds.symmetricModelling(q=True, ax=True)
+            axis_id = axis_list.index(sym_axis)
+            meshes = cmds.ls(hl=True, l=True)
+            #マニプが有効でない場合はシンメトリ座標を取得できないので自前計算
+            if not current_tool in tools_list:
+                for i, value in enumerate(t_list):
+                    if i % 3 == axis_id:
+                        value = math.sqrt(value**2)
+                        t_list[i] = value
+            
         if np_flag:
             #print 'culc in numpy'
             s_list = np.reshape(s_list, (len(s_list)/3,3))
@@ -240,17 +270,59 @@ def get_matrix():
                 srt_list[0] += s_list[i+0]
                 srt_list[1] += s_list[i+1]
                 srt_list[2] += s_list[i+2]
+            scale = map(lambda a: a/(len(s_list)/3), srt_list[0:3])
             for i in range(0, len(r_list), 3):
                 srt_list[3] += r_list[i+0]
                 srt_list[4] += r_list[i+1]
                 srt_list[5] += r_list[i+2]
+            rot = map(lambda a: a/(len(r_list)/3), srt_list[3:6])
             for i in range(0, len(t_list), 3):
                 srt_list[6] += t_list[i+0]
                 srt_list[7] += t_list[i+1]
                 srt_list[8] += t_list[i+2]
-            scale = map(lambda a: a/(len(s_list)/3), srt_list[0:3])
-            rot = map(lambda a: a/(len(r_list)/3), srt_list[3:6])
             trans = map(lambda a: a/(len(t_list)/3), srt_list[6:9])
+        #シンメトリのときとワールド座標の場合の処理
+        #ワールド空間のときもMayaのマニピュレータ位置とあわせる
+        if sym or sid == 0 or sid == 4:
+            if  current_tool  in tools_list:
+                if current_tool == 'moveSuperContext':
+                    trans = cmds.manipMoveContext('Move', q=True, p=True)
+                elif current_tool == 'RotateSuperContext':
+                    trans = cmds.manipRotateContext('Rotate', q=True, p=True)
+                elif current_tool == 'scaleSuperContext':
+                    trans = cmds.manipScaleContext('Scale', q=True, p=True)
+                #ワールド空間でない且つ選択オブジェクトが1つの場合はマトリクス計算で座標を求める
+                if sid != 0 and sid != 4 and len(meshes) == 1:
+                    scale = cmds.xform(meshes[0], q=True, s=True, ws=True)
+                    #scale = [1.0]*3
+                    if len(meshes)  == 1:
+                        pos = trans + [1]#行列掛けるようの位置配列、末尾に1つけとく
+                        if np_flag:
+                            #マトリクス計算で座標求める
+                            matrix  = cmds.xform(meshes[0], q=True, m=True, ws=True)
+                            matrix = np.reshape(matrix, (4, 4))
+                            rev_matrix = np.linalg.inv(matrix)#逆行列
+                            #print 'get mesh matrix :', matrix, meshes[0]
+                            #print 'get rev matrix np:', rev_matrix
+                            mul_matrix_trans = np.dot(pos, matrix)
+                            mul_rev_matrix_trans = np.dot(pos, rev_matrix)
+                            #print 'mul matrix :', mul_matrix_trans
+                            #print 'mul rev matrix :', mul_rev_matrix_trans
+                            trans = scale * mul_rev_matrix_trans[:3]
+                            #print 'Local trans np:', trans
+                        else:#Numpy使わない処理
+                            matrix  = cmds.xform(meshes[0], q=True, m=True, ws=True)
+                            rev_matrix = pm.ls(meshes[0])[0].transformationMatrix().inverse()
+                            #print 'get rev matrix :', rev_matrix
+                            pos = [pos]#行列掛けるようの位置配列、末尾に1つけとく
+                            #print matrix
+                            #print rev_matrix
+                            mul_rev_matrix_trans = mm.dot(pos, rev_matrix)[0]
+                            #print mul_rev_matrix_trans
+                            trans = mm.mul(mul_rev_matrix_trans[:3], scale)
+                        #print 'Local trans :', trans
+                    #print 'sym pos :',  trans, meshes, sid
+        #print 'trans :', trans
         end = dt.datetime.now()
         culc_time = end - start
         sb.view_np_time(culc_time='Culc Time '+str(culc_time))
@@ -281,13 +353,16 @@ def get_srt(selection, mode='object'):
     except Exception as e:
         print e.message
         return
+    sym = cmds.symmetricModelling(q=True, symmetry=True)
     for sel in selection:
         try:
             parent = cmds.listRelatives(sel, p=True)
+            #ワールド空間のときの処理
             if sid == 0 or sid == 4:
                 scale = cmds.xform(sel, q=True, s=True, ws=True)
                 rot = cmds.xform(sel, q=True, ro=True, ws=True)
                 trans = cmds.xform(sel, q=True, t=True, ws=True)
+            #ローカル、ペアレント空間のときの処理
             else:
                 axis_attr_list = ['X', 'Y', 'Z']
                 scale = cmds.xform(sel, q=True, s=True, os=True, r=True)
@@ -313,6 +388,7 @@ def get_srt(selection, mode='object'):
                 t_list += trans
         except:
             pass
+    #print 'tarns list :', len(t_list)
     return s_list, r_list, t_list
     
 #センターベイク中かどうかを設定
