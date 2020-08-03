@@ -55,7 +55,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = ' - SI Side Bar / ver_2.6.7 -'
+version = ' - SI Side Bar / ver_2.6.8 -'
 window_name = 'SiSideBar'
     
 maya_ver = int(cmds.about(v=True)[:4])
@@ -3509,9 +3509,9 @@ class SiSideBarWeight(qt.DockWindow):
         #self.select_joint_but.setChecked(True)
         check_filter_mode = [False]*8
         #マーカー
-        select_handle = cmds.selectType(q=True, sh=True)
+        handle = cmds.selectType(q=True, ha=True)
         ik_handle = cmds.selectType(q=True, ikh=True)
-        if any([select_handle, ik_handle]):
+        if any([handle, ik_handle]):
             check_filter_mode[0] = True
         #ジョイント
         joint = cmds.selectType(q=True, j=True)
