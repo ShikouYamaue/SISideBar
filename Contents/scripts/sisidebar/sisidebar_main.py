@@ -1698,7 +1698,7 @@ class SiSideBarWeight(qt.DockWindow):
 
     def select_manip_handle(self, mode):
         b_list = self.all_srt_but_list[mode][0:3]
-        active_list = map(lambda a: a.isChecked(), b_list)
+        active_list = list(map(lambda a: a.isChecked(), b_list))
         # print active_list
         if all(active_list):
             handle_id = 3
@@ -4252,18 +4252,18 @@ class SiSideBarWeight(qt.DockWindow):
         if self.blinking_times < -30:
             self.add_flag = True
         if self.add_flag:
-            self.bk_line_col = map(lambda a: a + 1, self.bk_line_col)
-            self.bk_border_col = map(lambda a: a + 1, self.bk_border_col)
+            self.bk_line_col = list(map(lambda a: a + 1, self.bk_line_col))
+            self.bk_border_col = list(map(lambda a: a + 1, self.bk_border_col))
             self.blinking_times += 1
         else:
-            self.bk_line_col = map(lambda a: a - 1, self.bk_line_col)
-            self.bk_border_col = map(lambda a: a - 1, self.bk_border_col)
+            self.bk_line_col = list(map(lambda a: a - 1, self.bk_line_col))
+            self.bk_border_col = list(map(lambda a: a - 1, self.bk_border_col))
             self.blinking_times -= 1
         # print self.bk_line_col
-        bk_col = map(lambda a: a if a < 255 else 255, self.bk_line_col)
-        bk_col = map(lambda a: a if a > 100 else 100, bk_col)
-        bk_bd_col = map(lambda a: a if a < 255 else 255, self.bk_border_col)
-        bk_bd_col = map(lambda a: a if a > 100 else 100, bk_bd_col)
+        bk_col = list(map(lambda a: a if a < 255 else 255, self.bk_line_col))
+        bk_col = list(map(lambda a: a if a > 100 else 100, bk_col))
+        bk_bd_col = list(map(lambda a: a if a < 255 else 255, self.bk_border_col))
+        bk_bd_col = list(map(lambda a: a if a > 100 else 100, bk_bd_col))
         for line in line_list:
             qt.change_button_color(line, textColor=bk_col, bgColor=bk_col)
         for but, pt in zip(all_flat_buttons, all_flat_button_palams):
@@ -4379,7 +4379,7 @@ class SiSideBarWeight(qt.DockWindow):
                         pos_sum[0] += pos[0]
                         pos_sum[1] += pos[1]
                         pos_sum[2] += pos[2]
-                    avr_pos = map(lambda a: a/len(pos_list), pos_sum)
+                    avr_pos = list(map(lambda a: a/len(pos_list), pos_sum)
                 """
                 # バウンディングボックスの中心に修正
                 bBox = pm.exactWorldBoundingBox(sel_obj, ignoreInvisible=False)
@@ -4708,9 +4708,9 @@ class SiSideBarWeight(qt.DockWindow):
         if event.type() == QEvent.MouseButtonPress:
             # print 'mouse clicked'
             self.first_move_flag = True
-            self.pre_pos = map(
+            self.pre_pos = list(map(
                 float, [QCursor.pos().x(), QCursor.pos().y() * -1]
-            )
+            ))
             self.pre_vec = [0, 1]
             self.count = 0
             self.mouse_flag = True
@@ -4809,9 +4809,9 @@ class SiSideBarWeight(qt.DockWindow):
             return None
         else:
             self.count = 0
-            self.cur_pos = map(
+            self.cur_pos = list(map(
                 float, [QCursor.pos().x(), QCursor.pos().y() * -1]
-            )
+            ))
 
             if self.cur_pos != self.pre_pos:
                 # print 'get mouse pos :', self.pre_pos, 'to', self.cur_pos
@@ -7236,7 +7236,7 @@ class SiSideBarWeight(qt.DockWindow):
             cmds.xform(con, q=True, t=True, ws=True) for con in components
         ]
         return [
-            map(lambda a: pos[a] if a != axis else abs, range(3))
+            list(map(lambda a: pos[a] if a != axis else abs, range(3)))
             for pos in pos_list
         ]
 
@@ -7252,7 +7252,7 @@ class SiSideBarWeight(qt.DockWindow):
                 srt_list[0] += piv_pos[i + 0]
                 srt_list[1] += piv_pos[i + 1]
                 srt_list[2] += piv_pos[i + 2]
-            piv_pos = map(lambda a: a / (len(piv_pos) / 3), srt_list)
+            piv_pos = list(map(lambda a: a / (len(piv_pos) / 3), srt_list))
         end = dt.datetime.now()
         culc_time = end - start
         view_np_time(culc_time=culc_time)
@@ -7622,7 +7622,7 @@ def transform_center():
 def toggle_center_mode(
     init=None, mode=None, change=False, ntpose=False, lock=False
 ):
-    suffix = map(lambda a: "_ntpose" if a else "_cneter", [ntpose])[0]
+    suffix = list(map(lambda a: "_ntpose" if a else "_cneter", [ntpose]))[0]
     # print suffix
     # cmds.undoInfo(cn='tgl_center', ock=True)
     global center_mode
@@ -8078,17 +8078,18 @@ def set_active_mute(mode=0):
 
 
 def set_srt_text(scale, rot, trans):
-    scale = map(str, scale)
-    rot = map(str, rot)
-    trans = map(str, trans)
+    global window
+    scale = list(map(str, scale))
+    rot = list(map(str, rot))
+    trans = list(map(str, trans))
     # 念のため0のマイナス符号を除去
-    scale = map(
+    scale = list(map(
         lambda a: a.replace("-0.0", "0.0") if a == "-0.0" else a, scale
-    )
-    rot = map(lambda a: a.replace("-0.0", "0.0") if a == "-0.0" else a, rot)
-    trans = map(
+    ))
+    rot = list(map(lambda a: a.replace("-0.0", "0.0") if a == "-0.0" else a, rot))
+    trans = list(map(
         lambda a: a.replace("-0.0", "0.0") if a == "-0.0" else a, trans
-    )
+    ))
     try:
         scale_x.setText(scale[0])
         scale_y.setText(scale[1])

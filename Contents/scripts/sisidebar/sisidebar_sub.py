@@ -215,15 +215,15 @@ def get_matrix():
             # print('get matrix :', s_list, r_list, t_list)
             for i in range(3):
                 s_list = [
-                    map(lambda a: round(float(a), view_decimal), xyz)
+                    list(map(lambda a: round(float(a), view_decimal), xyz))
                     for xyz in s_list
                 ]
                 r_list = [
-                    map(lambda a: round(float(a), view_decimal), xyz)
+                    list(map(lambda a: round(float(a), view_decimal), xyz))
                     for xyz in r_list
                 ]
                 t_list = [
-                    map(lambda a: round(float(a), view_decimal), xyz)
+                    list(map(lambda a: round(float(a), view_decimal), xyz))
                     for xyz in t_list
                 ]
                 if not all(s[i] == s_list[0][i] for s in s_list):
@@ -309,17 +309,17 @@ def get_matrix():
                 srt_list[0] += s_list[i + 0]
                 srt_list[1] += s_list[i + 1]
                 srt_list[2] += s_list[i + 2]
-            scale = map(lambda a: a / (len(s_list) / 3), srt_list[0:3])
+            scale = list(map(lambda a: a / (len(s_list) / 3), srt_list[0:3]))
             for i in range(0, len(r_list), 3):
                 srt_list[3] += r_list[i + 0]
                 srt_list[4] += r_list[i + 1]
                 srt_list[5] += r_list[i + 2]
-            rot = map(lambda a: a / (len(r_list) / 3), srt_list[3:6])
+            rot = list(map(lambda a: a / (len(r_list) / 3), srt_list[3:6]))
             for i in range(0, len(t_list), 3):
                 srt_list[6] += t_list[i + 0]
                 srt_list[7] += t_list[i + 1]
                 srt_list[8] += t_list[i + 2]
-            trans = map(lambda a: a / (len(t_list) / 3), srt_list[6:9])
+            trans = list(map(lambda a: a / (len(t_list) / 3), srt_list[6:9]))
         # シンメトリのときとワールド座標の場合の処理
         # ワールド空間のときもMayaのマニピュレータ位置とあわせる
         if sym or sid == 0 or sid == 4:
@@ -375,20 +375,20 @@ def get_matrix():
         sb.view_np_time(culc_time="Culc Time " + str(culc_time))
         # 表示桁数を調整する
     try:
-        scale = map(
+        scale = list(map(
             lambda a: round(float(a), view_decimal) if a != "" else "", scale
-        )
-        rot = map(
+        ))
+        rot = list(map(
             lambda a: round(float(a), view_decimal) if a != "" else "", rot
-        )
-        trans = map(
+        ))
+        trans = list(map(
             lambda a: round(float(a), view_decimal) if a != "" else "", trans
-        )
+        ))
         # 念のため0のマイナス符号を除去、main側のセットでもやってるんで一旦ミュート
         # print(rot)
-        # scale = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, scale)
-        # rot = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, rot)
-        # trans = map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, trans)
+        # scale = list(map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, scale)
+        # rot = list(map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, rot)
+        # trans = list(map(lambda a : float(str(a).replace('-0.0', '0.0')) if a=='-0.0' else a, trans)
         # print(rot)
         sb.set_pre_transform(trans, rot, scale)
         sb.set_srt_text(scale, rot, trans)
@@ -643,7 +643,7 @@ def volume_scaling():
     # print('volume_mode :', mode)
     undo_scale = cmds.undoInfo(q=True, un=True)
     # print('1st undo info :', undo_scale)
-    scale_list = map(float, undo_scale.split(" ")[-4:-1])
+    scale_list = list(map(float, undo_scale.split(" ")[-4:-1]))
     scale_com = undo_scale.split(" ")[:-4]
     # print('scale list :', scale_list)
     # print('scale command :', scale_com)
@@ -679,7 +679,7 @@ def volume_scaling():
             else:
                 scale_list[i] = 1.0
     # print('post scale list :', scale_list)
-    post_scale_cmd = " ".join(scale_com + map(str, scale_list))
+    post_scale_cmd = " ".join(scale_com + list(map(str, scale_list)))
     # print('post command :', post_scale_cmd)
     mel.eval(post_scale_cmd)
     get_matrix()
