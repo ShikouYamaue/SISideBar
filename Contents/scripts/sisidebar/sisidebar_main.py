@@ -60,7 +60,7 @@ except:
     np_flag = False
     np_exist = False
 
-version = " - SI Side Bar / ver_2.6.8 -"
+version = " - SI Side Bar / ver_2.6.9 -"
 window_name = "SiSideBar"
 
 maya_ver = int(cmds.about(v=True)[:4])
