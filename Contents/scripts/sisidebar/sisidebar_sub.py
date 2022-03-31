@@ -191,12 +191,12 @@ def get_matrix():
     try:
         sb.window.attribute_lock_state(mode=3, check_only=True)
     except Exception as e:
-        print(e.message)
+        print(e)
         pass
     try:  # 2018up2以降の不具合対応
         sid = sb.space_group.checkedId()
     except Exception as e:
-        print(e.message)
+        print(e)
         return
     # 一旦スケールX値をリセットしてメインウィンドウクラスに変更をお知らせする
     # sb.set_temp_text('change')
@@ -210,7 +210,7 @@ def get_matrix():
             try:
                 s_list, r_list, t_list = get_srt(selection)
             except Exception as e:
-                print(e.message)
+                print(e)
                 return
             # print('get matrix :', s_list, r_list, t_list)
             for i in range(3):
@@ -405,7 +405,7 @@ def get_srt(selection, mode="object"):
     try:  # 2018up2以降の不具合対応
         sid = sb.space_group.checkedId()
     except Exception as e:
-        print(e.message)
+        print(e)
         return
     sym = cmds.symmetricModelling(q=True, symmetry=True)
     for sel in selection:
