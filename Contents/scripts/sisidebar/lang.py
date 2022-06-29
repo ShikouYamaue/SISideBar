@@ -5,7 +5,7 @@ UI_LANGUAGE = cmds.about(uil=True)
 
 
 class Lang(object):
-    def __init__(self, en='', ja=''):
+    def __init__(self, en="", ja=""):
         self.jp = ja
         self.en = en
 
